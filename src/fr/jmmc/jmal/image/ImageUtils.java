@@ -363,6 +363,9 @@ public final class ImageUtils {
         final ColorModel imageColorModel;
         final WritableRaster imageRaster;
 
+        
+        // TODO: memory waste: reuse images if possible !!
+        
         if (USE_RGB_INTERPOLATION) {
             imageColorModel = ColorModel.getRGBdefault();
             imageRaster = imageColorModel.createCompatibleWritableRaster(width, height);
