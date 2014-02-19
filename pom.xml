@@ -17,6 +17,9 @@
     <name>jMal</name>
 
     <properties>
+	<!-- do copy dependencies (JNLP) -->
+	<mdep.skip>false</mdep.skip>
+
 	<!-- disable tests (jtransforms tests are very long) -->
         <maven.test.skip>true</maven.test.skip>
     </properties>
