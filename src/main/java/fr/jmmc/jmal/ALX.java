@@ -252,12 +252,12 @@ public final class ALX {
         final double absAngle;
         if (angle < 0.0D) {
             negative = true;
-            absAngle = -angle * DEG_IN_HOUR; /* convert deg in hours */
-
+            /* convert deg in hours */
+            absAngle = -angle * DEG_IN_HOUR;
         } else {
             negative = false;
-            absAngle = angle * DEG_IN_HOUR; /* convert deg in hours */
-
+            /* convert deg in hours */
+            absAngle = angle * DEG_IN_HOUR;
         }
         /* check boundaries */
         if (absAngle > 24d) {
