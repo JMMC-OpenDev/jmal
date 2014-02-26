@@ -3,19 +3,13 @@
  ******************************************************************************/
 package fr.jmmc.jmal;
 
-import cds.astro.Sptype;
-import fr.jmmc.jmal.star.Star;
-import fr.jmmc.jmal.star.Star.Property;
 import java.text.DecimalFormat;
-import java.text.ParseException;
-import java.util.ArrayList;
-import java.util.List;
-import net.jafama.FastMath;
+import java.util.Locale;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Astronomical Library Extension.
+ * Astronomical Library: ra/dec parser & formatter.
  *
  * Class regrouping usefull statics method to convert star coordinates between
  * different formats and units.
@@ -46,67 +40,12 @@ public final class ALX {
     public static final double HOUR_IN_DEGREES = 360d / 24d;
     /** Specify the value of one hour in degrees */
     public static final double DEG_IN_HOUR = 24d / 360d;
-    /** Sun surface gravity  = 4.378 cm s-2 (AQ, 340/14 SUN) */
-    public static final double SUN_LOGG = 4.378d;
-
-    /** Star type enumeration DWARF/GIANT/SUPERGIANT */
-    public enum STARTYPE {
-
-        /** Dwarf */
-        DWARF,
-        /** Giant */
-        GIANT,
-        /** Super Giant */
-        SUPERGIANT
-    }
 
     /**
      * Forbidden constructor : utility class
      */
     private ALX() {
         super();
-    }
-
-    /**
-     * Compute the distance between to ra/dec coordinates.
-     *
-     * @param raDeg1 first right acsension in degrees
-     * @param decDeg1 first declinaison in degrees
-     * @param raDeg2 second right acsension in degrees
-     * @param decDeg2 second declinaison in degrees
-     * @return distance in degrees
-     */
-    public static double computeDistanceInDegrees(final double raDeg1, final double decDeg1,
-                                                  final double raDeg2, final double decDeg2) {
-
-        /* Convert all the given angle from degrees to rad */
-        final double ra1 = FastMath.toRadians(raDeg1);
-        final double dec1 = FastMath.toRadians(decDeg1);
-
-        final double ra2 = FastMath.toRadians(raDeg2);
-        final double dec2 = FastMath.toRadians(decDeg2);
-
-        /*
-         * This implementation derives from Bob Chamberlain's contribution
-         * to the comp.infosystems.gis FAQ; he cites
-         * R.W.Sinnott, "Virtues of the Haversine", Sky and Telescope vol.68,
-         * no.2, 1984, p159.
-         */
-
-        /* haversine formula: better precision than cosinus law */
-        final double sd2 = FastMath.sin(0.5d * (dec2 - dec1));
-        final double sr2 = FastMath.sin(0.5d * (ra2 - ra1));
-
-        final double angle = sd2 * sd2 + sr2 * sr2 * FastMath.cos(dec1) * FastMath.cos(dec2);
-
-        /* check angle ranges [0;1] */
-        if (angle <= 0d) {
-            return 0d;
-        }
-        if (angle < 1d) {
-            return 2d * FastMath.toDegrees(FastMath.asin(Math.sqrt(angle)));
-        }
-        return 180d;
     }
 
     /**
@@ -321,94 +260,6 @@ public final class ALX {
     }
 
     /**
-     * Extract one or more spectral types of the given spectral type.
-     *
-     * @param rawSpectralType the spectral type to analyze.
-     *
-     * @return a List of String containing found spectral types (if any).
-     */
-    public static List<String> spectralTypes(final String rawSpectralType) {
-
-        String spectralType = rawSpectralType;
-
-        // Remove any "SB" token (Feedback Report ID : #1259360028)
-        if (spectralType.contains("SB")) {
-            spectralType = spectralType.replaceAll("SB", "");
-        }
-
-        final List<String> foundSpectralTypes = new ArrayList<String>();
-
-        for (int i = 0, len = spectralType.length(); i < len; i++) {
-            final char c = spectralType.charAt(i);
-
-            // If the luminosity class has been reached
-            if ((c == 'I') || (c == 'V')) {
-                // Skip those characters
-                continue;
-            }
-
-            // If the spectral type has been reached
-            // eg. the uppercase alphabetic parts of a spectral type
-            if (Character.isLetter(c) && Character.isUpperCase(c)) {
-                // Re-copy its content for later use (as a String object)
-                foundSpectralTypes.add(Character.valueOf(c).toString());
-            }
-        }
-
-        return foundSpectralTypes;
-    }
-
-    /**
-     * Extract one or more luminosity classes of the given spectral type.
-     *
-     * @param rawSpectralType the spectral type to analyze.
-     *
-     * @return a List of String containing found luminosity classes (if any).
-     */
-    public static List<String> luminosityClasses(final String rawSpectralType) {
-
-        final List<String> foundLuminosityClasses = new ArrayList<String>();
-
-        String foundLuminosityClass = "";
-        boolean luminosityClassFound = false;
-
-        int rawSpectralTypeSize = rawSpectralType.length();
-
-        // Scan every given spectral type characters
-        for (int i = 0; i < rawSpectralTypeSize; i++) {
-            char c = rawSpectralType.charAt(i);
-
-            // If a luminosity class has been reached
-            // eg. a part of a spectral type composed of I & V (roman numbers)
-            if ((c == 'I') || (c == 'V')) {
-                // Re-copy its content to build a result string
-                foundLuminosityClass = foundLuminosityClass + c;
-
-                // Mark the discovery
-                luminosityClassFound = true;
-
-                // If we are on the last char of the spectral type
-                if (i == (rawSpectralTypeSize - 1)) {
-                    // Store the luminosity class as a result
-                    foundLuminosityClasses.add(foundLuminosityClass);
-                }
-            } else {
-                // if a luminosiy class was just entirely found
-                if (luminosityClassFound) {
-                    // Store the luminosity class as a result
-                    foundLuminosityClasses.add(foundLuminosityClass);
-
-                    // Reset in case another luminosity class can be found
-                    foundLuminosityClass = "";
-                    luminosityClassFound = false;
-                }
-            }
-        }
-
-        return foundLuminosityClasses;
-    }
-
-    /**
      * Convert a value in arc-minute to minutes.
      *
      * @param arcmin the arc-minute value to convert.
@@ -489,232 +340,30 @@ public final class ALX {
     }
 
     /**
-     * Return on Sptype object (CDS lib) according to given spectral type as string.
-     * Please use this method instead of directly instantiating Sptype object so we can
-     * adapt some feature in the futur. Fallback may probably be implemented to improve parsability.
-     *
-     * @param spectralType spectral type value
-     * @return initialized Sptype object
-     * @throws ParseException if given spectral type is not being parsable
-     */
-    public static Sptype getSptype(final String spectralType) throws ParseException {
-        final Sptype s = new Sptype(spectralType);
-
-        _logger.debug("Parsing of sptype '{}' get numerical value of: {}", spectralType, s.getSpNumeric());
-
-        return s;
-    }
-
-    /**
-     * Compute teff and logg from given spectral type and return a star
-     * with Uniform diameters properties computed from the nearest
-     * teff and logg found in the various tables .
-     * ld sign is not checked, so negative values will be returned for a given
-     * negative diameter.
-     * @param ld limb darkened diameter
-     * @param sptype spectral type value
-     * @return a Star with UD properties.
-     * @throws ParseException if given spectral type is not being parsable
-     */
-    public static Star ld2ud(final double ld, final String sptype) throws ParseException {
-        final Sptype s = getSptype(sptype);
-        final double teff = LD2UD.getEffectiveTemperature(s);
-        final double logg = LD2UD.getGravity(s);
-        return ld2ud(ld, teff, logg);
-    }
-
-    /**
-     * Return a star with Uniform diameters properties computed from the nearest
-     * teff and logg found in the various tables.
-     *
-     * @param ld should be a diamvk.
-     * @param teff effective temperature
-     * @param logg surface gravity
-     * @return a Star with UD properties.     
-     */
-    public static Star ld2ud(final double ld, final double teff, final double logg) {
-        final Star star = new Star();
-        star.setPropertyAsDouble(Property.TEFF, teff);
-        star.setPropertyAsDouble(Property.LOGG, logg);
-        final Property[] uds = new Property[]{
-            Property.UD_B, Property.UD_I, Property.UD_J, Property.UD_H, Property.UD_K,
-            Property.UD_L, Property.UD_N, Property.UD_R, Property.UD_U, Property.UD_V
-        };
-
-        for (Property ud : uds) {
-            final double diam = ld / LD2UD.getLimbDarkenedCorrectionFactor(ud, teff, logg);
-            star.setPropertyAsDouble(ud, diam);
-        }
-        return star;
-    }
-
-    /**
-     * Helper that returns the first part of the numeric code for a given spectral type as string.
-     * @see #getTemperatureClass(cds.astro.Sptype) 
-     *
-     * @param spectype spectral type value
-     * @return integer corresponding to first numeric code part.
-     * @throws ParseException if given spectral type is not being parsable
-     */
-    public static int getTemperatureClass(final String spectype) throws ParseException {
-        return getTemperatureClass(getSptype(spectype));
-    }
-
-    /**
-     * Return the first part of the numeric code return by CDS tool.
-     *
-     * @param sptype
-     * @return integer corresponding to first numeric code part.
-     */
-    public static int getTemperatureClass(final Sptype sptype) {
-        final String spNum = sptype.getSpNumeric();
-        final int firstDotIndex = spNum.indexOf(".");
-        return Integer.parseInt(spNum.substring(0, firstDotIndex));
-    }
-
-    /**
-     * Return one luminosity class code from 00 to 99 according given spectral type.
-     * 00 is a special case that indicated one missing luminosity class.
-     * 
-     *        >NN<
-     * 0112.00113.000000000 I
-     * 0112.00024.000000000 II
-     * 0112.00032.000000000 III
-     * 0112.00040.000000000 IV
-     * 0112.00048.000000000 V
-     *     
-     * @param spectype spectral type value
-     * @return the luminosity integer value
-     * @throws ParseException if given spectral type is not being parsable
-     */
-    public static int getLuminosityClass(final String spectype) throws ParseException {
-        return getLuminosityClass(getSptype(spectype));
-    }
-
-    /**
-     * Return one luminosity class code from 00 to 99 according given spectral type.
-     * 00 is a special case that indicated one missing luminosity class.
-     * 
-     *        >NN<
-     * 0112.00113.000000000 I
-     * 0112.00024.000000000 II
-     * 0112.00032.000000000 III
-     * 0112.00040.000000000 IV
-     * 0112.00048.000000000 V
-     *     
-     * @param sptype spectral type value
-     * @return the luminosity integer value     
-     */
-    public static int getLuminosityClass(final Sptype sptype) {
-        final String spNum = sptype.getSpNumeric();
-        //int firstDotIndex = spNum.indexOf(".");
-        final int secondDotIndex = spNum.lastIndexOf(".");
-        // we must only use the two last chars of lum part as significative
-        // I classes returned 113 instead of 13
-
-        final int lumCode = Integer.parseInt(spNum.substring(secondDotIndex - 2, secondDotIndex));
-
-        // Check that luminosity code has been extracted properly
-        if (lumCode < 0 || lumCode > 100) {
-            throw new IllegalStateException("Luminosity code extracted must not exceed 99 was " + lumCode);
-        }
-
-        return lumCode;
-    }
-
-    /**
-     * Helper that returns one  STARTYPE according given spectral type.
-     * @see #getStarType(cds.astro.Sptype)
-     * @param sptype spectral type value
-     * @return dwarf, giant or supergiant
-     */
-    public static STARTYPE getStarType(final String sptype) {
-        // Daniel wrote:
-        // If the luminosity class is unknown, by default one can suppose that
-        // the star is a -g-i-a-n-t- dwarf
-        // (cds sptypes returns 0 when luminosity code is missing)
-        try {
-            final Sptype s = getSptype(sptype);
-            return getStarType(s);
-        } catch (ParseException ex) {
-            _logger.warn("Returning Dwarf because spectral type can not be parsed ({}) reason: {}", sptype, ex.getMessage());
-        }
-        return STARTYPE.DWARF;
-    }
-
-    /**
-     * Return one STARTYPE according given spectral type.
-     * @see #getLuminosityClass(cds.astro.Sptype) javadoc for magic numbers
-     * @param sptype spectral type value
-     * @return dwarf, giant or supergiant
-     */
-    public static STARTYPE getStarType(final Sptype sptype) {
-
-        final int lumCode = ALX.getLuminosityClass(sptype);
-
-        if (lumCode > 37 || lumCode == 0) {
-            _logger.debug("This star is handled as a Dwarf");
-            return STARTYPE.DWARF;
-        }
-        //Giants
-        if (lumCode > 23) {
-            _logger.debug("This star is handled as a Giant");
-            return STARTYPE.GIANT;
-        }
-        // Supergiants
-        _logger.debug("This star is handled as a SuperGiant");
-        return STARTYPE.SUPERGIANT;
-    }
-
-    /**
-     * Set this class with limited executable features.
-     *
-     * The user can use it giving one method name and argument value
-     *  e.g.:
-     *  ALX parseRA "1:1:1"
-     *  ALX spectralTypes "M1/M2/IV/III"
-     *  ALX luminosityClasses "M1/M2/IV/III"
-     *
-     * If no argument is given, then it prints out the usage form.
+     * Unit tests
      */
     public static void main(String[] args) {
 
+        // Set the default locale to en-US locale (for Numerical Fields "." ",")
+        Locale.setDefault(Locale.US);
+
+        /* HMS */
         System.out.println("HMS(0°) = " + toHMS(0.0));
         System.out.println("HMS(4°) = " + toHMS(4.0));
+        System.out.println("HMS(4.x°) = " + toHMS(4.123456789123456789));
         System.out.println("HMS(12°) = " + toHMS(12.0));
         System.out.println("HMS(1h) = " + toHMS(1.0 * HOUR_IN_DEGREES));
         System.out.println("HMS(12h) = " + toHMS(12.0 * HOUR_IN_DEGREES));
 
+        /* DMS */
         System.out.println("DMS(-90°) = " + toDMS(-90.0));
         System.out.println("DMS(-30°) = " + toDMS(-30.0));
         System.out.println("DMS(-5°) = " + toDMS(-5.0));
         System.out.println("DMS(0°) = " + toDMS(0.0));
         System.out.println("DMS(5°) = " + toDMS(5.0));
+        System.out.println("DMS(5.x°) = " + toDMS(5.123456789123456789));
         System.out.println("DMS(30°) = " + toDMS(30.0));
         System.out.println("DMS(90°) = " + toDMS(90.0));
-
-        Class<?> c = null;
-
-        try {
-            c = Class.forName(ALX.class.getName());
-
-            String method = args[0];
-            String arg = args[1];
-
-            java.lang.reflect.Method userMethod = c.getMethod(method, String.class);
-            System.out.println("" + userMethod.invoke(arg, arg));
-
-        } catch (Throwable th) { // main (test)
-            System.out.println("Usage: <progname> <methodName> <arg>");
-            System.out.println("     where <methodName> can be:");
-
-            if (c != null) {
-                java.lang.reflect.Method[] m = c.getDeclaredMethods();
-                for (int i = 0; i < m.length; i++) {
-                    System.out.println("       - " + m[i].getName());
-                }
-            }
-        }
     }
 }
 /*___oOo___*/

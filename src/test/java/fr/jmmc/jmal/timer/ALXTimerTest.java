@@ -3,7 +3,7 @@
  ******************************************************************************/
 package fr.jmmc.jmal.timer;
 
-import fr.jmmc.jmal.ALX;
+import fr.jmmc.jmal.SpTypeUtils;
 import java.util.Locale;
 import fr.jmmc.jmcs.util.timer.TimerFactory;
 import fr.jmmc.jmcs.util.timer.TimerFactory.UNIT;
@@ -11,7 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Simple timer tests of ALX class
+ * Simple timer tests of SpTypeUtils class
  * @author bourgesl
  */
 public class ALXTimerTest {
@@ -20,7 +20,7 @@ public class ALXTimerTest {
     private static final Logger logger = LoggerFactory.getLogger(ALXTimerTest.class.getName());
 
     /**
-     * MicroBenchmarks of ALX.ld2ud()
+     * MicroBenchmarks of SpTypeUtils.ld2ud()
      * @param args
      */
     public static void main(String[] args) {
@@ -30,7 +30,6 @@ public class ALXTimerTest {
         // Fastest : M5
         // slowest : O5
 //        testProfiler("M5");
-
         testTimers("O5");
     }
 
@@ -47,9 +46,9 @@ public class ALXTimerTest {
 
             for (int i = 0; i < N; i++) {
 
-                // do something : use ALX
+                // do something : use SpTypeUtils
                 try {
-                    ALX.ld2ud(1d, sptype);
+                    SpTypeUtils.ld2ud(1d, sptype);
                 } catch (Exception e) {
                     logger.error("test fail", e);
                 }
@@ -58,9 +57,9 @@ public class ALXTimerTest {
 
             for (int i = 0; i < N; i++) {
 
-                // do something : use ALX
+                // do something : use SpTypeUtils
                 try {
-                    ALX.ld2ud(1d, sptype);
+                    SpTypeUtils.ld2ud(1d, sptype);
                 } catch (Exception e) {
                     logger.error("test fail", e);
                 }
@@ -82,7 +81,7 @@ public class ALXTimerTest {
      */
     private static void testTimers(final String sptype) {
 
-        /** ALX ld2ud - threshold = 0.5 ms */
+        /** SpTypeUtils ld2ud - threshold = 0.5 ms */
         final double threshold = 0.5d;
 
         final int N = 50000;
@@ -100,28 +99,28 @@ public class ALXTimerTest {
 
                 start = System.nanoTime();
 
-                // do something : use ALX
+                // do something : use SpTypeUtils
                 try {
-                    ALX.ld2ud(1d, sptype);
+                    SpTypeUtils.ld2ud(1d, sptype);
                 } catch (Exception e) {
                     logger.error("test fail", e);
                 }
 
-                TimerFactory.getSimpleTimer("ALX.ld2ud(ns)", UNIT.ns).addNanoSeconds(start, System.nanoTime());
+                TimerFactory.getSimpleTimer("SpTypeUtils.ld2ud(ns)", UNIT.ns).addNanoSeconds(start, System.nanoTime());
             }
 
             for (int i = 0; i < N; i++) {
 
                 start = System.nanoTime();
 
-                // do something : use ALX
+                // do something : use SpTypeUtils
                 try {
-                    ALX.ld2ud(1d, sptype);
+                    SpTypeUtils.ld2ud(1d, sptype);
                 } catch (Exception e) {
                     logger.error("test fail", e);
                 }
 
-                TimerFactory.getTimer("ALX.ld2ud(ms)", UNIT.ms, threshold).addMilliSeconds(start, System.nanoTime());
+                TimerFactory.getTimer("SpTypeUtils.ld2ud(ms)", UNIT.ms, threshold).addMilliSeconds(start, System.nanoTime());
             }
 
             if (!TimerFactory.isEmpty()) {
