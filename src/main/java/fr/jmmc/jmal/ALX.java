@@ -3,7 +3,6 @@
  ******************************************************************************/
 package fr.jmmc.jmal;
 
-import java.text.DecimalFormat;
 import java.util.Locale;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,6 +26,8 @@ public final class ALX {
     /** Describe the arcminute unit */
     public static final double ARCMIN = 1d;
     /** Specify the value of one arcminute in degrees */
+    public static final double DEG_IN_ARCMIN = 60d;
+    /** Specify the value of one arcminute in degrees */
     public static final double ARCMIN_IN_DEGREES = (1d / 60d);
     /** Describe the arcsecond unit */
     public static final double ARCSEC = 1d;
@@ -36,10 +37,16 @@ public final class ALX {
     public static final double DEG_IN_ARCSEC = 3600d;
     /** Specify the value of one milli arcsecond in degrees */
     public static final double MILLI_ARCSEC_IN_DEGREES = ARCSEC_IN_DEGREES / 1000d;
+    /** Specify the value of one arcminute in arcsecond */
+    public static final double ARCMIN_IN_ARCSEC = 60d;
     /** Specify the value of one hour in degrees */
     public static final double HOUR_IN_DEGREES = 360d / 24d;
     /** Specify the value of one hour in degrees */
     public static final double DEG_IN_HOUR = 24d / 360d;
+    /** Specify the value of one minute in degrees */
+    public static final double MIN_IN_DEG = 15d / 60d;
+    /** Specify the value of one degree in minute */
+    public static final double DEG_IN_MIN = 60d / 15d;
 
     /**
      * Forbidden constructor : utility class
@@ -53,7 +60,7 @@ public final class ALX {
      *
      * @param raHms the right ascension as a HH:MM:SS.TT or HH MM SS.TT string.
      *
-     * @return the right ascension as a double in degrees.
+     * @return the right ascension as a double in degrees or NaN if invalid value
      */
     public static double parseHMS(final String raHms) {
 
@@ -83,9 +90,7 @@ public final class ALX {
 
         } catch (NumberFormatException nfe) {
             _logger.debug("format exception: ", nfe);
-            hh = 0d;
-            hm = 0d;
-            hs = 0d;
+            hh = hm = hs = Double.NaN;
         }
 
         // Get sign of hh which has to be propagated to hm and hs
@@ -107,7 +112,7 @@ public final class ALX {
      *
      * @param raHms the right ascension as a HH:MM:SS.TT or HH MM SS.TT string.
      *
-     * @return the right ascension as a double in degrees  [-180; -180].
+     * @return the right ascension as a double in degrees [-180; -180] or NaN if invalid value
      */
     public static double parseRA(final String raHms) {
         double ra = parseHMS(raHms);
@@ -129,7 +134,7 @@ public final class ALX {
      *
      * @param decDms the declinaison as a DD:MM:SS.TT or DD MM SS.TT string.
      *
-     * @return the declinaison as a double in degrees.
+     * @return the declinaison as a double in degrees or NaN if invalid value
      */
     public static double parseDEC(final String decDms) {
 
@@ -159,9 +164,7 @@ public final class ALX {
 
         } catch (NumberFormatException nfe) {
             _logger.debug("format exception: ", nfe);
-            dd = 0d;
-            dm = 0d;
-            ds = 0d;
+            dd = dm = ds = Double.NaN;
         }
 
         // Get sign of dd which has to be propagated to dm and ds
@@ -180,7 +183,11 @@ public final class ALX {
 
     /**
      * Return the DMS format of the given angle
-     * @param angle angle in degrees > -360.0
+     * 
+     * Warning: this method creates a new StringBuilder(16) for each invocation; 
+     * use toDMS(StringBuilder, double) instead to use a given StringBuilder instance
+     *
+     * @param angle angle in degrees within range [-90; 90]
      * @return string DMS representation
      */
     public static String toDMS(final double angle) {
@@ -188,36 +195,50 @@ public final class ALX {
     }
 
     /**
-     * Append the DMS format of the given angle to given string builder
-     * @param sb string builder to append into
-     * @param angle angle in degrees > -360.0
-     * @return given string builder
-     */
-    public static StringBuilder toDMS(final StringBuilder sb, final double angle) {
-        if (angle < -360d) {
-            return sb;
-        }
-        /* TODO: use constant = 360 and clean modulo in range[-90;90] */
-        final double normalizedAngle = Math.abs(angle) % 360d;
-
-        final int iDeg = (int) Math.floor(normalizedAngle);
-        final double rest = normalizedAngle - iDeg;
-
-        if (angle < 0d) {
-            sb.append("-");
-        }
-        sb.append(iDeg);
-
-        return toMS(sb, rest);
-    }
-
-    /**
      * Return the HMS format of the given angle
+     * 
+     * Warning: this method creates a new StringBuilder(16) for each invocation; 
+     * use toHMS(StringBuilder, double) instead to use a given StringBuilder instance
+     *
      * @param angle angle in degrees > -360.0
      * @return string HMS representation, null otherwise
      */
     public static String toHMS(final double angle) {
         return toHMS(new StringBuilder(16), angle).toString();
+    }
+
+    /**
+     * Append the DMS format of the given angle to given string builder
+     * @param sb string builder to append into
+     * @param angle angle in degrees within range [-90; 90]
+     * @return given string builder
+     */
+    public static StringBuilder toDMS(final StringBuilder sb, final double angle) {
+        final boolean negative;
+        final double absAngle;
+        if (angle < 0.0D) {
+            negative = true;
+            absAngle = -angle;
+        } else {
+            negative = false;
+            absAngle = angle;
+        }
+        /* check boundaries */
+        if (absAngle > 90d) {
+            return sb.append("~");
+        }
+        /* print deg field */
+        final int iDeg = (int) Math.floor(absAngle);
+        final double remainder = absAngle - iDeg;
+
+        /* always print sign '+' as DEC is typically within range [-90; 90] */
+        sb.append((negative) ? '-' : '+');
+        if (iDeg < 10) {
+            sb.append('0');
+        }
+        sb.append(iDeg);
+
+        return toMS(sb, remainder);
     }
 
     /**
@@ -227,35 +248,63 @@ public final class ALX {
      * @return given string builder
      */
     public static StringBuilder toHMS(final StringBuilder sb, final double angle) {
-        if (angle < -360d) {
-            return sb;
+        final boolean negative;
+        final double absAngle;
+        if (angle < 0.0D) {
+            negative = true;
+            absAngle = -angle * DEG_IN_HOUR; /* convert deg in hours */
+
+        } else {
+            negative = false;
+            absAngle = angle * DEG_IN_HOUR; /* convert deg in hours */
+
         }
-        /* TODO: use constant = 360 and clean modulo in range[0;360] */
-        final double normalizedAngle = ((angle + 360d) % 360d) * DEG_IN_HOUR; /* convert deg in hours */
+        /* check boundaries */
+        if (absAngle > 24d) {
+            return sb.append("~");
+        }
+        /* print hour field */
+        final int iHour = (int) Math.floor(absAngle);
+        final double remainder = absAngle - iHour;
 
-        final double fHour = normalizedAngle;
-        final int iHour = (int) Math.floor(fHour);
-
-        final double rest = normalizedAngle - iHour;
-
+        /* avoid '+' for positive values as RA is typically within range [0.0; 24.0[ */
+        if (negative) {
+            sb.append('-');
+        }
+        if (iHour < 10) {
+            sb.append('0');
+        }
         sb.append(iHour);
 
-        return toMS(sb, rest);
+        return toMS(sb, remainder);
     }
 
     private static StringBuilder toMS(final StringBuilder sb, final double angle) {
-        final double fMinute = 60d * angle;
+        final double fMinute = DEG_IN_ARCMIN * angle;
         final int iMinute = (int) Math.floor(fMinute);
 
-        final double fSecond = 60d * (fMinute - iMinute);
+        final double fSecond = ARCMIN_IN_ARCSEC * (fMinute - iMinute);
+        final int iSecond = (int) Math.floor(fSecond);
 
-        /* TODO: avoid using DecimalFormat perform padding manually */
-        DecimalFormat formatter = new DecimalFormat(":00");
-        sb.append(formatter.format(iMinute));
+        final double remainder = fSecond - iSecond;
 
-        formatter = new DecimalFormat(":00.###");
-        sb.append(formatter.format(fSecond));
+        /* print min field */
+        sb.append(':');
+        if (iMinute < 10) {
+            sb.append('0');
+        }
+        sb.append(iMinute);
 
+        /* print min field */
+        sb.append(':');
+        if (iSecond < 10) {
+            sb.append('0');
+        }
+        sb.append(iSecond);
+
+        if (remainder >= 5e-4d) {
+            sb.append('.').append(Math.round(1000d * remainder));
+        }
         return sb;
     }
 
@@ -267,9 +316,7 @@ public final class ALX {
      * @return a double containing the converted value.
      */
     public static double arcmin2minutes(final double arcmin) {
-        final double minutes = (arcmin * DEG_IN_HOUR);
-
-        return minutes;
+        return arcmin * DEG_IN_HOUR;
     }
 
     /**
@@ -280,9 +327,7 @@ public final class ALX {
      * @return a double containing the converted value.
      */
     public static double minutes2arcmin(final double minutes) {
-        final double arcmin = (minutes * HOUR_IN_DEGREES);
-
-        return arcmin;
+        return minutes * HOUR_IN_DEGREES;
     }
 
     /**
@@ -293,9 +338,7 @@ public final class ALX {
      * @return a double containing the converted value.
      */
     public static double arcmin2degrees(final double arcmin) {
-        final double degrees = (arcmin * ARCMIN_IN_DEGREES);
-
-        return degrees;
+        return arcmin * ARCMIN_IN_DEGREES;
     }
 
     /**
@@ -306,9 +349,7 @@ public final class ALX {
      * @return a double containing the converted value.
      */
     public static double degrees2arcmin(final double degrees) {
-        final double arcmin = (degrees * 60d);
-
-        return arcmin;
+        return degrees * DEG_IN_ARCMIN;
     }
 
     /**
@@ -319,10 +360,7 @@ public final class ALX {
      * @return a double containing the converted value.
      */
     public static double minutes2degrees(final double minutes) {
-        /* TODO: define constant = 60/15 */
-        final double degrees = minutes / 4d;
-
-        return degrees;
+        return minutes * MIN_IN_DEG;
     }
 
     /**
@@ -333,37 +371,7 @@ public final class ALX {
      * @return a double containing the converted value.
      */
     public static double degrees2minutes(final double degrees) {
-        /* TODO: define constant = 60/15 */
-        final double minutes = degrees * 4d;
-
-        return minutes;
-    }
-
-    /**
-     * Unit tests
-     */
-    public static void main(String[] args) {
-
-        // Set the default locale to en-US locale (for Numerical Fields "." ",")
-        Locale.setDefault(Locale.US);
-
-        /* HMS */
-        System.out.println("HMS(0°) = " + toHMS(0.0));
-        System.out.println("HMS(4°) = " + toHMS(4.0));
-        System.out.println("HMS(4.x°) = " + toHMS(4.123456789123456789));
-        System.out.println("HMS(12°) = " + toHMS(12.0));
-        System.out.println("HMS(1h) = " + toHMS(1.0 * HOUR_IN_DEGREES));
-        System.out.println("HMS(12h) = " + toHMS(12.0 * HOUR_IN_DEGREES));
-
-        /* DMS */
-        System.out.println("DMS(-90°) = " + toDMS(-90.0));
-        System.out.println("DMS(-30°) = " + toDMS(-30.0));
-        System.out.println("DMS(-5°) = " + toDMS(-5.0));
-        System.out.println("DMS(0°) = " + toDMS(0.0));
-        System.out.println("DMS(5°) = " + toDMS(5.0));
-        System.out.println("DMS(5.x°) = " + toDMS(5.123456789123456789));
-        System.out.println("DMS(30°) = " + toDMS(30.0));
-        System.out.println("DMS(90°) = " + toDMS(90.0));
+        return degrees * DEG_IN_MIN;
     }
 }
 /*___oOo___*/

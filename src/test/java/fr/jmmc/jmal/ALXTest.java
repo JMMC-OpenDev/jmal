@@ -18,10 +18,10 @@ public class ALXTest {
     @Test
     public void testParseHMS() {
         System.out.println("parseHMS");
-        
+
         if (true) {
             String raHms = "";
-            double expResult = 0.0;
+            double expResult = Double.NaN;
             double result = ALX.parseHMS(raHms);
             assertEquals(expResult, result, 0.0);
         }
@@ -71,10 +71,10 @@ public class ALXTest {
     @Test
     public void testParseRA() {
         System.out.println("parseRA");
-        
+
         if (true) {
             String raHms = "";
-            double expResult = 0.0;
+            double expResult = Double.NaN;
             double result = ALX.parseRA(raHms);
             assertEquals(expResult, result, 0.0);
         }
@@ -124,10 +124,10 @@ public class ALXTest {
     @Test
     public void testParseDEC() {
         System.out.println("parseDEC");
-        
+
         if (true) {
             String dec = "";
-            double expResult = 0.0;
+            double expResult = Double.NaN;
             double result = ALX.parseDEC(dec);
             assertEquals(expResult, result, 0.0);
         }
@@ -180,6 +180,132 @@ public class ALXTest {
             double expResult = 20.01d;
             double result = ALX.parseDEC(dec);
             assertEquals(expResult, result, 0.0);
+        }
+    }
+
+    /**
+     * Test of toHMS method, of class ALX.
+     */
+    @Test
+    public void testToHMS() {
+        System.out.println("toHMS");
+
+        if (true) {
+            double raDeg = -24.0 * ALX.HOUR_IN_DEGREES;
+            String expResult = "-24:00:00";
+            String result = ALX.toHMS(raDeg);
+            assertEquals(expResult, result);
+        }
+        if (true) {
+            double raDeg = -12.0 * ALX.HOUR_IN_DEGREES;
+            String expResult = "-12:00:00";
+            String result = ALX.toHMS(raDeg);
+            assertEquals(expResult, result);
+        }
+        if (true) {
+            double raDeg = 0.0;
+            String expResult = "00:00:00";
+            String result = ALX.toHMS(raDeg);
+            assertEquals(expResult, result);
+        }
+        if (true) {
+            double raDeg = 4.0;
+            String expResult = "00:16:00";
+            String result = ALX.toHMS(raDeg);
+            assertEquals(expResult, result);
+        }
+        if (true) {
+            double raDeg = 4.123456789123456789;
+            String expResult = "00:16:29.630";
+            String result = ALX.toHMS(raDeg);
+            assertEquals(expResult, result);
+        }
+        if (true) {
+            double raDeg = 12.0;
+            String expResult = "00:48:00";
+            String result = ALX.toHMS(raDeg);
+            assertEquals(expResult, result);
+        }
+        if (true) {
+            double raDeg = 1.0 * ALX.HOUR_IN_DEGREES;
+            String expResult = "01:00:00";
+            String result = ALX.toHMS(raDeg);
+            assertEquals(expResult, result);
+        }
+        if (true) {
+            double raDeg = 12.0 * ALX.HOUR_IN_DEGREES;
+            String expResult = "12:00:00";
+            String result = ALX.toHMS(raDeg);
+            assertEquals(expResult, result);
+        }
+        if (true) {
+            double raDeg = 24.0 * ALX.HOUR_IN_DEGREES;
+            String expResult = "24:00:00";
+            String result = ALX.toHMS(raDeg);
+            assertEquals(expResult, result);
+        }
+    }
+
+    /**
+     * Test of toDMS method, of class ALX.
+     */
+    @Test
+    public void testToDMS() {
+        System.out.println("toDMS");
+
+        if (true) {
+            double decDeg = -90.0;
+            String expResult = "-90:00:00";
+            String result = ALX.toDMS(decDeg);
+            assertEquals(expResult, result);
+        }
+        if (true) {
+            double decDeg = -30.0;
+            String expResult = "-30:00:00";
+            String result = ALX.toDMS(decDeg);
+            assertEquals(expResult, result);
+        }
+        if (true) {
+            double decDeg = -5.523456789123456789;
+            String expResult = "-05:31:24.444";
+            String result = ALX.toDMS(decDeg);
+            assertEquals(expResult, result);
+        }
+        if (true) {
+            double decDeg = -5.0;
+            String expResult = "-05:00:00";
+            String result = ALX.toDMS(decDeg);
+            assertEquals(expResult, result);
+        }
+        if (true) {
+            double decDeg = 0.0;
+            String expResult = "+00:00:00";
+            String result = ALX.toDMS(decDeg);
+            assertEquals(expResult, result);
+        }
+        if (true) {
+            double decDeg = 5.0;
+            String expResult = "+05:00:00";
+            String result = ALX.toDMS(decDeg);
+            assertEquals(expResult, result);
+        }
+        if (true) {
+            double decDeg = 5.523456789123456789;
+            String expResult = "+05:31:24.444";
+            String result = ALX.toDMS(decDeg);
+            assertEquals(expResult, result);
+        }
+        if (true) {
+            double decDeg = 30.0;
+            String expResult = "+30:00:00";
+            String result = ALX.toDMS(decDeg);
+            assertEquals(expResult, result);
+        }
+        if (true) {
+            double decDeg = 90.0;
+            String expResult = "+90:00:00";
+            String result = ALX.toDMS(decDeg);
+            assertEquals(expResult, result);
         }
     }
 }
