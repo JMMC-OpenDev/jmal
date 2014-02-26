@@ -27,23 +27,27 @@ public final class ALX {
     /** Logger */
     private static final Logger _logger = LoggerFactory.getLogger(ALX.class.getName());
     /** Describe the micrometer (micron, or um) unit */
-    public static final double MICRON = 1.0d;
+    public static final double MICRON = 1d;
     /** Describe the meter unit */
-    public static final double METER = 1.0d;
+    public static final double METER = 1d;
     /** Describe the arcminute unit */
-    public static final double ARCMIN = 1.0d;
+    public static final double ARCMIN = 1d;
     /** Specify the value of one arcminute in degrees */
-    public static final double ARCMIN_IN_DEGREES = (1.0d / 60.0d);
+    public static final double ARCMIN_IN_DEGREES = (1d / 60d);
     /** Describe the arcsecond unit */
-    public static final double ARCSEC = 1.0d;
+    public static final double ARCSEC = 1d;
     /** Specify the value of one arcsecond in degrees */
-    public static final double ARCSEC_IN_DEGREES = (1.0d / 3600.0d);
+    public static final double ARCSEC_IN_DEGREES = (1d / 3600d);
     /** Specify the value of one arcsecond in degrees */
-    public static final double DEG_IN_ARCSEC = 3600.0d;
+    public static final double DEG_IN_ARCSEC = 3600d;
     /** Specify the value of one milli arcsecond in degrees */
     public static final double MILLI_ARCSEC_IN_DEGREES = ARCSEC_IN_DEGREES / 1000d;
+    /** Specify the value of one hour in degrees */
+    public static final double HOUR_IN_DEGREES = 360d / 24d;
+    /** Specify the value of one hour in degrees */
+    public static final double DEG_IN_HOUR = 24d / 360d;
     /** Sun surface gravity  = 4.378 cm s-2 (AQ, 340/14 SUN) */
-    public static final double SUN_LOGG = 4.378;
+    public static final double SUN_LOGG = 4.378d;
 
     /** Star type enumeration DWARF/GIANT/SUPERGIANT */
     public enum STARTYPE {
@@ -150,7 +154,7 @@ public final class ALX {
 
         // Convert to degrees
         // note : hh already includes the sign :
-        final double ra = (hh + sign * (hm / 60d + hs / 3600d)) * 15d;
+        final double ra = (hh + sign * (hm * ARCMIN_IN_DEGREES + hs * ARCSEC_IN_DEGREES)) * HOUR_IN_DEGREES;
 
         if (_logger.isDebugEnabled()) {
             _logger.debug("HMS : ’{}' = '{}'.", raHms, ra);
@@ -171,7 +175,7 @@ public final class ALX {
 
         // Set angle range [-180 - 180]
         if (ra > 180d) {
-            ra = -1d * (360d - ra);
+            ra -= 360d;
         }
 
         if (_logger.isDebugEnabled()) {
@@ -226,7 +230,7 @@ public final class ALX {
 
         // Convert to degrees
         // note : dd already includes the sign :
-        final double dec = dd + sign * (dm / 60d + ds / 3600d);
+        final double dec = dd + sign * (dm * ARCMIN_IN_DEGREES + ds * ARCSEC_IN_DEGREES);
 
         if (_logger.isDebugEnabled()) {
             _logger.debug("DEC : ’{}' = '{}'.", decDms, dec);
@@ -241,22 +245,31 @@ public final class ALX {
      * @return string DMS representation
      */
     public static String toDMS(final double angle) {
-        if (angle < -360d) {
-            return null;
-        }
+        return toDMS(new StringBuilder(16), angle).toString();
+    }
 
+    /**
+     * Append the DMS format of the given angle to given string builder
+     * @param sb string builder to append into
+     * @param angle angle in degrees > -360.0
+     * @return given string builder
+     */
+    public static StringBuilder toDMS(final StringBuilder sb, final double angle) {
+        if (angle < -360d) {
+            return sb;
+        }
+        /* TODO: use constant = 360 and clean modulo in range[-90;90] */
         final double normalizedAngle = Math.abs(angle) % 360d;
 
         final int iDeg = (int) Math.floor(normalizedAngle);
         final double rest = normalizedAngle - iDeg;
 
-        final StringBuilder sb = new StringBuilder();
         if (angle < 0d) {
             sb.append("-");
         }
         sb.append(iDeg);
-        toMS(rest, sb);
-        return sb.toString();
+
+        return toMS(sb, rest);
     }
 
     /**
@@ -265,35 +278,46 @@ public final class ALX {
      * @return string HMS representation, null otherwise
      */
     public static String toHMS(final double angle) {
-        if (angle < -360d) {
-            return null;
-        }
-
-        final double normalizedAngle = (angle + 360d) % 360d;
-
-        final double fHour = 24d * (normalizedAngle / 360d);
-        final int iHour = (int) Math.floor(fHour);
-        final double rest = normalizedAngle - (iHour / 24d * 360d);
-
-        final StringBuilder sb = new StringBuilder();
-        sb.append(iHour);
-        toMS(rest, sb);
-        return sb.toString();
+        return toHMS(new StringBuilder(16), angle).toString();
     }
 
-    private static String toMS(final double angle, final StringBuilder sb) {
+    /**
+     * Append the HMS format of the given angle to given string builder
+     * @param sb string builder to append into
+     * @param angle angle in degrees > -360.0
+     * @return given string builder
+     */
+    public static StringBuilder toHMS(final StringBuilder sb, final double angle) {
+        if (angle < -360d) {
+            return sb;
+        }
+        /* TODO: use constant = 360 and clean modulo in range[0;360] */
+        final double normalizedAngle = ((angle + 360d) % 360d) * DEG_IN_HOUR; /* convert deg in hours */
+
+        final double fHour = normalizedAngle;
+        final int iHour = (int) Math.floor(fHour);
+
+        final double rest = normalizedAngle - iHour;
+
+        sb.append(iHour);
+
+        return toMS(sb, rest);
+    }
+
+    private static StringBuilder toMS(final StringBuilder sb, final double angle) {
         final double fMinute = 60d * angle;
         final int iMinute = (int) Math.floor(fMinute);
 
         final double fSecond = 60d * (fMinute - iMinute);
 
+        /* TODO: avoid using DecimalFormat perform padding manually */
         DecimalFormat formatter = new DecimalFormat(":00");
         sb.append(formatter.format(iMinute));
 
         formatter = new DecimalFormat(":00.###");
         sb.append(formatter.format(fSecond));
 
-        return sb.toString();
+        return sb;
     }
 
     /**
@@ -392,7 +416,7 @@ public final class ALX {
      * @return a double containing the converted value.
      */
     public static double arcmin2minutes(final double arcmin) {
-        final double minutes = (arcmin / 15d);
+        final double minutes = (arcmin * DEG_IN_HOUR);
 
         return minutes;
     }
@@ -405,7 +429,7 @@ public final class ALX {
      * @return a double containing the converted value.
      */
     public static double minutes2arcmin(final double minutes) {
-        final double arcmin = (minutes * 15d);
+        final double arcmin = (minutes * HOUR_IN_DEGREES);
 
         return arcmin;
     }
@@ -418,7 +442,7 @@ public final class ALX {
      * @return a double containing the converted value.
      */
     public static double arcmin2degrees(final double arcmin) {
-        final double degrees = (arcmin / 60d);
+        final double degrees = (arcmin * ARCMIN_IN_DEGREES);
 
         return degrees;
     }
@@ -444,6 +468,7 @@ public final class ALX {
      * @return a double containing the converted value.
      */
     public static double minutes2degrees(final double minutes) {
+        /* TODO: define constant = 60/15 */
         final double degrees = minutes / 4d;
 
         return degrees;
@@ -457,6 +482,7 @@ public final class ALX {
      * @return a double containing the converted value.
      */
     public static double degrees2minutes(final double degrees) {
+        /* TODO: define constant = 60/15 */
         final double minutes = degrees * 4d;
 
         return minutes;
@@ -652,6 +678,21 @@ public final class ALX {
      * If no argument is given, then it prints out the usage form.
      */
     public static void main(String[] args) {
+
+        System.out.println("HMS(0°) = " + toHMS(0.0));
+        System.out.println("HMS(4°) = " + toHMS(4.0));
+        System.out.println("HMS(12°) = " + toHMS(12.0));
+        System.out.println("HMS(1h) = " + toHMS(1.0 * HOUR_IN_DEGREES));
+        System.out.println("HMS(12h) = " + toHMS(12.0 * HOUR_IN_DEGREES));
+
+        System.out.println("DMS(-90°) = " + toDMS(-90.0));
+        System.out.println("DMS(-30°) = " + toDMS(-30.0));
+        System.out.println("DMS(-5°) = " + toDMS(-5.0));
+        System.out.println("DMS(0°) = " + toDMS(0.0));
+        System.out.println("DMS(5°) = " + toDMS(5.0));
+        System.out.println("DMS(30°) = " + toDMS(30.0));
+        System.out.println("DMS(90°) = " + toDMS(90.0));
+
         Class<?> c = null;
 
         try {
