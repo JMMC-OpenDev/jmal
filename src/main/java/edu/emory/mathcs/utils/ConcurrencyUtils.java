@@ -235,7 +235,7 @@ public final class ConcurrencyUtils {
     /**
      * Checks if x is a power-of-two number.
      * 
-     * @param x
+     * @param x any integer value
      * @return true if x is a power-of-two number
      */
     public static boolean isPowerOf2(int x) {
