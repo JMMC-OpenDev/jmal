@@ -244,6 +244,12 @@ public class ALXTest {
             String result = ALX.toHMS(raDeg);
             assertEquals(expResult, result);
         }
+        if (true) {
+            double raDeg = 10 * ALX.MILLI_ARCSEC_IN_DEGREES * ALX.HOUR_IN_DEGREES;
+            String expResult= "00:00:00.010";
+            String result = ALX.toHMS(raDeg);
+            assertEquals(expResult, result);
+        }
     }
 
     /**
@@ -305,6 +311,12 @@ public class ALXTest {
             double decDeg = 90.0;
             String expResult = "+90:00:00";
             String result = ALX.toDMS(decDeg);
+            assertEquals(expResult, result);
+        }
+        if (true) {
+            double raDeg = 10 * ALX.MILLI_ARCSEC_IN_DEGREES;
+            String expResult= "+00:00:00.010";
+            String result = ALX.toDMS(raDeg);
             assertEquals(expResult, result);
         }
     }

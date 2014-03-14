@@ -303,7 +303,7 @@ public final class ALX {
         sb.append(iSecond);
 
         if (remainder >= 5e-4d) {
-            sb.append('.').append(Math.round(1000d * remainder));
+            sb.append('.').append(String.format("%03d", Math.round(1000d * remainder)));
         }
         return sb;
     }
