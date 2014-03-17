@@ -245,8 +245,26 @@ public class ALXTest {
             assertEquals(expResult, result);
         }
         if (true) {
-            double raDeg = 10 * ALX.MILLI_ARCSEC_IN_DEGREES * ALX.HOUR_IN_DEGREES;
-            String expResult= "00:00:00.010";
+            double raDeg = 10.0 * ALX.MILLI_ARCSEC_IN_DEGREES * ALX.HOUR_IN_DEGREES;
+            String expResult = "00:00:00.010";
+            String result = ALX.toHMS(raDeg);
+            assertEquals(expResult, result);
+        }
+        if (true) {
+            double raDeg = 1.0 * ALX.MILLI_ARCSEC_IN_DEGREES * ALX.HOUR_IN_DEGREES;
+            String expResult = "00:00:00.001";
+            String result = ALX.toHMS(raDeg);
+            assertEquals(expResult, result);
+        }
+        if (true) {
+            double raDeg = 0.5 * ALX.MILLI_ARCSEC_IN_DEGREES * ALX.HOUR_IN_DEGREES;
+            String expResult = "00:00:00.001";
+            String result = ALX.toHMS(raDeg);
+            assertEquals(expResult, result);
+        }
+        if (true) {
+            double raDeg = (0.5 - 3.0 * Math.ulp(0.5)) * ALX.MILLI_ARCSEC_IN_DEGREES * ALX.HOUR_IN_DEGREES;
+            String expResult = "00:00:00";
             String result = ALX.toHMS(raDeg);
             assertEquals(expResult, result);
         }
@@ -314,9 +332,27 @@ public class ALXTest {
             assertEquals(expResult, result);
         }
         if (true) {
-            double raDeg = 10 * ALX.MILLI_ARCSEC_IN_DEGREES;
-            String expResult= "+00:00:00.010";
-            String result = ALX.toDMS(raDeg);
+            double decDeg = 10.0 * ALX.MILLI_ARCSEC_IN_DEGREES;
+            String expResult = "+00:00:00.010";
+            String result = ALX.toDMS(decDeg);
+            assertEquals(expResult, result);
+        }
+        if (true) {
+            double decDeg = 1.0 * ALX.MILLI_ARCSEC_IN_DEGREES;
+            String expResult = "+00:00:00.001";
+            String result = ALX.toDMS(decDeg);
+            assertEquals(expResult, result);
+        }
+        if (true) {
+            double decDeg = 0.5 * ALX.MILLI_ARCSEC_IN_DEGREES;
+            String expResult = "+00:00:00.001";
+            String result = ALX.toDMS(decDeg);
+            assertEquals(expResult, result);
+        }
+        if (true) {
+            double decDeg = (0.5 - 3.0 * Math.ulp(0.5)) * ALX.MILLI_ARCSEC_IN_DEGREES;
+            String expResult = "+00:00:00";
+            String result = ALX.toDMS(decDeg);
             assertEquals(expResult, result);
         }
     }

@@ -3,7 +3,6 @@
  ******************************************************************************/
 package fr.jmmc.jmal;
 
-import java.util.Locale;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,7 +35,7 @@ public final class ALX {
     /** Specify the value of one arcsecond in degrees */
     public static final double DEG_IN_ARCSEC = 3600d;
     /** Specify the value of one milli arcsecond in degrees */
-    public static final double MILLI_ARCSEC_IN_DEGREES = ARCSEC_IN_DEGREES / 1000d;
+    public static final double MILLI_ARCSEC_IN_DEGREES = (1d / 3600000d);
     /** Specify the value of one arcminute in arcsecond */
     public static final double ARCMIN_IN_ARCSEC = 60d;
     /** Specify the value of one hour in degrees */
@@ -47,7 +46,9 @@ public final class ALX {
     public static final double MIN_IN_DEG = 15d / 60d;
     /** Specify the value of one degree in minute */
     public static final double DEG_IN_MIN = 60d / 15d;
-
+    /** threshold for rounding millis (truncating) */
+    public static final double MILLIS_ROUND_THRESHOLD = 0.5e-3d;
+    
     /**
      * Forbidden constructor : utility class
      */
@@ -286,7 +287,10 @@ public final class ALX {
         final double fSecond = ARCMIN_IN_ARCSEC * (fMinute - iMinute);
         final int iSecond = (int) Math.floor(fSecond);
 
-        final double remainder = fSecond - iSecond;
+        double remainder = fSecond - iSecond;
+
+        // fix last digit by 2 ULP to fix 0.5 rounding
+        remainder += 2.0 * Math.ulp(remainder);
 
         /* print min field */
         sb.append(':');
@@ -302,8 +306,16 @@ public final class ALX {
         }
         sb.append(iSecond);
 
-        if (remainder >= 5e-4d) {
-            sb.append('.').append(String.format("%03d", Math.round(1000d * remainder)));
+        if (remainder >= MILLIS_ROUND_THRESHOLD) {
+            final int iMillis = (int) Math.round(1e3d * remainder);
+            sb.append('.');
+            if (iMillis < 100) {
+                sb.append('0');
+            }
+            if (iMillis < 10) {
+                sb.append('0');
+            }
+            sb.append(iMillis);
         }
         return sb;
     }
