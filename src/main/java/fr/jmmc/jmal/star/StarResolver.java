@@ -29,6 +29,13 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Store informations relative to a star.
+ * 
+ * TODO LIST: 
+ * - use HTTP CLIENT to reuse HTTP connections (multiple queries) and properly handle timeouts
+ * - remove any Swing dependency (StatusBar & SwingUtils) to be used by any web application (oidb)
+ * - provide a synchronous mode to be used by any web application (oidb)
+ * - use jmcs ThreadExecutors.getSingleExecutors("simbad") to use a single thread pool 
+ * ie reuse thread and avoid concurrent calls to simbad
  *
  * @author Sylvain LAFRASSE, Laurent BOURGES.
  */
@@ -56,9 +63,9 @@ public final class StarResolver {
     }
     /* members */
     /** The sought star name(s) */
-    private String _starNames;
+    private final String _starNames;
     /** The star data container */
-    private Star _starModel;
+    private final Star _starModel;
     /** The thread executing the CDS SIMBAD query and parsing */
     private ResolveStarThread _resolveStarThread = null;
     /** running job left to complete */
@@ -795,7 +802,7 @@ public final class StarResolver {
     private static final class StrictStringTokenizer {
 
         /** delimiter */
-        private String delimiter;
+        private final String delimiter;
         /** internal string tokenizer returning delimiter too */
         private final StringTokenizer st;
         /** last token reminder */
