@@ -38,6 +38,8 @@ public final class ModelUVMapService {
     private final static int JOB_THRESHOLD = 256 * 256 - 1;
     /** Jmcs Parallel Job executor */
     private static final ParallelJobExecutor jobExecutor = ParallelJobExecutor.getInstance();
+    /** shared InterruptedJobException instance */
+    private static final InterruptedJobException ije = new InterruptedJobException("ModelUVMapService.computeUVMap: interrupted");
 
     /**
      * Forbidden constructor
@@ -160,7 +162,7 @@ public final class ModelUVMapService {
 
             // fast interrupt :
             if (currentThread.isInterrupted()) {
-                throw new InterruptedJobException("ModelUVMapService.computeUVMap: interrupted");
+                throw ije;
             }
 
             // 2 - Compute complex visibility for the given models :
@@ -198,7 +200,7 @@ public final class ModelUVMapService {
 
         // fast interrupt :
         if (currentThread.isInterrupted()) {
-            throw new InterruptedJobException("ModelUVMapService.computeUVMap: interrupted");
+            throw ije;
         }
 
 
