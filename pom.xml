@@ -14,7 +14,7 @@
     <artifactId>jmal</artifactId>
 
     <packaging>jar</packaging>
-    <name>jMal</name>
+    <name>jMAL</name>
 
     <properties>
 	<!-- do copy dependencies (JNLP) -->
