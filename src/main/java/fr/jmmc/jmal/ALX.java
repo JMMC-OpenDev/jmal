@@ -215,6 +215,17 @@ public final class ALX {
      * @return given string builder
      */
     public static StringBuilder toDMS(final StringBuilder sb, final double angle) {
+        return toDMS(sb, angle, 90d);
+    }
+        
+    /**
+     * Append the DMS format of the given angle to given string builder
+     * @param sb string builder to append into
+     * @param angle angle in degrees within range [-maxValue; maxValue]
+     * @param maxValue maximum angle value in degrees
+     * @return given string builder
+     */
+    public static StringBuilder toDMS(final StringBuilder sb, final double angle, final double maxValue) {
         final boolean negative;
         final double absAngle;
         if (angle < 0.0D) {
@@ -225,7 +236,7 @@ public final class ALX {
             absAngle = angle;
         }
         /* check boundaries */
-        if (absAngle > 90d) {
+        if (absAngle > maxValue) {
             return sb.append("~");
         }
         /* print deg field */
