@@ -5,6 +5,7 @@
  */
 package fr.jmmc.jmal.image;
 
+import fr.jmmc.jmcs.util.concurrent.InterruptedJobException;
 import fr.jmmc.jmcs.util.concurrent.ParallelJobExecutor;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
@@ -12,7 +13,8 @@ import java.awt.image.DataBuffer;
 import java.awt.image.IndexColorModel;
 import java.awt.image.Raster;
 import java.awt.image.WritableRaster;
-import net.jafama.FastMath;
+import java.lang.ref.WeakReference;
+import java.util.ArrayDeque;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,6 +35,9 @@ public final class ImageUtils {
     private final static int JOB_THRESHOLD = 256 * 256 - 1;
     /** Jmcs Parallel Job executor */
     private static final ParallelJobExecutor jobExecutor = ParallelJobExecutor.getInstance();
+
+    /** weak reference on a recycled single image for createImage() */
+    private static WeakReference<ArrayDeque<BufferedImage>> recycled_image_queue = new WeakReference<ArrayDeque<BufferedImage>>(null);
 
     /**
      * Forbidden constructor
@@ -336,7 +341,15 @@ public final class ImageUtils {
         }
 
         // execute jobs in parallel or using current thread if only one job (throws InterruptedJobException if interrupted):
-        jobExecutor.forkAndJoin("ImageUtils.createImage", jobs);
+        try {
+            jobExecutor.forkAndJoin("ImageUtils.createImage", jobs);
+        } catch (RuntimeException re) {
+            logger.debug("recycleImage by interrupted job:");
+            // recycle image:
+            recycleImage(image);
+            // rethrow exception:
+            throw re;
+        }
 
         if (logger.isDebugEnabled()) {
             logger.debug("compute : duration = {} ms.", 1e-6d * (System.nanoTime() - start));
@@ -357,26 +370,74 @@ public final class ImageUtils {
                                             final IndexColorModel colorModel) {
 
         if (logger.isDebugEnabled()) {
-            logger.debug("createImage: using array of size {} x {}", width, height);
+            logger.debug("createImage: size {} x {}", width, height);
+        }
+
+        BufferedImage image = getImage(width, height);
+        if (image != null) {
+            if (logger.isDebugEnabled()) {
+                logger.debug("reuse image[{} x {}] @ {}", image.getWidth(), image.getHeight(), image.hashCode());
+            }
+            return image;
         }
 
         final ColorModel imageColorModel;
         final WritableRaster imageRaster;
 
-        
         // TODO: memory waste: reuse images if possible !!
-        
         if (USE_RGB_INTERPOLATION) {
             imageColorModel = ColorModel.getRGBdefault();
             imageRaster = imageColorModel.createCompatibleWritableRaster(width, height);
-
         } else {
             imageColorModel = colorModel;
             imageRaster = Raster.createPackedRaster(DataBuffer.TYPE_BYTE, width, height, new int[]{0xFF}, null);
         }
 
         // do not initialize raster pixels
-        return new BufferedImage(imageColorModel, imageRaster, false, null);
+        image = new BufferedImage(imageColorModel, imageRaster, false, null);
+
+        if (logger.isDebugEnabled()) {
+            logger.debug("create image[{} x {}] @ {}", image.getWidth(), image.getHeight(), image.hashCode());
+        }
+
+        return image;
+    }
+
+    private static synchronized BufferedImage getImage(final int width, final int height) {
+        ArrayDeque<BufferedImage> queue = recycled_image_queue.get();
+        if (queue != null) {
+            final int size = queue.size();
+            if (logger.isDebugEnabled()) {
+                logger.debug("traversing image queue: {} images", size);
+            }
+            for (int i = 0; i < size; i++) {
+                BufferedImage image = queue.poll();
+                if (image != null) {
+                    if (image.getWidth() == width && image.getHeight() == height) {
+                        return image;
+                    } else {
+                        if (logger.isDebugEnabled()) {
+                            logger.debug("bad size Image[{} x {}] @ {}", image.getWidth(), image.getHeight(), image.hashCode());
+                        }
+                        // return image:
+                        queue.offer(image);
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    public static synchronized void recycleImage(final BufferedImage image) {
+        if (logger.isDebugEnabled()) {
+            logger.debug("recycle Image[{} x {}] @ {}", image.getWidth(), image.getHeight(), image.hashCode());
+        }
+        ArrayDeque<BufferedImage> queue = recycled_image_queue.get();
+        if (queue == null) {
+            queue = new ArrayDeque<BufferedImage>(8);
+            recycled_image_queue = new WeakReference<ArrayDeque<BufferedImage>>(queue);
+        }
+        queue.offer(image);
     }
 
     /**
