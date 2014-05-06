@@ -155,9 +155,6 @@ public abstract class AbstractImageJob<V> implements Callable<V> {
         /** Get the current thread to check if the computation is interrupted */
         final Thread currentThread = Thread.currentThread();
 
-        // this step indicates when the thread.isInterrupted() is called in the for loop
-        final int stepInterrupt = Math.min(16, 1 + height / 16);
-
         float[] row;
 
         // iterate on rows starting at jobIndex and skip jobCount rows at each iteration:
@@ -170,7 +167,7 @@ public abstract class AbstractImageJob<V> implements Callable<V> {
             } // column
 
             // fast interrupt:
-            if (j % stepInterrupt == 0 && currentThread.isInterrupted()) {
+            if (currentThread.isInterrupted()) {
                 logger.debug("AbstractImageJob: cancelled (vis)");
                 return null;
             }
