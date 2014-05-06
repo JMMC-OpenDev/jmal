@@ -44,6 +44,8 @@ public final class UVMapData {
     private final Float dataMax;
     /** Model complex visiblities */
     private final float[][] data;
+    /** flag indicating if the data are reused to compute other images (avoid recycling) */
+    private volatile boolean dataReused = false;
     /** uv map image (amplitude or phase) */
     private final BufferedImage uvMap;
     /** concrete number of pixels for both width and height of the generated image (may be different than imageSize) */
@@ -392,4 +394,21 @@ public final class UVMapData {
         }
         return true;
     }
+
+    /**
+     * Return the flag indicating if the data are reused to compute other images (avoid recycling)
+     * @return flag indicating if the data are reused to compute other images (avoid recycling)
+     */
+    public boolean isDataReused() {
+        return dataReused;
+    }
+
+    /**
+     * Define the flag indicating if the data are reused to compute other images (avoid recycling)
+     * @param dataReused flag indicating if the data are reused to compute other images (avoid recycling)
+     */
+    public void setDataReused(final boolean dataReused) {
+        this.dataReused = dataReused;
+    }
+
 }

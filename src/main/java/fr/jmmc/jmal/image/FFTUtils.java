@@ -9,6 +9,7 @@ import edu.emory.mathcs.utils.ConcurrencyUtils;
 import fr.jmmc.jmal.model.ImageMode;
 import fr.jmmc.jmal.model.VisConverter;
 import fr.jmmc.jmal.model.VisNoiseService;
+import fr.jmmc.jmal.util.GenericWeakCache;
 import fr.jmmc.jmal.util.ThreadLocalRandom;
 import fr.jmmc.jmcs.util.concurrent.ParallelJobExecutor;
 import java.util.Random;
@@ -25,6 +26,19 @@ public final class FFTUtils {
     private static final Logger logger = LoggerFactory.getLogger(FFTUtils.class.getName());
     /** Jmcs Parallel Job executor */
     private static final ParallelJobExecutor jobExecutor = ParallelJobExecutor.getInstance();
+    /** weak image cache for createImage()/recycleImage() */
+    private final static GenericWeakCache<FloatFFT_2D> fft2dCache = new GenericWeakCache<FloatFFT_2D>("FloatFFT2D") {
+
+        @Override
+        protected boolean checkSizes(FloatFFT_2D fft2d, int length, int length2) {
+            return (fft2d.getRows() == length && fft2d.getColumns() == length2);
+        }
+
+        @Override
+        public String getSizes(FloatFFT_2D fft2d) {
+            return String.format("%d x %d", fft2d.getRows(), fft2d.getColumns());
+        }
+    };
 
     /**
      * Forbidden constructor
@@ -54,7 +68,6 @@ public final class FFTUtils {
      * @return subset of the 2D real FFT array (power of two) of the given size outputSize = rows = columns
      */
     public static float[][] computeFFT(final int inputSize, final float[][] array, final int fftSize, final int outputSize) {
-
         if (logger.isDebugEnabled()) {
             logger.debug("computeFFT: image size = {} - FFT size = {} - output size = {}",
                     inputSize, fftSize, outputSize);
@@ -70,36 +83,52 @@ public final class FFTUtils {
 
         long start = System.nanoTime();
 
-        // use size to have hyper resolution in fourier plane:
-        FloatFFT_2D fft2d = new FloatFFT_2D(fftSize, fftSize, true); // rows, cols must be power of two !!
+        // use fftSize to have hyper resolution in fourier plane:
+        FloatFFT_2D fft2d = fft2dCache.getItem(fftSize, fftSize);
+        if (fft2d != null) {
+            if (logger.isDebugEnabled()) {
+                logger.debug("reuse fft2d[{}] @ {}", fft2dCache.getSizes(fft2d), fft2d.hashCode());
+            }
+        } else {
+            fft2d = new FloatFFT_2D(fftSize, fftSize, true); // rows, cols must be power of two !!
+        }
 
         float[][] fftData = null;
         try {
+            // Get an output array from weak cache or allocate a new array with enough capacity:
+            fftData = FloatArrayCache.getArray(fftSubSize, fftSubSize + 2);
+            
             // compute subset of real FFT (power of 2):
-            fftData = fft2d.realForwardSubset(fftSubSize, inputSize, array);
-        } catch (IllegalArgumentException iae) {
-            throw new IllegalStateException("Invalid argument to compute FFT :", iae);
-        }
-
-        // fast interrupt:
-        if (Thread.currentThread().isInterrupted()) {
-            return null;
+            fftData = fft2d.realForwardSubset(fftSubSize, inputSize, array, fftData);
+            
+        } catch (RuntimeException re) {
+            logger.debug("recycleArray <= interrupted job:");
+            FloatArrayCache.recycleArray(fftData);
+            // rethrow exception:
+            if (re instanceof IllegalArgumentException) {
+                throw new IllegalStateException("Invalid argument to compute FFT :", re);
+            }
+            throw re;
+        } finally {
+            // Note: when threads are interrupted, some may still be still running is using the fft2d instance:
+            fft2dCache.putItem(fft2d);
         }
 
         logger.info("FloatFFT_2D.realForwardSubset: duration = {} ms.", 1e-6d * (System.nanoTime() - start));
 
-        // free FFT2D (GC):
-        fft2d = null;
-
-
         // extract part of the FFT:
-
         if (fftSubSize > outputSize) {
+            final float[][] array2D = fftData;
+
             start = System.nanoTime();
 
             fftData = extractFFT(fftSubSize, fftData, outputSize);
 
             logger.info("extractFFT: duration = {} ms.", 1e-6d * (System.nanoTime() - start));
+
+            if (array2D != fftData) {
+                FloatArrayCache.recycleArray(array2D);
+            }
         }
 
         return fftData;
@@ -148,7 +177,8 @@ public final class FFTUtils {
         // rows, cols must be power of two or at least even numbers:
         final RealFFTUtils_2D unpacker = new RealFFTUtils_2D(fftSize, fftSize);
 
-        final float[][] output = new float[outputSize][outputSize];
+        // Get an output array from weak cache or allocate a new array with enough capacity:
+        final float[][] output = FloatArrayCache.getArray(outputSize, outputSize);
 
         // thread safe data converter:
         final VisConverter converter = VisConverter.create(mode, noiseService);
@@ -260,7 +290,6 @@ public final class FFTUtils {
          * | 1 2 | => | 3 4 |
          * | 4 3 |    | 2 1 |
          */
-
         final int ro2 = size / 2; // half of row dimension
 
         float[] row, row2;
@@ -320,14 +349,14 @@ public final class FFTUtils {
 
         final int ef2 = size - ro2; // index of the first row in FFT (quadrant 3 / 4)
 
-        final float[][] output = new float[outputSize][outputSize];
+        // Get an output array from weak cache or allocate a new array with enough capacity:
+        final float[][] output = FloatArrayCache.getArray(outputSize, outputSize);
 
         /*
          * a[k1][2*k2] = Re[k1][k2] = Re[rows-k1][columns-k2], 
          * a[k1][2*k2+1] = Im[k1][k2] = -Im[rows-k1][columns-k2], 
          *       0&lt;k1&lt;rows, 0&lt;k2&lt;columns/2, 
          */
-
         float[] oRow, fRow;
 
         for (int r = 0; r < ro2; r++) {
@@ -345,7 +374,6 @@ public final class FFTUtils {
         }
 
         // Probleme connu (symetrie horiz/vert) for row=rows/2 column=columns/2
-
         // Solution: fixer a[rows][0/1] avec rows > 1
         /*
          * a[rows-k1][1] = Re[k1][columns/2] = Re[rows-k1][columns/2], 

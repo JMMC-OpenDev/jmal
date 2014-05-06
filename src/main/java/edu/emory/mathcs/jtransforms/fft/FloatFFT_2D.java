@@ -61,6 +61,8 @@ public final class FloatFFT_2D {
     private float[] t;
     private int oldNthreads;
     private int nt;
+    // LBO: empty array to quickly clear temporary arrays in realForwardSubset()
+    private float[] emptyArray = null;
 
     /**
      * Creates new instance of FloatFFT_2D.
@@ -120,6 +122,14 @@ public final class FloatFFT_2D {
         } else {
             fftColumns = new FloatFFT_1D(columns, false);
         }
+    }
+
+    public int getRows() {
+        return rows;
+    }
+
+    public int getColumns() {
+        return columns;
     }
 
     /**
@@ -722,10 +732,52 @@ public final class FloatFFT_2D {
      * 
      * @param subSize size = rows = columns of the output array containing the subset of the 2D forward DFT (must be an even number)
      * @param inputSize size = rows = columns of the input array a (must be an even number)
-     * @param a data to transform
+     * @param data data to transform
      * @return subset of the 2D forward DFT (power of two) of the given size subSize = rows = columns
      */
-    public float[][] realForwardSubset(final int subSize, final int inputSize, final float[][] a) {
+    public float[][] realForwardSubset(final int subSize, final int inputSize,
+                                       final float[][] data) {
+        return realForwardSubset(subSize, inputSize, data, null);
+    }
+
+    /**
+     * Computes only a subset of the 2D forward DFT of real data (without leaving
+     * the result in <code>a</code>).
+     * This method only works when the sizes of both dimensions are
+     * power-of-two numbers. The physical layout of the output data is as follows:
+     * 
+     * <pre>
+     * a[k1][2*k2] = Re[k1][k2] = Re[rows-k1][columns-k2], 
+     * a[k1][2*k2+1] = Im[k1][k2] = -Im[rows-k1][columns-k2], 
+     *       0&lt;k1&lt;rows, 0&lt;k2&lt;columns/2, 
+     * a[0][2*k2] = Re[0][k2] = Re[0][columns-k2], 
+     * a[0][2*k2+1] = Im[0][k2] = -Im[0][columns-k2], 
+     *       0&lt;k2&lt;columns/2, 
+     * a[k1][0] = Re[k1][0] = Re[rows-k1][0], 
+     * a[k1][1] = Im[k1][0] = -Im[rows-k1][0], 
+     * a[rows-k1][1] = Re[k1][columns/2] = Re[rows-k1][columns/2], 
+     * a[rows-k1][0] = -Im[k1][columns/2] = Im[rows-k1][columns/2], 
+     *       0&lt;k1&lt;rows/2, 
+     * a[0][0] = Re[0][0], 
+     * a[0][1] = Re[0][columns/2], 
+     * a[rows/2][0] = Re[rows/2][0], 
+     * a[rows/2][1] = Re[rows/2][columns/2]
+     * </pre>
+     * 
+     * This method computes only half of the elements of the real transform. The
+     * other half satisfies the symmetry condition. If you want the full real
+     * forward transform, use <code>realForwardFull</code>. To get back the
+     * original data, use <code>realInverse</code> on the output of this method.
+     * 
+     * @param subSize size = rows = columns of the output array containing the subset of the 2D forward DFT (must be an even number)
+     * @param inputSize size = rows = columns of the input array a (must be an even number)
+     * @param data data to transform
+     * @param outputData optional output data[N][M] (N >= subSize & M >= subSize + 2)
+     * @return subset of the 2D forward DFT (power of two) of the given size subSize = rows = columns
+     */
+    public float[][] realForwardSubset(final int subSize, final int inputSize,
+                                       final float[][] data,
+                                       final float[][] outputData) {
 //        System.out.println("realForwardSubset: inputSize = " + inputSize + " - subSize = " + subSize + " - fft rows = " + rows + " - cols = " + columns);
 
         if (isPowerOfTwo == false) {
@@ -757,8 +809,21 @@ public final class FloatFFT_2D {
         // add 1 column more to compute and store columns/2 values:
         final int subSizeColumns = (subSize < columns) ? subSize + 2 : subSize;
 
+        // Check the given output data:
+        final boolean isOutputDataValid = ((outputData != null)
+                && (outputData.length >= subSize)
+                && (outputData[0] != null)
+                && (outputData[0].length >= subSizeColumns));
+
         // Create new output array (could be given):
-        final float[][] output = new float[subSize][subSizeColumns];
+        final float[][] output;
+        if (isOutputDataValid) {
+//            System.out.println("realForwardSubset: reuse outputData ...");
+            output = outputData;
+        } else {
+//            System.out.println("realForwardSubset: output = " + subSize + " x " + subSizeColumns);
+            output = new float[subSize][subSizeColumns];
+        }
 
 //        System.out.println("realForwardSubset: nthreads = " + nthreads);
 //        System.out.println("realForwardSubset: 1D array t[] size = " + t.length);
@@ -772,7 +837,12 @@ public final class FloatFFT_2D {
         final int rowOutOffset = (columns - sdiv2);
 
         // emptyData contain 2 * rows or columns used by both rows and columns:
-        final float[] emptyData = new float[Math.max(rmul2, columns)];
+        final float[] emptyData;
+        if (emptyArray == null) {
+            emptyArray = emptyData = new float[Math.max(rmul2, columns)]; // fixed
+        } else {
+            emptyData = emptyArray;
+        }
 
         // computation tasks:
         final Runnable[] tasks = new Runnable[nthreads];
@@ -797,9 +867,6 @@ public final class FloatFFT_2D {
                     /** Get the current thread to check if the computation is interrupted */
                     final Thread currentThread = Thread.currentThread();
 
-                    // this step indicates when the thread.isInterrupted() is called in the for loop
-                    final int stepInterrupt = Math.min(4, 1 + inputSize / 32);
-
                     for (int r = n0; r < inputSize; r += nthreads) {
 
                         // A - clear complete row:
@@ -812,12 +879,12 @@ public final class FloatFFT_2D {
                         
                         if (r < idiv2) {
                             // quadrants 3 and 4 from input image:
-                            System.arraycopy(a[r + idiv2], idiv2, t, startt, idiv2);
-                            System.arraycopy(a[r + idiv2], 0, t, startt + rowInOffset, idiv2);
+                            System.arraycopy(data[r + idiv2], idiv2, t, startt, idiv2);
+                            System.arraycopy(data[r + idiv2], 0, t, startt + rowInOffset, idiv2);
                         } else {
                             // quadrants 2 and 1 from input image (inverted):
-                            System.arraycopy(a[r - idiv2], idiv2, t, startt, idiv2);
-                            System.arraycopy(a[r - idiv2], 0, t, startt + rowInOffset, idiv2);
+                            System.arraycopy(data[r - idiv2], idiv2, t, startt, idiv2);
+                            System.arraycopy(data[r - idiv2], 0, t, startt + rowInOffset, idiv2);
                         }
 
                         // C - compute real forward as t contains real data:
@@ -830,16 +897,16 @@ public final class FloatFFT_2D {
                          */
                         fftColumns.realForward(t, startt);
 
+                        // fast interrupt:
+                        if (currentThread.isInterrupted()) {
+                            return;
+                        }
+
                         // D - copy data from t to the beginning of output (complex data ie 2*columns):
                         // NOTE: output data contains:
                         // - fft data for quadrants 3 and 4 for 0 < r < idiv2
                         // - fft data for quadrants 2 and 1 for idiv2 < r < inputSize
                         System.arraycopy(t, startt, output[r], 0, subSizeColumns);
-
-                        // fast interrupt:
-                        if (r % stepInterrupt == 0 && currentThread.isInterrupted()) {
-                            return;
-                        }
                     }
                 }
             };
@@ -873,9 +940,6 @@ public final class FloatFFT_2D {
 
                     /** Get the current thread to check if the computation is interrupted */
                     final Thread currentThread = Thread.currentThread();
-
-                    // this step indicates when the thread.isInterrupted() is called in the for loop
-                    final int stepInterrupt = Math.min(4, 1 + scdiv2 / 32);
 
                     int idx2, reIdx, imIdx;
                     float[] oRow;
@@ -918,7 +982,7 @@ public final class FloatFFT_2D {
 
                             t[idx2] = re;
                             t[idx2 + 1] = im;
-                            
+
                             // copy fft data for quadrants 2 and 1:
                             oRow = output[r + idiv2];
 
@@ -935,6 +999,11 @@ public final class FloatFFT_2D {
 
                         // C - compute complex forward as t contains complex data:
                         fftRows.complexForward(t, startt);
+
+                        // fast interrupt:
+                        if (currentThread.isInterrupted()) {
+                            return;
+                        }
 
                         // D - Fix column 0 directly on t:
                         if (c == 0) {
@@ -977,11 +1046,6 @@ public final class FloatFFT_2D {
                             oRow = output[r + sdiv2];
                             oRow[reIdx] = re;
                             oRow[imIdx] = im;
-                        }
-
-                        // fast interrupt:
-                        if (c % stepInterrupt == 0 && currentThread.isInterrupted()) {
-                            return;
                         }
                     }
                 }
