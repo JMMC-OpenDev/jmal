@@ -5,6 +5,7 @@
  */
 package fr.jmmc.jmal.image;
 
+import fr.jmmc.jmal.util.GenericWeakCache;
 import fr.jmmc.jmcs.util.concurrent.InterruptedJobException;
 import fr.jmmc.jmcs.util.concurrent.ParallelJobExecutor;
 import java.awt.image.BufferedImage;
@@ -13,8 +14,6 @@ import java.awt.image.DataBuffer;
 import java.awt.image.IndexColorModel;
 import java.awt.image.Raster;
 import java.awt.image.WritableRaster;
-import java.lang.ref.WeakReference;
-import java.util.ArrayDeque;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,9 +34,19 @@ public final class ImageUtils {
     private final static int JOB_THRESHOLD = 256 * 256 - 1;
     /** Jmcs Parallel Job executor */
     private static final ParallelJobExecutor jobExecutor = ParallelJobExecutor.getInstance();
+    /** weak image cache for createImage()/recycleImage() */
+    private final static GenericWeakCache<BufferedImage> imageCache = new GenericWeakCache<BufferedImage>("ImageUtils") {
 
-    /** weak reference on a recycled single image for createImage() */
-    private static WeakReference<ArrayDeque<BufferedImage>> recycled_image_queue = new WeakReference<ArrayDeque<BufferedImage>>(null);
+        @Override
+        protected boolean checkSizes(BufferedImage image, int length, int length2) {
+            return (image.getWidth() == length && image.getHeight() == length2);
+        }
+
+        @Override
+        public String getSizes(BufferedImage image) {
+            return String.format("%d x %d", image.getWidth(), image.getHeight());
+        }
+    };
 
     /**
      * Forbidden constructor
@@ -344,7 +353,7 @@ public final class ImageUtils {
         try {
             jobExecutor.forkAndJoin("ImageUtils.createImage", jobs);
         } catch (RuntimeException re) {
-            logger.debug("recycleImage by interrupted job:");
+            logger.debug("recycleImage <= interrupted job:");
             // recycle image:
             recycleImage(image);
             // rethrow exception:
@@ -373,11 +382,8 @@ public final class ImageUtils {
             logger.debug("createImage: size {} x {}", width, height);
         }
 
-        BufferedImage image = getImage(width, height);
+        BufferedImage image = imageCache.getItem(width, height);
         if (image != null) {
-            if (logger.isDebugEnabled()) {
-                logger.debug("reuse image[{} x {}] @ {}", image.getWidth(), image.getHeight(), image.hashCode());
-            }
             return image;
         }
 
@@ -403,41 +409,8 @@ public final class ImageUtils {
         return image;
     }
 
-    private static synchronized BufferedImage getImage(final int width, final int height) {
-        ArrayDeque<BufferedImage> queue = recycled_image_queue.get();
-        if (queue != null) {
-            final int size = queue.size();
-            if (logger.isDebugEnabled()) {
-                logger.debug("traversing image queue: {} images", size);
-            }
-            for (int i = 0; i < size; i++) {
-                BufferedImage image = queue.poll();
-                if (image != null) {
-                    if (image.getWidth() == width && image.getHeight() == height) {
-                        return image;
-                    } else {
-                        if (logger.isDebugEnabled()) {
-                            logger.debug("bad size Image[{} x {}] @ {}", image.getWidth(), image.getHeight(), image.hashCode());
-                        }
-                        // return image:
-                        queue.offer(image);
-                    }
-                }
-            }
-        }
-        return null;
-    }
-
-    public static synchronized void recycleImage(final BufferedImage image) {
-        if (logger.isDebugEnabled()) {
-            logger.debug("recycle Image[{} x {}] @ {}", image.getWidth(), image.getHeight(), image.hashCode());
-        }
-        ArrayDeque<BufferedImage> queue = recycled_image_queue.get();
-        if (queue == null) {
-            queue = new ArrayDeque<BufferedImage>(8);
-            recycled_image_queue = new WeakReference<ArrayDeque<BufferedImage>>(queue);
-        }
-        queue.offer(image);
+    public static void recycleImage(final BufferedImage image) {
+        imageCache.putItem(image);
     }
 
     /**
@@ -649,9 +622,6 @@ public final class ImageUtils {
             /** Get the current thread to check if the computation is interrupted */
             final Thread currentThread = Thread.currentThread();
 
-            // this step indicates when the thread.isInterrupted() is called in the for loop
-            final int stepInterrupt = Math.min(16, 1 + height / 16);
-
             if (USE_RGB_INTERPOLATION) {
 
                 // initialize raster pixels
@@ -662,7 +632,7 @@ public final class ImageUtils {
                                 getScaledValue(doLog10, scaledMin, scalingFactor, array1D[i]), ALPHA_MASK));
 
                         // fast interrupt:
-                        if (i % stepInterrupt == 0 && currentThread.isInterrupted()) {
+                        if (currentThread.isInterrupted()) {
                             logger.debug("ComputeImagePart: cancelled (vis)");
                             return;
                         }
@@ -681,7 +651,7 @@ public final class ImageUtils {
                         }
 
                         // fast interrupt:
-                        if (j % stepInterrupt == 0 && currentThread.isInterrupted()) {
+                        if (currentThread.isInterrupted()) {
                             logger.debug("ComputeImagePart: cancelled (vis)");
                             return;
                         }
@@ -698,7 +668,7 @@ public final class ImageUtils {
                                 getScaledValue(doLog10, scaledMin, scalingFactor, array1D[i])));
 
                         // fast interrupt:
-                        if (i % stepInterrupt == 0 && currentThread.isInterrupted()) {
+                        if (currentThread.isInterrupted()) {
                             logger.debug("ComputeImagePart: cancelled (vis)");
                             return;
                         }
@@ -717,7 +687,7 @@ public final class ImageUtils {
                         }
 
                         // fast interrupt:
-                        if (j % stepInterrupt == 0 && currentThread.isInterrupted()) {
+                        if (currentThread.isInterrupted()) {
                             logger.debug("ComputeImagePart: cancelled (vis)");
                             return;
                         }
