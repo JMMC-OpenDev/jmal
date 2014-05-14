@@ -46,6 +46,8 @@ public final class ALX {
     public static final double MIN_IN_DEG = 15d / 60d;
     /** Specify the value of one degree in minute */
     public static final double DEG_IN_MIN = 60d / 15d;
+    /** Specify the value of one hour in minute */
+    public static final double HOUR_IN_MIN = 60d;
     /** threshold for rounding millis (truncating) */
     public static final double MILLIS_ROUND_THRESHOLD = 0.5e-3d;
     
@@ -395,6 +397,17 @@ public final class ALX {
      */
     public static double degrees2minutes(final double degrees) {
         return degrees * DEG_IN_MIN;
+    }
+
+    /**
+     * Convert a value in hours to minute.
+     *
+     * @param hours the value in hours to convert.
+     *
+     * @return a double containing the converted value.
+     */
+    public static double hours2min(final double hours) {
+        return hours * HOUR_IN_MIN;
     }
 }
 /*___oOo___*/
