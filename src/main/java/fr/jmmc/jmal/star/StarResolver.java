@@ -6,13 +6,14 @@ package fr.jmmc.jmal.star;
 import fr.jmmc.jmcs.gui.component.StatusBar;
 import fr.jmmc.jmcs.gui.util.SwingUtils;
 import fr.jmmc.jmcs.util.FileUtils;
-import fr.jmmc.jmcs.util.MCSExceptionHandler;
 import fr.jmmc.jmcs.util.StringUtils;
 import fr.jmmc.jmcs.util.UrlUtils;
+import fr.jmmc.jmcs.util.concurrent.ThreadExecutors;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.URLConnection;
 import java.net.UnknownHostException;
 import java.text.ParseException;
 import java.util.ArrayList;
@@ -24,6 +25,7 @@ import java.util.Observable;
 import java.util.Observer;
 import java.util.Set;
 import java.util.StringTokenizer;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,6 +38,7 @@ import org.slf4j.LoggerFactory;
  * - provide a synchronous mode to be used by any web application (oidb)
  * - use jmcs ThreadExecutors.getSingleExecutors("simbad") to use a single thread pool 
  * ie reuse thread and avoid concurrent calls to simbad
+ * - support cancellation (cancel button ?)
  *
  * @author Sylvain LAFRASSE, Laurent BOURGES.
  */
@@ -61,17 +64,18 @@ public final class StarResolver {
         _simbadMirrors.put("SIMBAD Strasbourg, FR [IP]", "http://130.79.128.4/simbad/sim-script?script=");
         _simbadMirrors.put("SIMBAD Harvard, US [IP]", "http://131.142.185.22/simbad/sim-script?script=");
     }
+
     /* members */
     /** The sought star name(s) */
     private final String _starNames;
     /** The star data container */
     private final Star _starModel;
-    /** The thread executing the CDS SIMBAD query and parsing */
-    private ResolveStarThread _resolveStarThread = null;
-    /** running job left to complete */
-    private int _jobCounter = 0;
     /** Star list */
     private final StarList _starList;
+    /** running job left to complete */
+    private final AtomicInteger _jobCounter = new AtomicInteger();
+    /** Dedicated thread executor */
+    private final ThreadExecutors _executor = ThreadExecutors.getSingleExecutor("StarResolverThreadPool");
 
     /**
      * Constructor.
@@ -80,19 +84,22 @@ public final class StarResolver {
      * @param star the star to fulfill.
      */
     public StarResolver(final String name, final Star star) {
-        _starNames = name;
-        _starModel = star;
-        _starList = null;
+        this(name, star, null);
     }
 
     /**
      * Dedicated constructor for multiple star resolution.
      *
      * @param names the names of the star to resolve, separated by semi-colons.
+     * @param stars the star list to fulfill.
      */
     public StarResolver(final String names, final StarList stars) {
+        this(names, new Star(), stars);
+    }
+
+    private StarResolver(final String names, final Star star, final StarList stars) {
         _starNames = names;
-        _starModel = new Star();
+        _starModel = star;
         _starList = stars;
     }
 
@@ -102,25 +109,15 @@ public final class StarResolver {
     public void resolve() {
         _logger.trace("StarResolver.resolve");
 
-        if (_resolveStarThread != null) {
-            _logger.warn("A star resolution thread is already running, so doing nothing.");
-            return;
-        }
-
         // Launch the query in the background in order to keep GUI updated
-
         // Define the star name
-        Star newStarModel = new Star();
-        _jobCounter = 1;
+        final Star newStarModel = new Star();
         newStarModel.setName(_starNames);
 
-        _resolveStarThread = new ResolveStarThread(_starNames, newStarModel);
-
-        // Define UncaughtExceptionHandler
-        MCSExceptionHandler.installThreadHandler(_resolveStarThread);
+        final ResolveStarJob resolveStarJob = new ResolveStarJob(_starNames, newStarModel);
 
         // Launch query
-        _resolveStarThread.start();
+        _executor.execute(resolveStarJob);
     }
 
     /**
@@ -134,19 +131,15 @@ public final class StarResolver {
             return;
         }
 
-        if (_resolveStarThread != null) {
-            _logger.warn("A star resolution thread is already running, so doing nothing.");
-            return;
-        }
-
         // Flush current list
         _starList.clear();
 
         // Launch the query in the background in order to keep GUI updated
-        String[] names = _starNames.split(SEPARATOR_SEMI_COLON);
-        _jobCounter = names.length;
-        for (String name : names) {
+        final String[] names = _starNames.split(SEPARATOR_SEMI_COLON);
 
+        _jobCounter.set(names.length);
+
+        for (String name : names) {
             // Skip empty names
             if (name.isEmpty()) {
                 decrementJobCounter();
@@ -154,33 +147,27 @@ public final class StarResolver {
             }
 
             // Define the star name
-            Star newStarModel = new Star();
+            final Star newStarModel = new Star();
             newStarModel.setName(name);
             _starList.add(newStarModel);
 
-            _resolveStarThread = new ResolveStarThread(_starNames, newStarModel);
-
-            // Define UncaughtExceptionHandler
-            MCSExceptionHandler.installThreadHandler(_resolveStarThread);
+            final ResolveStarJob resolveStarJob = new ResolveStarJob(_starNames, newStarModel);
 
             // Launch query
-            _resolveStarThread.start();
+            _executor.execute(resolveStarJob);
         }
     }
 
-    private synchronized void decrementJobCounter() {
-        _jobCounter--;
-        if (_jobCounter <= 0) {
-            if (_starList != null) {
-                // Use EDT to ensure only 1 thread (EDT) updates the model and handles the notification :
-                SwingUtils.invokeEDT(new Runnable() {
-                    @Override
-                    public void run() {
-                        // Notify all registered observers that the query went fine :
-                        _starList.fireNotification(Star.Notification.QUERY_COMPLETE);
-                    }
-                });
-            }
+    private void decrementJobCounter() {
+        if (_starList != null && _jobCounter.decrementAndGet() <= 0) {
+            // Use EDT to ensure only 1 thread (EDT) updates the model and handles the notification :
+            SwingUtils.invokeEDT(new Runnable() {
+                @Override
+                public void run() {
+                    // Notify all registered observers that the query went fine :
+                    _starList.fireNotification(Star.Notification.QUERY_COMPLETE);
+                }
+            });
         }
     }
 
@@ -261,14 +248,13 @@ public final class StarResolver {
         });
 
         // Seek data about the given star name (first arg on command line)
-        StarResolver starResolver = new StarResolver(starName, star);
-        starResolver.resolve();
+        new StarResolver(starName, star).resolve();
     }
 
     /**
-     * Star resolver thread : launch and handle CDS SIMBAD query
+     * Star resolver job : launch and handle CDS SIMBAD query
      */
-    private final class ResolveStarThread extends Thread {
+    private final class ResolveStarJob implements Runnable {
 
         /** flag to indicate that an error occurred */
         private boolean _error = false;
@@ -282,14 +268,14 @@ public final class StarResolver {
          */
         private final Star _newStarModel;
 
-        private ResolveStarThread(final String starName, final Star newStarModel) {
+        private ResolveStarJob(final String starName, final Star newStarModel) {
             _starName = starName;
             _newStarModel = newStarModel;
         }
 
         @Override
         public void run() {
-            _logger.trace("ResolveStarThread.run");
+            _logger.trace("ResolveStarJob.run");
 
             querySimbad();
 
@@ -384,7 +370,7 @@ public final class StarResolver {
          * Query SIMBAD using script
          */
         public void querySimbad() {
-            _logger.trace("ResolveStarThread.querySimbad");
+            _logger.trace("ResolveStarJob.querySimbad");
 
             // Should never receive an empty scence object name
             if (_starName.length() == 0) {
@@ -439,7 +425,14 @@ public final class StarResolver {
 
                     // Launch the network query
                     // TODO: use HTTP CLIENT !!
-                    inputStream = UrlUtils.parseURL(simbadQuery).openStream();
+                    final URLConnection c = UrlUtils.parseURL(simbadQuery).openConnection();
+
+                    // set the connection timeout to 2 seconds and the read timeout to 5 seconds
+                    c.setConnectTimeout(2000);
+                    c.setReadTimeout(5000);
+
+                    inputStream = c.getInputStream();
+
                     bufferedReader = new BufferedReader(new InputStreamReader(inputStream, HTTP_ENCODING));
 
                     // Read incoming data line by line
@@ -497,7 +490,7 @@ public final class StarResolver {
          * Parse SIMBAD response
          */
         public void parseResult() {
-            _logger.trace("ResolveStarThread.parseResult");
+            _logger.trace("ResolveStarJob.parseResult");
 
             // If the result string is empty
             if (_result.length() < 1) {
@@ -517,7 +510,7 @@ public final class StarResolver {
                 String errorMessage = null;
                 final int pos = _result.indexOf('\n');
                 if (pos != -1) {
-                    errorMessage = StringUtils.removeRedundantWhiteSpaces(_result.substring(pos + 1)).trim();
+                    errorMessage = StringUtils.cleanWhiteSpaces(_result.substring(pos + 1));
                 }
 
                 raiseCDSimbadErrorMessage("Querying script execution failed for star '" + _starName + "' "
@@ -578,7 +571,6 @@ public final class StarResolver {
                  * If anything went wrong while querying or parsing, previous data
                  * remain unchanged.
                  */
-
                 // Use EDT to ensure only 1 thread (EDT) updates the model and handles the notification :
                 SwingUtils.invokeEDT(new Runnable() {
                     @Override
@@ -778,12 +770,8 @@ public final class StarResolver {
         private void parseIdentifiers(final String identifiers) {
             _logger.debug("Identifiers contain '{}'.", identifiers);
 
-            String ids = identifiers;
-
-            if (ids.length() > 0) {
-                // remove redundant space characters :
-                ids = StringUtils.removeRedundantWhiteSpaces(ids);
-            }
+            // trim and remove redundant space characters:
+            String ids = StringUtils.cleanWhiteSpaces(identifiers);
 
             if (ids.length() > 0) {
                 // remove last separator :
