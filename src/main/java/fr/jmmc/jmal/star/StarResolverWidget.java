@@ -67,7 +67,8 @@ public class StarResolverWidget extends SearchField implements Observer {
         addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(final ActionEvent e) {
-                final String starName = e.getActionCommand().trim();
+                // note: the action command value is already cleaned by SearchField#postActionEvent()
+                final String starName = e.getActionCommand();
 
                 if (starName.length() > 0) {
                     _logger.info("Searching CDS Simbad data for star '{}'.", starName);
@@ -97,6 +98,7 @@ public class StarResolverWidget extends SearchField implements Observer {
      * @param stars star list
      */
     public StarResolverWidget(final StarList stars) {
+        super("Simbad", _mirrorPopupMenu);
 
         _star = null;
         stars.addObserver(this);
@@ -104,7 +106,8 @@ public class StarResolverWidget extends SearchField implements Observer {
         addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(final ActionEvent e) {
-                final String starNames = e.getActionCommand().trim();
+                // note: the action command value is already cleaned by SearchField#postActionEvent()
+                final String starNames = e.getActionCommand();
 
                 if (starNames.length() > 0) {
                     _logger.info("Searching CDS Simbad data for star '{}'.", starNames);

@@ -74,8 +74,8 @@ public final class EditableStarResolverWidget extends StarResolverWidget {
              */
             @Override
             public void actionPerformed(final ActionEvent ae) {
-
-                final String textValue = ae.getActionCommand().trim();
+                // note: the action command value is already cleaned by SearchField#postActionEvent()
+                final String textValue = ae.getActionCommand();
 
                 if (textValue.length() > 0) {
 
@@ -101,21 +101,17 @@ public final class EditableStarResolverWidget extends StarResolverWidget {
 
     /**
      * Parse the text value as RA/DEC coordinates, update the star model and notify the observers
-     * @param input text value with optional star name field(trimmed)
+     * @param coords text value with optional star name field (already trimmed)
      *
      * @throws IllegalArgumentException if the RA/DEC format was wrong
      */
-    private void parseCoordinates(final String input) throws IllegalArgumentException {
-        // first remove redundant white space :
-        final String coords = StringUtils.removeRedundantWhiteSpaces(input);
-
+    private void parseCoordinates(final String coords) throws IllegalArgumentException {
         // Split the input String at the first occurence of the ' ' char :
         final int pos = coords.indexOf(' ');
 
         if (pos == -1) {
-            throw new IllegalArgumentException("wrong RA/DEC format: '" + input + "'  must be of form '+10:00:00.00 +30:00:00.00'");
+            throw new IllegalArgumentException("wrong RA/DEC format: '" + coords + "'  must be of form '+10:00:00.00 +30:00:00.00'");
         }
-
 
         final String inputRA = coords.substring(0, pos);
         final String inputDEC;
@@ -199,7 +195,7 @@ public final class EditableStarResolverWidget extends StarResolverWidget {
         starModel.setPropertyAsString(Star.Property.SPECTRALTYPES, "");
 
         // Id :
-        starModel.setPropertyAsString(Star.Property.IDS, name);
+        starModel.setPropertyAsString(Star.Property.IDS, "");
 
         // Finally notify all registered observers that the query went fine :
         starModel.fireNotification(Star.Notification.QUERY_COMPLETE);
