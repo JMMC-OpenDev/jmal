@@ -779,6 +779,33 @@ public final class StarResolver {
             }
 
             _newStarModel.setPropertyAsString(Star.Property.IDS, ids);
+
+            // Compare the star name with identifiers to find proper name (case sensitive):
+            final String name = _newStarModel.getName();
+            final String nameUpper = name.toUpperCase();
+            final String nameUpperClean = StringUtils.removeWhiteSpaces(nameUpper);
+
+            final String[] idArray = ids.split(",");
+            for (String catEntry : idArray) {
+                String idUpper = catEntry.toUpperCase();
+                if (idUpper.equals(nameUpper)) {
+                    _logger.info("found ID: '{}' for name '{}'.", catEntry, name);
+                    _newStarModel.setName(catEntry);
+                    break;
+                }
+                int pos = idUpper.indexOf(nameUpper);
+                if (pos != -1) {
+                    catEntry = catEntry.substring(pos);
+                    _logger.info("found ID: '{}' for name '{}'.", catEntry, name);
+                    _newStarModel.setName(catEntry);
+                    break;
+                }
+                if (StringUtils.removeWhiteSpaces(idUpper).equalsIgnoreCase(nameUpperClean)) {
+                    _logger.info("found ID: '{}' for name '{}'.", catEntry, name);
+                    _newStarModel.setName(catEntry);
+                    break;
+                }
+            }
         }
     }
 
