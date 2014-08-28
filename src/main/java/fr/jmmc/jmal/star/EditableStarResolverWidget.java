@@ -4,22 +4,21 @@
 package fr.jmmc.jmal.star;
 
 import fr.jmmc.jmal.ALX;
+import fr.jmmc.jmcs.Bootstrapper;
 import fr.jmmc.jmcs.gui.component.MessagePane;
 import fr.jmmc.jmcs.gui.component.StatusBar;
 import fr.jmmc.jmcs.gui.util.SwingUtils;
-import fr.jmmc.jmcs.util.StringUtils;
-import java.awt.Container;
+import java.awt.BorderLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
-import java.util.Observable;
-import java.util.Observer;
+import java.util.List;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 
 /**
- * This extended StarResolverWidget allows the user to enter an RA/DEC couple as a Star without any CDS resolution (manually defined star)
+ * This extended StarResolverWidget allows the user to enter an RA/DEC couple(s) as a Star without any CDS resolution (manually defined star)
  * 
  * @author Sylvain LAFRASSE, Guillaume MELLA, Laurent BOURGES.
  */
@@ -35,29 +34,28 @@ public final class EditableStarResolverWidget extends StarResolverWidget {
     private final static NumberFormat DF_DBL = new DecimalFormat("00.000");
     /* members */
     /** standard StarResolverWidget action */
-    private ActionListener standardAction = null;
+    private final ActionListener standardAction;
 
     /**
-     * Creates a new StarResolverWidget object.
+     * Creates a new EditableStarResolverWidget object that only supports one single identifier
      */
     public EditableStarResolverWidget() {
-        this(new Star());
+        this(false);
     }
 
     /**
-     * Creates a new StarResolverWidget object.
-     *
-     * @param star star model
+     * Creates a new StarResolverWidget object
+     * @param supportMultiple flag indicating if the resolver can resolve multiple identifiers
      */
-    public EditableStarResolverWidget(final Star star) {
-        super(star);
+    public EditableStarResolverWidget(final boolean supportMultiple) {
+        super(supportMultiple);
 
         final ActionListener[] prevListeners = getActionListeners();
         if (prevListeners.length > 1) {
-            throw new IllegalStateException("The StarResolverWidget has several action listeners !");
+            throw new IllegalStateException("StarResolverWidget has several action listeners !");
         }
 
-        // keep standard StarResolverWidget action :
+        // keep standard StarResolverWidget action:
         this.standardAction = prevListeners[0];
 
         // remove it from action listeners :
@@ -74,43 +72,88 @@ public final class EditableStarResolverWidget extends StarResolverWidget {
              */
             @Override
             public void actionPerformed(final ActionEvent ae) {
-                // note: the action command value is already cleaned by SearchField#postActionEvent()
-                final String textValue = ae.getActionCommand();
+                // note: the action command value is already cleaned by SearchField#cleanText(String)
+                final String names = ae.getActionCommand();
 
-                if (textValue.length() > 0) {
+                if (names.contains(DOUBLE_DOT)) {
+                    final boolean isMultiple = StarResolver.isMultiple(names);
 
-                    _logger.debug("EditableStarResolverWidget : actionPerformed : {}", textValue);
-
-                    if (textValue.contains(DOUBLE_DOT)) {
-                        try {
-                            parseCoordinates(textValue);
-                        } catch (IllegalArgumentException iae) {
-
-                            MessagePane.showErrorMessage("Invalid format for star coordinates :\n" + iae.getMessage());
-
-                            StatusBar.show("Parsing star coordinates failed.");
-                        }
-                    } else {
-                        // invoke standard StarResolverWidget action (simbad) :
-                        standardAction.actionPerformed(ae);
+                    // Check for multiple identifier support:
+                    if (!isSupportMultiple() && isMultiple) {
+                        MessagePane.showErrorMessage("Only one identifier expected (remove the ';' character)", "Star resolver problem");
+                        return;
                     }
+
+                    try {
+                        parseCoordinates(StarResolver.prepareNames(names));
+                    } catch (IllegalArgumentException iae) {
+                        MessagePane.showErrorMessage(iae.getMessage());
+                        StatusBar.show("Parsing star coordinates failed.");
+                    }
+                } else {
+                    // invoke standard StarResolverWidget action (simbad) :
+                    standardAction.actionPerformed(ae);
                 }
             }
         });
     }
 
     /**
-     * Parse the text value as RA/DEC coordinates, update the star model and notify the observers
-     * @param coords text value with optional star name field (already trimmed)
+     * Parse the text values as RA/DEC coordinates, update the star resolver result and notify the observers
+     * @param coordList text values with optional star name field (already trimmed)
      *
      * @throws IllegalArgumentException if the RA/DEC format was wrong
      */
-    private void parseCoordinates(final String coords) throws IllegalArgumentException {
+    private void parseCoordinates(final List<String> coordList) throws IllegalArgumentException {
+
+        // Create the star resolver result:
+        final StarResolverResult result = new StarResolverResult(coordList);
+
+        StringBuilder sb = null;
+        try {
+            // Iterate on each coords (+ name) values:
+            for (String coords : result.getNames()) {
+                try {
+                    final Star parsedStar = parseCoordinates(coords);
+                    // Add entry into results:
+                    result.addStar(coords, parsedStar);
+                } catch (IllegalArgumentException iae) {
+                    if (sb == null) {
+                        sb = new StringBuilder(256).append("Invalid format for star coordinates:\n");
+                    }
+                    sb.append(iae.getMessage()).append('\n');
+                }
+            }
+        } finally {
+            if (sb != null) {
+                result.setErrorMessage(StarResolverStatus.ERROR_PARSING, sb.toString());
+            }
+
+            // If everything went fine, set status to OK
+            if (!result.isErrorStatus()) {
+                result.setStatus(StarResolverStatus.OK);
+            }
+            // Handle status & error messages:
+            showResultMessage(result);
+
+            // Propagate the result to the child listener
+            fireResultToChildListener(result);
+        }
+    }
+
+    /**
+     * Parse the text value as RA/DEC coordinates, update the star model and notify the observers
+     * @param coords text value with optional star name field (already trimmed)
+     * @return parsed Star instance
+     *
+     * @throws IllegalArgumentException if the RA/DEC format was wrong
+     */
+    private Star parseCoordinates(final String coords) throws IllegalArgumentException {
         // Split the input String at the first occurence of the ' ' char :
         final int pos = coords.indexOf(' ');
 
         if (pos == -1) {
-            throw new IllegalArgumentException("wrong RA/DEC format: '" + coords + "'  must be of form '+10:00:00.00 +30:00:00.00'");
+            throw new IllegalArgumentException("Wrong RA/DEC format: '" + coords + "'  must be of form '+10:00:00.00 +30:00:00.00'");
         }
 
         final String inputRA = coords.substring(0, pos);
@@ -122,7 +165,6 @@ public final class EditableStarResolverWidget extends StarResolverWidget {
         } else {
             inputDEC = coords.substring(pos + 1, namePos);
         }
-
 
         // Validate the format of the RA value
         if (!inputRA.matches("[+|-]?[0-9]+[:][0-9]+[:][0-9]+.?[0-9]*")) {
@@ -146,7 +188,6 @@ public final class EditableStarResolverWidget extends StarResolverWidget {
         final double ra = ALX.parseHMS(hmsRa);
         final double dec = ALX.parseDEC(dmsDec);
 
-
         // Set name with coordinates or name if given
         final String name;
         if (namePos == -1) {
@@ -158,14 +199,9 @@ public final class EditableStarResolverWidget extends StarResolverWidget {
         }
 
         /*
-         * At this stage parsing went fine, update the internal star model.
+         * At this stage parsing went fine, create the star model.
          */
-
-        // Then update the internal star model :
-        final Star starModel = getStar();
-
-        // No synchronisation needeed as it is already done by EDT :
-        starModel.clear();
+        final Star starModel = new Star();
 
         // Name :
         _logger.trace("NAME = {}", name);
@@ -190,15 +226,13 @@ public final class EditableStarResolverWidget extends StarResolverWidget {
         // Skip fluxes (FLUX_ properties)
         // Skip Proper motion (skip PROPERMOTION_ properties)
         // Skip Parallax (skip PARALLAX and PARALLAX_err properties)
-
         // No spectral type :
         starModel.setPropertyAsString(Star.Property.SPECTRALTYPES, "");
 
         // Id :
         starModel.setPropertyAsString(Star.Property.IDS, "");
 
-        // Finally notify all registered observers that the query went fine :
-        starModel.fireNotification(Star.Notification.QUERY_COMPLETE);
+        return starModel;
     }
 
     /**
@@ -211,13 +245,12 @@ public final class EditableStarResolverWidget extends StarResolverWidget {
      * @throws IllegalArgumentException if any value is invalid
      */
     private String parseHMS(final String raHms) throws IllegalArgumentException {
-
+        // TODO: use ALX.parseHMS()
         int hh;
         int hm;
         double hs;
 
         // note : the input string matches the regexp [+|-]?[0-9]+[:][0-9]+[:][0-9]+.?[0-9]*
-
         // Parse the given string according to the format HH:MM:SS.mmm
         try {
             final String[] tokens = raHms.split(DOUBLE_DOT);
@@ -247,8 +280,7 @@ public final class EditableStarResolverWidget extends StarResolverWidget {
         }
 
         // Return a string with missing zero characters :
-
-        final StringBuilder sb = new StringBuilder();
+        final StringBuilder sb = new StringBuilder(16);
         sb.append(DF_INT.format(hh));
         sb.append(DOUBLE_DOT);
         sb.append(DF_INT.format(hm));
@@ -270,13 +302,13 @@ public final class EditableStarResolverWidget extends StarResolverWidget {
      * @throws IllegalArgumentException if any value is invalid
      */
     private String parseDMS(final String decDms) throws IllegalArgumentException {
+        // TODO: use ALX.parseDMS()
 
         int dd;
         int dm;
         double ds;
 
         // note : the input string matches the regexp [+|-]?[0-9]+[:][0-9]+[:][0-9]+.?[0-9]*
-
         // Parse the given string according to the format DD:MM:SS.mmm
         try {
             final String[] tokens = decDms.split(DOUBLE_DOT);
@@ -306,8 +338,7 @@ public final class EditableStarResolverWidget extends StarResolverWidget {
         }
 
         // Return a string with missing zero characters :
-
-        final StringBuilder sb = new StringBuilder();
+        final StringBuilder sb = new StringBuilder(16);
         sb.append(DF_INT.format(dd));
         sb.append(DOUBLE_DOT);
         sb.append(DF_INT.format(dm));
@@ -326,120 +357,111 @@ public final class EditableStarResolverWidget extends StarResolverWidget {
      * @param args ignored arguments
      */
     public static void main(String[] args) {
-        // Resolver initialization
-        final Star star = new Star();
-        star.addObserver(new Observer() {
 
-            public void update(Observable o, Object arg) {
-                final Star.Notification notification = (Star.Notification) arg;
-
-                if (notification == Star.Notification.QUERY_COMPLETE) {
-                    _logger.error("Star changed:\n{}", star);
-                }
-            }
-        });
-
+        // invoke Bootstrapper method to initialize logback now:
+        Bootstrapper.getState();
+//            LoggingService.setLoggerLevel("fr.jmmc.jmal.star", Level.ALL);
         // GUI initialization (EDT)
         SwingUtils.invokeLaterEDT(new Runnable() {
 
             @Override
             public void run() {
-                JFrame frame = new JFrame("EditableStarResolverWidget Demo");
 
-                Container container = frame.getContentPane();
-                JPanel panel = new JPanel();
-                EditableStarResolverWidget searchField = new EditableStarResolverWidget(star);
+                // GUI initialization
+                final JFrame frame = new JFrame("EditableStarResolverWidget Demo");
+
+                // Force to exit when the frame closes :
+                frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+                // Resolver initialization
+                final boolean supportMultiple = false;
+                final EditableStarResolverWidget searchField = new EditableStarResolverWidget(supportMultiple);
                 searchField.setColumns(30);
-                panel.add(searchField);
-                container.add(panel);
+                searchField.setListener(new StarResolverListener() {
+
+                    @Override
+                    public void handleResult(StarResolverResult result) {
+                        _logger.info("Result:\n{}", result);
+                    }
+                });
+
+                final JPanel panel = new JPanel(new BorderLayout());
+                panel.add(searchField, BorderLayout.CENTER);
+
+                frame.getContentPane().add(panel);
 
                 frame.pack();
                 frame.setVisible(true);
 
                 // Test cases :
-
                 // 274,2489167 / -19,0759167 : OK
 //        test(searchField, " 18:16:59.74  \t  -19:04:33.3  ");
-
                 //  -274,2489167 / 19,0759167 : OK
 //        test(searchField, "-18:16:59.74 +19:04:33.3");
-
                 //  -359,9999958 / 89,9999997 : OK
 //        test(searchField, "-23:59:59.999 +89:59:59.999");
-
                 // 359,9999958 / -89,9999997 : OK
 //        test(searchField, "+23:59:59.999 -89:59:59.999");
 
                 /*
-                eta tau
-                RA=03 47 29.0765 DEC=+24 06 18.494
-                RA_d=56.8711521  DEC_d=24.1051372
+                 eta tau
+                 RA=03 47 29.0765 DEC=+24 06 18.494
+                 RA_d=56.8711521  DEC_d=24.1051372
                  */
 //        test(searchField, "eta tau");
-
                 // 56,8711521 / 24,1051372 : OK
 //        test(searchField, "03:47:29.0765 +24:06:18.494");
 
                 /*
-                eps aur
-                RA=05 01 58.1341 DEC=+43 49 23.910
-                RA_d=75.4922254  DEC_d=43.8233083
+                 eps aur
+                 RA=05 01 58.1341 DEC=+43 49 23.910
+                 RA_d=75.4922254  DEC_d=43.8233083
                  */
 //        test(searchField, "eps aur");
-
                 // 75,4922254 / 43,8233083 : OK
 //        test(searchField, "05:01:58.1341 +43:49:23.910");
 
                 /*
-                uy aur
-                RA=04 51 47.38 DEC=+30 47 13.5
-                RA_d=72.94742  DEC_d=30.78708
+                 uy aur
+                 RA=04 51 47.38 DEC=+30 47 13.5
+                 RA_d=72.94742  DEC_d=30.78708
                  */
 //        test(searchField, "uy aur");
-
                 // 72,9474167 / 30,7870833 : OK (rounded value)
 //        test(searchField, "04:51:47.38 +30:47:13.5");
 
                 /*
-                HD 2403
-                RA=00 27 44.680 DEC=-19 19 05.38
-                RA_d=6.936167   DEC_d=-19.318161
+                 HD 2403
+                 RA=00 27 44.680 DEC=-19 19 05.38
+                 RA_d=6.936167   DEC_d=-19.318161
                  */
 //        test(searchField, "HD 2403");
-
                 // 6,9361667 / -19,3181611 : OK (rounded value)
 //        test(searchField, "00:27:44.680 -19:19:05.38");
 
                 /*
-                HIP 117054
-                RA=23 43 49.4616 DEC=-15 17 04.202
-                RA_d=355.95609   DEC_d=-15.2845006
+                 HIP 117054
+                 RA=23 43 49.4616 DEC=-15 17 04.202
+                 RA_d=355.95609   DEC_d=-15.2845006
                  */
 //        test(searchField, "HIP 117054");
-
                 // 355,9560900 / -15,2845006 : OK
 //        test(searchField, "23:43:49.4616 -15:17:04.202");
 
                 /*
-                HIP32349
-                RA=06 45 08.9173 DEC=-16 42 58.017
-                RA_d=101.2871554 DEC_d=-16.7161158
+                 HIP32349
+                 RA=06 45 08.9173 DEC=-16 42 58.017
+                 RA_d=101.2871554 DEC_d=-16.7161158
                  */
 //        test(searchField, "HIP32349");
-
                 // 101,2871554 / -16,7161158 : OK
-//        test(searchField, "06:45:08.9173 -16:42:58.017");
-
+//                test(searchField, "06:45:08.9173 -16:42:58.017");
                 // multiple results :
-
 //        test(searchField, "a");
 //        test(searchField, "b");
 //        test(searchField, "c");
-
                 // Failure Test cases :
-
 //        test(searchField, "eta tau*");
-
             }
         });
 

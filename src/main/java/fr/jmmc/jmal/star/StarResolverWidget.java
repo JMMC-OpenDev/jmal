@@ -3,14 +3,17 @@
  ***************************************************************************** */
 package fr.jmmc.jmal.star;
 
+import fr.jmmc.jmcs.Bootstrapper;
 import fr.jmmc.jmcs.gui.component.MessagePane;
 import fr.jmmc.jmcs.gui.component.SearchField;
 import fr.jmmc.jmcs.gui.component.StatusBar;
+import fr.jmmc.jmcs.gui.util.SwingUtils;
+import java.awt.BorderLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.util.Observable;
-import java.util.Observer;
+import java.util.List;
 import java.util.Set;
+import java.util.concurrent.Future;
 import javax.swing.JFrame;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
@@ -21,12 +24,10 @@ import javax.swing.JPopupMenu;
  *
  * @author Sylvain LAFRASSE, Laurent BOURGES.
  */
-public class StarResolverWidget extends SearchField implements Observer {
+public class StarResolverWidget extends SearchField implements StarResolverProgressListener {
 
     /** default serial UID for Serializable interface */
     private static final long serialVersionUID = 1;
-    /** Container to store retrieved star properties */
-    private final Star _star;
     /** Menu to choose SIMBAD mirror */
     private final static JPopupMenu _mirrorPopupMenu;
 
@@ -54,107 +55,216 @@ public class StarResolverWidget extends SearchField implements Observer {
         }
     }
 
+    /* members */
+    /** widget listener to get star resolver result */
+    private StarResolverListener _childListener = null;
+    /** flag indicating if the resolver can resolve multiple identifiers */
+    private final boolean _supportMultiple;
+    /** star resolver instance */
+    private final StarResolver _resolver;
+    /** Single future instance used to cancel background requests */
+    private Future<StarResolverResult> _future = null;
+
     /**
-     * Creates a new StarResolverWidget object dedicated to unique star resolution.
-     * @param star star model
+     * Creates a new StarResolverWidget object that only supports one single identifier
      */
-    public StarResolverWidget(final Star star) {
+    public StarResolverWidget() {
+        this(false);
+    }
+
+    /**
+     * Creates a new StarResolverWidget object
+     * @param supportMultiple flag indicating if the resolver can resolve multiple identifiers
+     */
+    public StarResolverWidget(final boolean supportMultiple) {
         super("Simbad", _mirrorPopupMenu);
+        this._supportMultiple = supportMultiple;
+        this._resolver = new StarResolver(this);
 
-        _star = star;
-        _star.addObserver(this);
-
-        addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(final ActionEvent e) {
-                // note: the action command value is already cleaned by SearchField#postActionEvent()
-                final String starName = e.getActionCommand();
-
-                if (starName.length() > 0) {
-                    _logger.info("Searching CDS Simbad data for star '{}'.", starName);
-
-                    StatusBar.show("searching CDS Simbad data for star '"
-                            + starName + "'... (please wait, this may take a while)");
-
-                    // Disable search field while request processing to avoid concurrent calls :
-                    setEnabled(false);
-
-                    new StarResolver(starName, _star).resolve();
-                }
-            }
-        });
-    }
-
-    /**
-     * Return the star model
-     * @return star model
-     */
-    public final Star getStar() {
-        return _star;
-    }
-
-    /**
-     * Creates a new StarResolverWidget object dedicated to multiple star resolutions.
-     * @param stars star list
-     */
-    public StarResolverWidget(final StarList stars) {
-        super("Simbad", _mirrorPopupMenu);
-
-        _star = null;
-        stars.addObserver(this);
-
-        addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(final ActionEvent e) {
-                // note: the action command value is already cleaned by SearchField#postActionEvent()
-                final String starNames = e.getActionCommand();
-
-                if (starNames.length() > 0) {
-                    _logger.info("Searching CDS Simbad data for star '{}'.", starNames);
-
-                    StatusBar.show("searching CDS Simbad data for stars '"
-                            + starNames + "'... (please wait, this may take a while)");
-
-                    // Disable search field while request processing to avoid concurrent calls :
-                    setEnabled(false);
-
-                    new StarResolver(starNames, stars).multipleResolve();
-                }
-            }
-        });
-    }
-
-    /**
-     * Automatically called on attached Star changes.
-     */
-    @Override
-    public final void update(final Observable o, final Object arg) {
-        Star.Notification notification = Star.Notification.UNKNOWN;
-
-        if (arg != null && arg instanceof Star.Notification) {
-            notification = (Star.Notification) arg;
+        if (supportMultiple) {
+            // fix newline replacement character for copy/paste operations:
+            this.setNewLineReplacement(StarResolver.SEPARATOR_SEMI_COLON.charAt(0));
         }
 
-        switch (notification) {
-            case QUERY_COMPLETE:
-                StatusBar.show("CDS Simbad star resolution done.");
-                break;
+        addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(final ActionEvent e) {
+                // note: the action command value is already cleaned by SearchField#cleanText(String)
+                final String names = e.getActionCommand();
 
-            case QUERY_ERROR:
-                final String errorMessage = _star.consumeCDSimbadErrorMessage();
-                if (errorMessage != null) {
-                    MessagePane.showErrorMessage(errorMessage, "CDS Simbad problem");
+                final boolean isMultiple = StarResolver.isMultiple(names);
+
+                // Check for multiple identifier support:
+                if (!_supportMultiple && isMultiple) {
+                    MessagePane.showErrorMessage("Only one identifier expected (remove the ';' character)", "Star resolver problem");
+                    return;
                 }
 
-                StatusBar.show("CDS Simbad star resolution failed.");
+                try {
+                    // Keep future instance to possibly cancel the job:
+                    if (isMultiple) {
+                        _future = _resolver.multipleResolve(names);
+                    } else {
+                        _future = _resolver.resolve(names);
+                    }
+
+                    // Disable search field while request processing to avoid concurrent requests:
+                    setEnabled(false);
+
+                } catch (IllegalArgumentException iae) {
+                    MessagePane.showErrorMessage(iae.getMessage());
+                }
+            }
+        });
+    }
+
+    @Override
+    protected void performCancel() {
+        _logger.debug("performCancel invoked.");
+        if (_future != null) {
+            // do cancel background requests:
+            _future.cancel(true);
+        }
+    }
+
+    /**
+     * @return the widget listener to get star resolver result
+     */
+    public final StarResolverListener getListener() {
+        return _childListener;
+    }
+
+    /**
+     * @param listener the widget listener to get star resolver result
+     */
+    public final void setListener(final StarResolverListener listener) {
+        this._childListener = listener;
+    }
+
+    /**
+     * @return flag indicating if the resolver can resolve multiple identifiers
+     */
+    public boolean isSupportMultiple() {
+        return _supportMultiple;
+    }
+
+    /**
+     * Clean up the current text value before calling action listeners and update the text field.
+     * @param text current text value
+     * @return cleaned up text value
+     */
+    @Override
+    public String cleanText(final String text) {
+        return StarResolver.cleanNames(text);
+    }
+
+    /**
+     * Handle the given progress message = show it in the StatusBar (EDT)
+     * @param message progress message
+     */
+    @Override
+    public void handleProgressMessage(final String message) {
+        StatusBar.show(message);
+    }
+
+    /**
+     * Handle the star resolver result (status, error messages, stars):
+     * - show error meassages
+     * - enable the text field / focus if any error
+     * - anyway: propagate the result to the child listener (EDT)
+     * @param result star resolver result
+     */
+    @Override
+    public void handleResult(final StarResolverResult result) {
+        _logger.debug("star resolver result:\n{}", result);
+
+        // reset the future instance:
+        _future = null;
+
+        SwingUtils.invokeEDT(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    // Handle status & error messages:
+                    showResultMessage(result);
+
+                    // Propagate the result to the child listener
+                    fireResultToChildListener(result);
+
+                } finally {
+                    // Enable search field after request processing done :
+                    setEnabled(true);
+
+                    if (result.isErrorStatus()) {
+                        requestFocus();
+                    }
+                }
+            }
+        });
+    }
+
+    protected void showResultMessage(final StarResolverResult result) {
+        final String errorMessage;
+
+        // TODO: get both error messages (multiple ?)
+        switch (result.getStatus()) {
+            case ERROR_SERVER:
+                errorMessage = result.getServerErrorMessage();
+                break;
+            case ERROR_IO:
+            case ERROR_PARSING:
+                errorMessage = result.getErrorMessage();
                 break;
 
             default:
-                return;
+                errorMessage = null;
         }
 
-        // Enable search field after request processing done :
-        setEnabled(true);
+        final String warningMessage;
+
+        // Handle multiple matches per identifier:
+        if (result.isMultipleMatches()) {
+            // TODO: display ambiguous results: let the user select the appropriate star ?
+            // Show ambiguous ids for now:
+            final List<String> multNames = result.getNamesForMultipleMatches();
+            _logger.debug("multNames: {}", multNames);
+
+            final StringBuilder sb = new StringBuilder(256);
+            sb.append("Multiple objects found (please refine your query):\n\n");
+            for (String name : multNames) {
+                sb.append("'").append(name).append("': [ ");
+                for (Star star : result.getStars(name)) {
+                    String id = star.getId();
+                    if (id != null) {
+                        sb.append(id);
+                    }
+                    sb.append(", ");
+                }
+                sb.delete(sb.length() - 2, sb.length());
+                sb.append(" ]\n");
+            }
+            warningMessage = sb.toString();
+        } else {
+            warningMessage = null;
+        }
+
+        // gather error & warning messages into a single one:
+        if (errorMessage != null) {
+            String msg = errorMessage;
+            if (warningMessage != null) {
+                // both messages:
+                msg += warningMessage;
+            }
+            MessagePane.showErrorMessage(msg, "Star resolver problem");
+        } else if (warningMessage != null) {
+            MessagePane.showWarning(warningMessage, "Star resolver problem");
+        }
+    }
+
+    void fireResultToChildListener(final StarResolverResult result) {
+        if (_childListener != null) {
+            _childListener.handleResult(result);
+        }
     }
 
     /**
@@ -162,41 +272,42 @@ public class StarResolverWidget extends SearchField implements Observer {
      * @param args unused
      */
     public static void main(final String[] args) {
-        // GUI initialization
-        final JFrame frame = new JFrame("StarResolverWidget Demo");
 
-        // Force to exit when the frame closes :
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        /*
-         // Resolver initialization
-         final Star star = new Star();
-         star.addObserver(new Observer() {
-         @Override
-         public void update(Observable o, Object arg) {
-         _logger.info("Star changed:\n{}", star);
-         }
-         });
-        
-         final JPanel panel = new JPanel();
-         panel.add(new StarResolverWidget(star));
-         */
+        // invoke Bootstrapper method to initialize logback now:
+        Bootstrapper.getState();
+//            LoggingService.setLoggerLevel("fr.jmmc.jmal.star", Level.ALL);
+        // GUI initialization (EDT)
+        SwingUtils.invokeLaterEDT(new Runnable() {
 
-        // Resolver initialization
-        final StarList stars = new StarList();
-        stars.addObserver(new Observer() {
             @Override
-            public void update(Observable o, Object arg) {
-                _logger.info("Star list complete:\n{}", stars);
+            public void run() {
+
+                // GUI initialization
+                final JFrame frame = new JFrame("StarResolverWidget Demo");
+
+                // Force to exit when the frame closes :
+                frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+                // Resolver initialization
+                final boolean supportMultiple = true;
+                final StarResolverWidget searchField = new StarResolverWidget(supportMultiple);
+                searchField.setListener(new StarResolverListener() {
+
+                    @Override
+                    public void handleResult(StarResolverResult result) {
+                        _logger.info("Result:\n{}", result);
+                    }
+                });
+
+                final JPanel panel = new JPanel(new BorderLayout());
+                panel.add(searchField, BorderLayout.CENTER);
+
+                frame.getContentPane().add(panel);
+
+                frame.pack();
+                frame.setVisible(true);
             }
         });
-
-        final JPanel panel = new JPanel();
-        panel.add(new StarResolverWidget(stars));
-
-        frame.getContentPane().add(panel);
-
-        frame.pack();
-        frame.setVisible(true);
     }
 }
 /*___oOo___*/

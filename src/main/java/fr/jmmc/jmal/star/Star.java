@@ -3,12 +3,10 @@
  ******************************************************************************/
 package fr.jmmc.jmal.star;
 
-import fr.jmmc.jmcs.gui.util.SwingUtils;
+import fr.jmmc.jmcs.util.StringUtils;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.Observable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Store data relative to a star.
@@ -18,14 +16,13 @@ import org.slf4j.LoggerFactory;
  */
 public class Star extends Observable {
 
-    /** Logger */
-    private static final Logger _logger = LoggerFactory.getLogger(Star.class.getName());
+    /** comma separator */
+    public static final String SEPARATOR_COMMA = ",";
+    /* members */
     /** Star property-value backing store for String data */
     final Map<Property, String> _stringContent;
     /** Star property-value backing store for Double data */
     final Map<Property, Double> _doubleContent;
-    /** CDS SIMBAD error message */
-    private String _cdsSimbadErrorMessage = null;
 
     /**
      * Constructor.
@@ -59,8 +56,6 @@ public class Star extends Observable {
     public final void clear() {
         _stringContent.clear();
         _doubleContent.clear();
-        _cdsSimbadErrorMessage = null;
-
         setChanged();
     }
 
@@ -78,6 +73,30 @@ public class Star extends Observable {
      */
     public final String getName() {
         return _stringContent.get(Property.NAME);
+    }
+
+    /**
+     * Return the star identifier (main id or first IDS or 'RA DEC' or null if all are undefined
+     * @return star identifier or 'RA DEC' or null
+     */
+    public final String getId() {
+        String mainId = _stringContent.get(Property.MAIN_ID);
+        if (!StringUtils.isEmpty(mainId)) {
+            return mainId;
+        }
+        final String ids = _stringContent.get(Property.IDS);
+        if (!StringUtils.isEmpty(ids)) {
+            final int pos = ids.indexOf(SEPARATOR_COMMA);
+            if (pos != -1) {
+                return ids.substring(0, pos);
+            }
+        }
+        final String ra = _stringContent.get(Property.RA);
+        final String dec = _stringContent.get(Property.DEC);
+        if (!StringUtils.isEmpty(ra) && !StringUtils.isEmpty(dec)) {
+            return ra + ' ' + dec;
+        }
+        return null;
     }
 
     /**
@@ -152,49 +171,6 @@ public class Star extends Observable {
     }
 
     /**
-     * Set an error message from CDS SIMBAD query execution, and notify
-     * registered observers.
-     *
-     * @see StarResolver.
-     * @see StarResolverWidget.
-     *
-     * @param message the error message to store.
-     */
-    public final void raiseCDSimbadErrorMessage(final String message) {
-        // Use EDT to ensure only 1 thread (EDT) set and consume the error message :
-        SwingUtils.invokeEDT(new Runnable() {
-            /**
-             * The state is left unchanged (no clear), only the error message is notified
-             */
-            @Override
-            public void run() {
-                _cdsSimbadErrorMessage = message;
-
-                // set changed to notify observers:
-                setChanged();
-
-                fireNotification(Notification.QUERY_ERROR);
-            }
-        });
-    }
-
-    /**
-     * Get the error message from CDS SIMBAD query execution, and reset it
-     * for later use.
-     *
-     * @see StarResolver.
-     * @see StarResolverWidget.
-     *
-     * @return A String object containing the error message, or null if
-     * everything went fine.
-     */
-    public final String consumeCDSimbadErrorMessage() {
-        final String message = _cdsSimbadErrorMessage;
-        _cdsSimbadErrorMessage = null; // reset error message
-        return message;
-    }
-
-    /**
      * Serialize the star object content in a String object.
      *
      * @return a String object containing the data stored inside a star.
@@ -204,7 +180,7 @@ public class Star extends Observable {
         final StringBuilder sb = new StringBuilder(255);
 
         for (Property key : _stringContent.keySet()) {
-            sb.append(key).append("=").append(_stringContent.get(key)).append("\n");
+            sb.append(key).append("='").append(_stringContent.get(key)).append("'\n");
         }
         for (Property key : _doubleContent.keySet()) {
             sb.append(key).append("=").append(_doubleContent.get(key)).append("\n");
@@ -212,34 +188,6 @@ public class Star extends Observable {
 
         return sb.toString();
     }
-
-    /**
-     * Fires the notification to the registered observers
-     * @param notification notification enumeration value
-     */
-    public final void fireNotification(final Notification notification) {
-        // notify observers (swing components) within EDT :
-        if (!SwingUtils.isEDT()) {
-            _logger.error("Invalid thread : use EDT", new Throwable());
-        }
-
-        _logger.debug("Fire notification: {}", notification);
-
-        notifyObservers(notification);
-    }
-
-    /**
-     * Enumeration of all different observers notification a star can raise.
-     */
-    public enum Notification {
-
-        /** successful query */
-        QUERY_COMPLETE,
-        /** error state (CDS or parsing failure */
-        QUERY_ERROR,
-        /** unknown state */
-        UNKNOWN;
-    };
 
     /**
      * Enumeration of all different properties a star can handle.
@@ -254,7 +202,7 @@ public class Star extends Observable {
         PARALLAX, PARALLAX_err,
         SPECTRALTYPES,
         NOPROPERTY,
-        NAME, IDS,
+        NAME, IDS, MAIN_ID,
         RV, RV_DEF;
 
         /**
