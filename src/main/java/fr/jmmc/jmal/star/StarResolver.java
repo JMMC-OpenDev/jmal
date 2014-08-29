@@ -24,8 +24,6 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Store informations relative to a star.
- * 
- * TODO: support cancellation (cancel button ?) but cancelling HTTP queries is difficult !
  *
  * @author Sylvain LAFRASSE, Laurent BOURGES.
  */
