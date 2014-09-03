@@ -7,3 +7,4 @@ Implementation-URL: http://www.jmmc.fr
 Application-Name: jMAL
 Permissions: all-permissions
 Codebase: http://apps.jmmc.fr
+Application-Library-Allowable-Codebase: http://apps.jmmc.fr
