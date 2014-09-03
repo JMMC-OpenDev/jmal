@@ -90,5 +90,26 @@ public class ParameterLink
     public void setType(String value) {
         this.type = value;
     }
+    
+//--simple--preserve
 
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == null) {
+            return false;
+        }
+        if (getClass() != obj.getClass()) {
+            return false;
+        }
+        final ParameterLink other = (ParameterLink) obj;
+        if ((this.type == null) ? (other.type != null) : !this.type.equals(other.type)) {
+            return false;
+        }
+        if (this.parameterRef != other.parameterRef && (this.parameterRef == null || !this.parameterRef.equals(other.parameterRef))) {
+            return false;
+        }
+        return true;
+    }
+
+//--simple--preserve
 }

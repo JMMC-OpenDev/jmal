@@ -331,6 +331,51 @@ public class Parameter
     return "Parameter [" + this.name + " | " + this.type + "] = " + this.value;
   }
 
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == null) {
+            return false;
+        }
+        if (getClass() != obj.getClass()) {
+            return false;
+        }
+        final Parameter other = (Parameter) obj;
+        if ((this.name == null) ? (other.name != null) : !this.name.equals(other.name)) {
+            return false;
+        }
+        if ((this.type == null) ? (other.type != null) : !this.type.equals(other.type)) {
+            return false;
+        }
+        if ((this.id == null) ? (other.id != null) : !this.id.equals(other.id)) {
+            return false;
+        }
+        if ((this.desc == null) ? (other.desc != null) : !this.desc.equals(other.desc)) {
+            return false;
+        }
+        if ((this.units == null) ? (other.units != null) : !this.units.equals(other.units)) {
+            return false;
+        }
+        if (Double.doubleToLongBits(this.value) != Double.doubleToLongBits(other.value)) {
+            return false;
+        }
+        if (this.minValue != other.minValue && (this.minValue == null || !this.minValue.equals(other.minValue))) {
+            return false;
+        }
+        if (this.maxValue != other.maxValue && (this.maxValue == null || !this.maxValue.equals(other.maxValue))) {
+            return false;
+        }
+        if (this.scale != other.scale && (this.scale == null || !this.scale.equals(other.scale))) {
+            return false;
+        }
+        if (this.hasFixedValue != other.hasFixedValue) {
+            return false;
+        }
+        if (this.editable != other.editable && (this.editable == null || !this.editable.equals(other.editable))) {
+            return false;
+        }
+        return true;
+    }
+  
 //--simple--preserve
 
 }

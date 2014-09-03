@@ -272,6 +272,37 @@ public class Model
 
         return copy;
     }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == null) {
+            return false;
+        }
+        if (getClass() != obj.getClass()) {
+            return false;
+        }
+        final Model other = (Model) obj;
+        if ((this.name == null) ? (other.name != null) : !this.name.equals(other.name)) {
+            return false;
+        }
+        if ((this.type == null) ? (other.type != null) : !this.type.equals(other.type)) {
+            return false;
+        }
+        if ((this.desc == null) ? (other.desc != null) : !this.desc.equals(other.desc)) {
+            return false;
+        }
+        if (this.models != other.models && (this.models == null || !this.models.equals(other.models))) {
+            return false;
+        }
+        if (this.parameters != other.parameters && (this.parameters == null || !this.parameters.equals(other.parameters))) {
+            return false;
+        }
+        if (this.parameterLinks != other.parameterLinks && (this.parameterLinks == null || !this.parameterLinks.equals(other.parameterLinks))) {
+            return false;
+        }
+        return true;
+    }
+    
 //--simple--preserve
 
 }
