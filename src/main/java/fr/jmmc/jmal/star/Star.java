@@ -183,7 +183,7 @@ public class Star extends Observable {
             sb.append(key).append("='").append(_stringContent.get(key)).append("'\n");
         }
         for (Property key : _doubleContent.keySet()) {
-            sb.append(key).append("=").append(_doubleContent.get(key)).append("\n");
+            sb.append(key).append("=").append(_doubleContent.get(key)).append('\n');
         }
 
         return sb.toString();
