@@ -203,7 +203,7 @@ public class StarResolverWidget extends SearchField implements StarResolverProgr
         });
     }
 
-    protected void showResultMessage(final StarResolverResult result) {
+    public static void showResultMessage(final StarResolverResult result) {
         final String errorMessage;
 
         // TODO: get both error messages (multiple ?)
