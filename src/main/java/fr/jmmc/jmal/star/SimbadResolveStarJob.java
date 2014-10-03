@@ -42,18 +42,15 @@ final class SimbadResolveStarJob implements Callable<StarResolverResult> {
     /** simbad data block separator */
     public static final String MARKER_DATA = "::data";
 
-    /** shared http client supporting multi-threading (UTF-8 HTTP encoding) */
-    private volatile static HttpClient httpClient = null;
-
     /* members */
     /** callback listener with results */
     private final StarResolverProgressListener _listener;
     /** result */
     private final StarResolverResult _result;
+    /** running thread name (only defined during the background execution; null otherwise) */
+    private String threadName = null;
     /** current star name during parsing */
     private String _currentName = null;
-    /** Http post method */
-    private volatile PostMethod _postMethod = null;
     /** SIMBAD query response */
     private String _response = null;
     /** temporary parsing result */
@@ -70,13 +67,12 @@ final class SimbadResolveStarJob implements Callable<StarResolverResult> {
 
     /**
      * Cancel any http request in progress (close socket)
+     * Called by another thread
      */
     void cancel() {
         _logger.debug("SimbadResolveStarJob.cancel");
-        final PostMethod method = _postMethod;
-        if (method != null) {
-            method.abort();
-            _postMethod = null;
+        if (this.threadName != null) {
+            Http.abort(this.threadName);
         }
     }
 
@@ -88,6 +84,8 @@ final class SimbadResolveStarJob implements Callable<StarResolverResult> {
             _listener.handleProgressMessage("searching CDS Simbad data for star(s) "
                     + _result.getNames() + " ... (please wait, this may take a while)");
         }
+        // define the thread name:
+        this.threadName = Thread.currentThread().getName();
         try {
             querySimbad();
 
@@ -128,18 +126,6 @@ final class SimbadResolveStarJob implements Callable<StarResolverResult> {
         if (_listener != null) {
             _listener.handleProgressMessage("CDS Simbad star resolution failed.");
         }
-    }
-
-    private HttpClient getSimbadHttpClient() {
-        if (httpClient == null) {
-            synchronized (this) {
-                if (httpClient == null) {
-                    // Create an HTTP client to send queries to Simbad (multithread support)
-                    httpClient = Http.getHttpClient();
-                }
-            }
-        }
-        return httpClient;
     }
 
     /**
@@ -184,8 +170,8 @@ final class SimbadResolveStarJob implements Callable<StarResolverResult> {
         final String simbadScript = sb.toString();
         _logger.trace("CDS Simbad script:\n{}", simbadScript);
 
-        // Get the HTTP client to send queries to Simbad (multithread support)
-        final HttpClient client = getSimbadHttpClient();
+        // Get the shared HTTP client to send queries to Simbad (multithread support)
+        final HttpClient client = Http.getHttpClient();
 
         /** Get the current thread to check if the query is cancelled */
         final Thread currentThread = Thread.currentThread();
@@ -212,9 +198,6 @@ final class SimbadResolveStarJob implements Callable<StarResolverResult> {
                 method.getParams().setSoTimeout(SIMBAD_SOCKET_READ_TIMEOUT);
                 // define query script:
                 method.addParameter("script", simbadScript);
-
-                // memorize the http method to support cancellation:
-                _postMethod = method;
 
                 // execute query:
                 _response = Http.execute(client, method);
@@ -254,8 +237,6 @@ final class SimbadResolveStarJob implements Callable<StarResolverResult> {
                 if ((method != null) && method.isAborted()) {
                     currentThread.interrupt();
                 }
-                // anyway: clear the method reference (cancellation):
-                _postMethod = null;
             }
         }
     }
