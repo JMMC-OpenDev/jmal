@@ -188,6 +188,10 @@ public final class EditableStarResolverWidget extends StarResolverWidget {
         final double ra = ALX.parseHMS(hmsRa);
         final double dec = ALX.parseDEC(dmsDec);
 
+        if (Math.abs(dec) > 90.0) {
+            throw new IllegalArgumentException("invalid DEC value : '" + inputDEC + "'");
+        }
+
         // Set name with coordinates or name if given
         final String name;
         if (namePos == -1) {
@@ -272,6 +276,10 @@ public final class EditableStarResolverWidget extends StarResolverWidget {
                 throw new IllegalArgumentException("invalid second value: '" + raHms + "'");
             }
 
+            if (tokens.length > 3) {
+                throw new IllegalArgumentException("invalid value : '" + raHms + "'");
+            }
+
         } catch (NumberFormatException nfe) {
             _logger.error("format error", nfe);
             throw new IllegalArgumentException("invalid value : '" + raHms + "'");
@@ -314,7 +322,7 @@ public final class EditableStarResolverWidget extends StarResolverWidget {
             final String[] tokens = decDms.split(DOUBLE_DOT);
             dd = Integer.parseInt(tokens[0]);
 
-            if (Math.abs(dd) >= 90) {
+            if (Math.abs(dd) > 90) {
                 throw new IllegalArgumentException("invalid degree value : '" + decDms + "'");
             }
 
@@ -328,6 +336,10 @@ public final class EditableStarResolverWidget extends StarResolverWidget {
 
             if (ds >= 60d) {
                 throw new IllegalArgumentException("invalid second value: '" + decDms + "'");
+            }
+
+            if (tokens.length > 3) {
+                throw new IllegalArgumentException("invalid value : '" + decDms + "'");
             }
 
         } catch (NumberFormatException nfe) {
