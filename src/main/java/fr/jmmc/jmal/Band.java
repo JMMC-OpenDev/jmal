@@ -58,71 +58,89 @@ public enum Band {
         }
         throw new IllegalArgumentException("no band found for the wave length = " + waveLength);
     }
-
+        
     /**
      * Compute the strehl ratio. see le louarn et al (1998, mnras 295, 756), and amb-igr-011 p.5
      *
      * @param magnitude object magnitude in AO's band
-     * @param waveLength wave length in microns
+     * @param waveLengths wave lengths in meters
      * @param diameter telescope diameter in meters
      * @param seeing seeing in arc sec
      * @param nbOfActuators
      * @return strehl ratio
      */
-    public static double strehl(final double magnitude, final double waveLength,
-                                final double diameter, final double seeing, final int nbOfActuators) {
+    public static double[] strehl(final double magnitude, final double[] waveLengths,
+                                  final double diameter, final double seeing, final int nbOfActuators,
+                                  final double elevation) {
+        
+        // r0(e)=cos(90-e)^(3/5) * r0 
+        // r0_corr in [0; 0.251]
+        final double r0_corr = R0_FACTOR * FastMath.pow(FastMath.cos(FastMath.toRadians(90.0 - elevation)), 3.0 / 5.0);
 
         if (logger.isDebugEnabled()) {
             logger.debug("magnitude     = {}", magnitude);
-            logger.debug("waveLength    = {}", waveLength);
+            logger.debug("waveLength    = {}", waveLengths);
             logger.debug("diameter      = {}", diameter);
             logger.debug("seeing        = {}", seeing);
             logger.debug("nbOfActuators = {}", nbOfActuators);
+            logger.debug("r0_corr       = {}", r0_corr);
         }
-
+        
         final double n_act = (double) nbOfActuators;
-
+        
         final double lambdaV = 0.55;
 
-        final double lambdaRatio = waveLength / lambdaV;
+        final int nWLen = waveLengths.length;
+        final double[] strehlPerChannel = new double[nWLen];
+        
+        double waveLength, lambdaRatio;
+        double r0, d_over_r0;
+        
+        Band band;
+        double sigmaphi2_alias, sigmaphi2_phot, sigmaphi2_fixe, sigmaphi2, e_sigmaphi2;
 
-        // explication formule r0:
-        // seeing=angular FWHM of seeing in V= 1.22 lambdaV/(r0) r0=fried coherence length.
-        // to have seeing in arcsec and all wavelengths in microns, we have
-        // seeing * a = 1.22 * lambdaV * 1e-6 / r0 with a=1 arcsec in RD=PI/180*3600
-        // thus r0 = 1.22*1E-6 / a * seeing = 0.251 * lambdaV / seeing
-        // R0_FACTOR = 0.251...
-        final double r0 = R0_FACTOR * lambdaV / seeing * FastMath.pow(lambdaRatio, 6d / 5d);
-        final double d_over_r0 = diameter / r0;
+        for (int i = 0; i < nWLen; i++) {
+            waveLength = waveLengths[i] * 1e6d; // microns
+            lambdaRatio = waveLength / lambdaV;
 
-        // 0.87 = AMD-REP 001 p32 (related to AO system)
-        final double sigmaphi2_alias = 0.87d * FastMath.pow(n_act, -5d / 6d) * FastMath.pow(d_over_r0, 5d / 3d);
+            // explication formule r0:
+            // seeing=angular FWHM of seeing in V= 1.22 lambdaV/(r0) r0=fried coherence length.
+            // to have seeing in arcsec and all wavelengths in microns, we have
+            // seeing * a = 1.22 * lambdaV * 1e-6 / r0 with a=1 arcsec in RD=PI/180*3600
+            // thus r0 = 1.22*1E-6 / a * seeing = 0.251 * lambdaV / seeing
+            // R0_FACTOR = 0.251...
+            r0 = r0_corr * (lambdaV / seeing) * FastMath.pow(lambdaRatio, 6d / 5d);
+            d_over_r0 = diameter / r0;
 
-        final double sigmaphi2_phot = 1.59e-8d * (d_over_r0 * d_over_r0) * FastMath.pow(lambdaRatio, -2d)
-                * n_act * FastMath.pow(10d, 0.4d * magnitude);
+            // 0.87 = AMD-REP 001 p32 (related to AO system)
+            sigmaphi2_alias = 0.87d * FastMath.pow(n_act, -5d / 6d) * FastMath.pow(d_over_r0, 5d / 3d);
 
-        final Band band = findBand(waveLength);
+            sigmaphi2_phot = 1.59e-8d * (d_over_r0 * d_over_r0) * FastMath.pow(lambdaRatio, -2d)
+                    * n_act * FastMath.pow(10d, 0.4d * magnitude);
 
-        final double sigmaphi2_fixe = -Math.log(band.getStrehlMax());
+            band = findBand(waveLength);
+            
+            sigmaphi2_fixe = -Math.log(band.getStrehlMax());
+            
+            sigmaphi2 = sigmaphi2_alias + sigmaphi2_phot + sigmaphi2_fixe;
+            
+            e_sigmaphi2 = FastMath.exp(-sigmaphi2);
+            
+            strehlPerChannel[i] = e_sigmaphi2 + (1.0 - e_sigmaphi2) / (1.0 + d_over_r0 * d_over_r0);
 
-        final double sigmaphi2 = sigmaphi2_alias + sigmaphi2_phot + sigmaphi2_fixe;
-
-        final double e_sigmaphi2 = FastMath.exp(-sigmaphi2);
-
-        final double strehl = e_sigmaphi2 + (1 - e_sigmaphi2) / (1 + d_over_r0 * d_over_r0);
-
-        if (logger.isDebugEnabled()) {
-            logger.debug("lambda          = {}", waveLength);
-            logger.debug("r0              = {}", r0);
-            logger.debug("doverr0         = {}", d_over_r0);
-            logger.debug("sigmaphi2_alias = {}", sigmaphi2_alias);
-            logger.debug("sigmaphi2_phot  = {}", sigmaphi2_phot);
-            logger.debug("sigmaphi2_fixe  = {}", sigmaphi2_fixe);
-            logger.debug("sigmaphi2       = {}", sigmaphi2);
-            logger.debug("strehl          = {}", strehl);
+            if (logger.isDebugEnabled()) {
+                logger.debug("lambda          = {}", waveLength);
+                logger.debug("r0              = {}", r0);
+                logger.debug("doverr0         = {}", d_over_r0);
+                logger.debug("sigmaphi2_alias = {}", sigmaphi2_alias);
+                logger.debug("sigmaphi2_phot  = {}", sigmaphi2_phot);
+                logger.debug("sigmaphi2_fixe  = {}", sigmaphi2_fixe);
+                logger.debug("sigmaphi2       = {}", sigmaphi2);
+                logger.debug("strehl          = {}", strehlPerChannel[i]);
+            }
         }
 
-        return strehl;
+        return strehlPerChannel;
     }
 
     /* members */
