@@ -66,7 +66,8 @@ public enum Band {
      * @param waveLengths wave lengths in meters
      * @param diameter telescope diameter in meters
      * @param seeing seeing in arc sec
-     * @param nbOfActuators
+     * @param nbOfActuators number of actuators
+     * @param elevation target elevation in degrees [0; 90]
      * @return strehl ratio
      */
     public static double[] strehl(final double magnitude, final double[] waveLengths,
