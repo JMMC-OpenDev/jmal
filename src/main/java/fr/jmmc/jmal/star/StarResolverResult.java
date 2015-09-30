@@ -82,7 +82,7 @@ public final class StarResolverResult {
     /**
      * @return (optional) server error message
      */
-    String getServerErrorMessage() {
+    public String getServerErrorMessage() {
         return _serverErrorMessage;
     }
 

@@ -195,7 +195,7 @@ public class Star extends Observable {
     public enum Property {
 
         RA, DEC, RA_d, DEC_d,
-        FLUX_N, FLUX_V, FLUX_I, FLUX_J, FLUX_H, FLUX_K,
+        FLUX_B, FLUX_V, FLUX_R, FLUX_I, FLUX_J, FLUX_H, FLUX_K, 
         UD_B, UD_I, UD_J, UD_H, UD_K, UD_L, UD_N, UD_R, UD_U, UD_V, TEFF, LOGG,
         OTYPELIST,
         PROPERMOTION_RA, PROPERMOTION_DEC,

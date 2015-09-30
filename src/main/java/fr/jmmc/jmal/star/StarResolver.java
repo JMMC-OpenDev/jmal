@@ -290,7 +290,8 @@ public final class StarResolver {
 //            names = "aasioi";
 // multiple:            
 //            names = "    l car  ; L car  ;";
-            names = "aasioi;vega;bad; AK_SCO  ";
+//            names = "aasioi;vega;bad; AK_SCO  ";
+            names = "GJ876";
         }
 
         final StarResolverProgressListener asyncListener = new StarResolverProgressListener() {
