@@ -6,9 +6,12 @@ package fr.jmmc.jmal.star;
 import static fr.jmmc.jmal.star.Star.SEPARATOR_COMMA;
 import static fr.jmmc.jmal.star.StarResolver.SEPARATOR_SEMI_COLON;
 import fr.jmmc.jmal.util.StrictStringTokenizer;
+import fr.jmmc.jmcs.data.preference.SessionSettingsPreferences;
 import fr.jmmc.jmcs.network.http.Http;
 import fr.jmmc.jmcs.util.CollectionUtils;
+import fr.jmmc.jmcs.util.FileUtils;
 import fr.jmmc.jmcs.util.StringUtils;
+import java.io.File;
 import java.io.IOException;
 import java.net.UnknownHostException;
 import java.text.ParseException;
@@ -34,6 +37,8 @@ final class SimbadResolveStarJob implements Callable<StarResolverResult> {
     private static final Logger _logger = LoggerFactory.getLogger(SimbadResolveStarJob.class.getName());
     /** Simbad value for the read timeout in milliseconds (15 seconds) */
     public static final int SIMBAD_SOCKET_READ_TIMEOUT = 15 * 1000;
+    /** true to enable query caching (development mode) */
+    public static final boolean USE_CACHE_DEV = false;
 
     /** custom entry separator */
     public static final String MARKER_ENTRY = ":entry:";
@@ -144,6 +149,25 @@ final class SimbadResolveStarJob implements Callable<StarResolverResult> {
         // Reset result before proceeding
         _response = "";
 
+        // In development: load cached query results:
+        final File cachedFile;
+        if (USE_CACHE_DEV) {
+            cachedFile = generateCacheFile(_result.getNames());
+
+            if (cachedFile.exists()) {
+                try {
+                    _response = FileUtils.readFile(cachedFile);
+
+                    _logger.info("using cached result: " + cachedFile.getAbsolutePath());
+                    return;
+                } catch (IOException ioe) {
+                    _logger.info("unable to read cached result: " + cachedFile.getAbsolutePath(), ioe);
+                }
+            }
+        } else {
+            cachedFile = null;
+        }
+
         // buffer used for both script and result:
         final StringBuilder sb = new StringBuilder(2048);
         // Forge Simbad script to execute
@@ -153,7 +177,7 @@ final class SimbadResolveStarJob implements Callable<StarResolverResult> {
         sb.append("%MAIN_ID\\n"); // Main identifier (display)
         sb.append("%COO(d;A);%COO(d;D);%COO(A);%COO(D);\\n"); // RA and DEC coordinates as sexagesimal and decimal degree values
         sb.append("%OTYPELIST\\n"); // Object types enumeration
-        sb.append("%FLUXLIST(V,I,J,H,K;N=F,)\\n"); // Magnitudes, 'Band=Value' format
+        sb.append("%FLUXLIST(B,V,R,I,J,H,K;N=F,)\\n"); // Magnitudes among [U,B,V,R,I,J,H,K], 'Band=Value' format
         sb.append("%PM(A;D)\\n"); // Proper motion with error
         sb.append("%PLX(V;E)\\n"); // Parallax with error
         sb.append("%SP(S)\\n"); // Spectral types enumeration
@@ -236,6 +260,17 @@ final class SimbadResolveStarJob implements Callable<StarResolverResult> {
             } finally {
                 if ((method != null) && method.isAborted()) {
                     currentThread.interrupt();
+                }
+
+                // In development: save cached query results:
+                if (USE_CACHE_DEV && _response.length() != 0) {
+                    try {
+                        FileUtils.writeFile(cachedFile, _response);
+
+                        _logger.info("saving cached result: " + cachedFile.getAbsolutePath());
+                    } catch (IOException ioe) {
+                        _logger.info("unable to write cached result: " + cachedFile.getAbsolutePath(), ioe);
+                    }
                 }
             }
         }
@@ -648,6 +683,36 @@ final class SimbadResolveStarJob implements Callable<StarResolverResult> {
             return "Unknown host [" + e.getMessage() + "]";
         }
         return e.getMessage();
+    }
+
+    private static File generateCacheFile(final List<String> nameList) {
+        final String parentPath = SessionSettingsPreferences.getApplicationFileStorage();
+        // assert that parent directory exist
+        new File(parentPath).mkdirs();
+
+        final int nIds = nameList.size();
+        final String[] names = nameList.toArray(new String[nIds]);
+
+        // Copy and sort ids to have an hashcode independent from ordering:
+        Arrays.sort(names);
+
+        final StringBuilder sb = new StringBuilder(2048);
+
+        // loop on identifiers to build cached key: '<ID>,'
+        for (String id : names) {
+            sb.append(id).append(','); // Add each object name we are looking for
+        }
+        final int hash_ids = sb.toString().hashCode();
+
+        // Form file name:
+        sb.setLength(0);
+        sb.append("Simbad_").append(nIds).append('_');
+        sb.append(names[0]).append('-').append(names[nIds - 1]).append('_');;
+        sb.append(hash_ids).append(".dat");
+
+        final String fileName = sb.toString();
+
+        return new File(parentPath, fileName);
     }
 
     public static void main(String[] args) {
