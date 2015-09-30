@@ -3,6 +3,7 @@
  ***************************************************************************** */
 package fr.jmmc.jmal;
 
+import fr.jmmc.jmcs.util.NumberUtils;
 import net.jafama.FastMath;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,7 +59,7 @@ public enum Band {
         }
         throw new IllegalArgumentException("no band found for the wave length = " + waveLength);
     }
-        
+
     /**
      * Compute the strehl ratio. see le louarn et al (1998, mnras 295, 756), and amb-igr-011 p.5
      *
@@ -73,7 +74,7 @@ public enum Band {
     public static double[] strehl(final double magnitude, final double[] waveLengths,
                                   final double diameter, final double seeing, final int nbOfActuators,
                                   final double elevation) {
-        
+
         // r0(e)=cos(90-e)^(3/5) * r0 
         // r0_corr in [0; 0.251]
         final double r0_corr = R0_FACTOR * FastMath.pow(FastMath.cos(FastMath.toRadians(90.0 - elevation)), 3.0 / 5.0);
@@ -86,17 +87,17 @@ public enum Band {
             logger.debug("nbOfActuators = {}", nbOfActuators);
             logger.debug("r0_corr       = {}", r0_corr);
         }
-        
+
         final double n_act = (double) nbOfActuators;
-        
+
         final double lambdaV = 0.55;
 
         final int nWLen = waveLengths.length;
         final double[] strehlPerChannel = new double[nWLen];
-        
+
         double waveLength, lambdaRatio;
         double r0, d_over_r0;
-        
+
         Band band;
         double sigmaphi2_alias, sigmaphi2_phot, sigmaphi2_fixe, sigmaphi2, e_sigmaphi2;
 
@@ -120,13 +121,13 @@ public enum Band {
                     * n_act * FastMath.pow(10d, 0.4d * magnitude);
 
             band = findBand(waveLength);
-            
+
             sigmaphi2_fixe = -Math.log(band.getStrehlMax());
-            
+
             sigmaphi2 = sigmaphi2_alias + sigmaphi2_phot + sigmaphi2_fixe;
-            
+
             e_sigmaphi2 = FastMath.exp(-sigmaphi2);
-            
+
             strehlPerChannel[i] = e_sigmaphi2 + (1.0 - e_sigmaphi2) / (1.0 + d_over_r0 * d_over_r0);
 
             if (logger.isDebugEnabled()) {
@@ -216,5 +217,33 @@ public enum Band {
      */
     public double getStrehlMax() {
         return strehlMax;
+    }
+
+    public static void main(String[] args) {
+        for (Band b : values()) {
+            double half = 0.5d * b.getBandWidth();
+            double mid = b.getLambda();
+            double min = mid - half;
+            double max = mid + half;
+            System.out.println("Band: " + b.getName()
+                    + " min: " + NumberUtils.trimTo3Digits(min)
+                    + " mid: " + NumberUtils.trimTo3Digits(mid)
+                    + " max: " + NumberUtils.trimTo3Digits(max)
+            );
+        }
+        /*
+         Band: U min: 0.301 mid: 0.334 max: 0.367
+         Band: B min: 0.421 mid: 0.461 max: 0.502
+         Band: V min: 0.5 mid: 0.556 max: 0.611
+         Band: R min: 0.609 mid: 0.662 max: 0.715
+         Band: I min: 0.713 mid: 0.869 max: 1.025
+         Band: J min: 1.023 mid: 1.236 max: 1.449
+         Band: H min: 1.447 mid: 1.679 max: 1.911
+         Band: K min: 1.909 mid: 2.365 max: 2.821
+         Band: L min: 2.819 mid: 3.458 max: 4.098
+         Band: M min: 4.096 mid: 6.403 max: 8.711
+         Band: N min: 8.709 mid: 11.63 max: 14.551
+         Band: Q min: 14.549 mid: 16.575 max: 18.599
+         */
     }
 }
