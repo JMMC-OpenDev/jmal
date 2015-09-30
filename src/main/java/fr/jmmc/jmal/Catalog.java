@@ -38,7 +38,9 @@ public enum Catalog {
     WDS("B/wds/wds", "WDS", "The Washington Visual Double Star Catalog"),
     AKARI("II/297/irc", "AKARI", "AKARI/IRC mid-IR all-sky Survey (ISAS/JAXA, 2010)"),
     HIP2("I/311/hip2", "HIP2", "Hipparcos, the New Reduction (van Leeuwen, 2007)"),
-    HIP1("I/239/hip_main", "HIP1", "Hipparcos and Tycho Catalogues (ESA 1997)");
+    HIP1("I/239/hip_main", "HIP1", "Hipparcos and Tycho Catalogues (ESA 1997)"),
+    SIMBAD("SIMBAD", "SIMBAD", "SIMBAD Astronomical Database")
+    ;
     /* members */
     /** Store the catalog CDS 'cryptic' reference */
     private final String _reference;
@@ -191,11 +193,17 @@ public enum Catalog {
             sb.append(fr.jmmc.jmcs.util.ColorEncoder.encode(getDefaultColor(catalog)));
             sb.append("'><td>");
             sb.append(catalog.title());
-            sb.append("</td><td><a href='http://cdsarc.u-strasbg.fr/cgi-bin/VizieR?-source=");
-            sb.append(ref);
+            sb.append("</td><td>");
+            if ("SIMBAD".equals(ref)) {
+                sb.append("<a href='http://simbad.u-strasbg.fr/simbad/");
+            } else {
+                sb.append("<a href='http://cdsarc.u-strasbg.fr/cgi-bin/VizieR?-source=");
+                sb.append(ref);
+            }
             sb.append("'>");
             sb.append(ref);
-            sb.append("</a></td>");
+            sb.append("</a>");
+            sb.append("</td>");
             sb.append("<td>");
             sb.append(catalog.description());
             sb.append("</td>");
