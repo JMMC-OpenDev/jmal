@@ -448,7 +448,7 @@ final class SimbadResolveStarJob implements Callable<StarResolverResult> {
                 _parsedStar.setPropertyAsString(Star.Property.DEC, dmsDec);
             } catch (NumberFormatException nfe) {
                 // special case: Coordinates contains 'No Coord.;No Coord.;No Coord.;No Coord.;'.
-                _logger.debug("Invalid coordinates '" + coordinates + "'");
+                _logger.debug("Invalid coordinates '{}'", coordinates);
             }
         } else {
             throw new ParseException("Invalid coordinates '" + coordinates + "'", -1);
