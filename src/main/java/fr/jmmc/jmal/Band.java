@@ -49,15 +49,15 @@ public enum Band {
      *
      * @param waveLength wave length in microns
      * @return corresponding band
-     * @throws IllegalArgumentException if no band found
+     * @throws IllegalStateException if no band found
      */
-    public static Band findBand(final double waveLength) throws IllegalArgumentException {
+    public static Band findBand(final double waveLength) throws IllegalStateException {
         for (Band b : values()) {
             if (Math.abs(waveLength - b.getLambda()) <= (0.5d * b.getBandWidth())) {
                 return b;
             }
         }
-        throw new IllegalArgumentException("no band found for the wave length = " + waveLength);
+        throw new IllegalStateException("no band found for the wave length = " + waveLength);
     }
 
     /**
