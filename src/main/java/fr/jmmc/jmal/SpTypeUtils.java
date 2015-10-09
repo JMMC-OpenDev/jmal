@@ -33,10 +33,17 @@ public final class SpTypeUtils {
      * Extract one or more spectral types of the given spectral type.
      *
      * @param rawSpectralType the spectral type to analyze.
+     * @param list optional list to store results (and reuse memory)
      *
      * @return a List of String containing found spectral types (if any).
      */
-    public static List<String> spectralTypes(final String rawSpectralType) {
+    public static List<String> spectralTypes(final String rawSpectralType,
+                                             final List<String> list) {
+
+        final List<String> foundSpectralTypes = (list == null) ? new ArrayList<String>() : list;
+        if (!foundSpectralTypes.isEmpty()) {
+            foundSpectralTypes.clear();
+        }
 
         String spectralType = rawSpectralType;
 
@@ -44,8 +51,6 @@ public final class SpTypeUtils {
         if (spectralType.contains("SB")) {
             spectralType = spectralType.replaceAll("SB", "");
         }
-
-        final List<String> foundSpectralTypes = new ArrayList<String>();
 
         for (int i = 0, len = spectralType.length(); i < len; i++) {
             final char c = spectralType.charAt(i);
@@ -71,12 +76,17 @@ public final class SpTypeUtils {
      * Extract one or more luminosity classes of the given spectral type.
      *
      * @param rawSpectralType the spectral type to analyze.
+     * @param list optional list to store results (and reuse memory)
      *
      * @return a List of String containing found luminosity classes (if any).
      */
-    public static List<String> luminosityClasses(final String rawSpectralType) {
+    public static List<String> luminosityClasses(final String rawSpectralType,
+                                                 final List<String> list) {
 
-        final List<String> foundLuminosityClasses = new ArrayList<String>();
+        final List<String> foundLuminosityClasses = (list == null) ? new ArrayList<String>() : list;
+        if (!foundLuminosityClasses.isEmpty()) {
+            foundLuminosityClasses.clear();
+        }
 
         String foundLuminosityClass = "";
         boolean luminosityClassFound = false;
@@ -99,13 +109,13 @@ public final class SpTypeUtils {
                 // If we are on the last char of the spectral type
                 if (i == (rawSpectralTypeSize - 1)) {
                     // Store the luminosity class as a result
-                    foundLuminosityClasses.add(foundLuminosityClass);
+                    list.add(foundLuminosityClass);
                 }
             } else {
                 // if a luminosiy class was just entirely found
                 if (luminosityClassFound) {
                     // Store the luminosity class as a result
-                    foundLuminosityClasses.add(foundLuminosityClass);
+                    list.add(foundLuminosityClass);
 
                     // Reset in case another luminosity class can be found
                     foundLuminosityClass = "";
@@ -114,7 +124,7 @@ public final class SpTypeUtils {
             }
         }
 
-        return foundLuminosityClasses;
+        return list;
     }
 
     /**
