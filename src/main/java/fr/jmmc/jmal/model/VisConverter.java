@@ -86,8 +86,9 @@ public abstract class VisConverter {
                 final double amp = ImmutableComplex.abs(re, im);
                 final double err = this.noiseService.computeVisComplexErrorValue(amp);
 
-                re += VisNoiseService.gaussianNoise(threadRandom, err);
-                im += VisNoiseService.gaussianNoise(threadRandom, err);
+                // Re/Im are two independent variables:
+                re += err * threadRandom.nextGaussian();
+                im += err * threadRandom.nextGaussian();
             }
 
             return (float) FastMath.toDegrees(ImmutableComplex.getArgument(re, im));
@@ -123,13 +124,15 @@ public abstract class VisConverter {
                 final double amp = ImmutableComplex.abs(re, im);
                 final double err = this.noiseService.computeVisComplexErrorValue(amp);
 
-                re += VisNoiseService.gaussianNoise(threadRandom, err);
-                im += VisNoiseService.gaussianNoise(threadRandom, err);
+                // Re/Im are two independent variables:
+                re += err * threadRandom.nextGaussian();
+                im += err * threadRandom.nextGaussian();
 
                 final double noisyAmp = ImmutableComplex.abs(re, im);
-                // Invalid data when amp > SQRT(2) x sigma (SNR < 1) and noisy amp > amp:
-                if (VisNoiseService.VIS_CPX_TO_VIS_AMP_ERR * err > amp && noisyAmp > amp) {
-                    // discard too noisy data:
+
+                // Very noisy data when amp < err (ie SNR < 1):
+                if ((noisyAmp > amp) && (err > amp)) {
+                    // use 0 to ignore visually such pixels (use another blanking value ?)
                     return 0f;
                 }
                 return (float) noisyAmp;
@@ -165,17 +168,20 @@ public abstract class VisConverter {
         public float convert(double re, double im, final Random threadRandom) {
             if (this.doNoise) {
                 final double amp = ImmutableComplex.abs(re, im);
-                final double err = this.noiseService.computeVis2Error(amp);
+                final double err = this.noiseService.computeVisComplexErrorValue(amp);
 
-                final double vis2 = amp * amp;
-                final double noisyVis2 = vis2 + VisNoiseService.gaussianNoise(threadRandom, err);
+                // Re/Im are two independent variables:
+                re += err * threadRandom.nextGaussian();
+                im += err * threadRandom.nextGaussian();
 
-                // TODO: how to handle negative values due to noise: discard or use abs(vis2) ?
-                if (noisyVis2 < 0d) {
-                    return (float) -noisyVis2;
+                final double noisyAmp = ImmutableComplex.abs(re, im);
+
+                // Very noisy data when amp < err (ie SNR < 1):
+                if ((noisyAmp > amp) && (err > amp)) {
+                    // use 0 to ignore visually such pixels (use another blanking value ?)
+                    return 0f;
                 }
-
-                return (float) noisyVis2;
+                return (float) (noisyAmp * noisyAmp);
             }
 
             return (float) (re * re + im * im);
