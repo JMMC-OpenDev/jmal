@@ -35,6 +35,8 @@ public final class ALX {
     /** Specify the value of one arcsecond in degrees */
     public static final double DEG_IN_ARCSEC = 3600d;
     /** Specify the value of one milli arcsecond in degrees */
+    public static final double DEG_IN_MILLI_ARCSEC = 3600000d;
+    /** Specify the value of one milli arcsecond in degrees */
     public static final double MILLI_ARCSEC_IN_DEGREES = (1d / 3600000d);
     /** Specify the value of one arcminute in arcsecond */
     public static final double ARCMIN_IN_ARCSEC = 60d;
