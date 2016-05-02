@@ -7,7 +7,6 @@ import java.awt.Color;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.regex.Pattern;
 
 /**
  * Enumeration of all different catalogs and their properties.
@@ -39,7 +38,8 @@ public enum Catalog {
     AKARI("II/297/irc", "AKARI", "AKARI/IRC mid-IR all-sky Survey (ISAS/JAXA, 2010)"),
     HIP2("I/311/hip2", "HIP2", "Hipparcos, the New Reduction (van Leeuwen, 2007)"),
     HIP1("I/239/hip_main", "HIP1", "Hipparcos and Tycho Catalogues (ESA 1997)"),
-    SIMBAD("SIMBAD", "SIMBAD", "SIMBAD Astronomical Database")
+    SIMBAD("SIMBAD", "SIMBAD", "SIMBAD Astronomical Database"),
+    WISE("II/328/allwise", "WISE", "The AllWISE data Release (Cutri+ 2013)")
     ;
     /* members */
     /** Store the catalog CDS 'cryptic' reference */
