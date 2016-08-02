@@ -80,6 +80,7 @@ public enum Band {
         final double r0_corr = R0_FACTOR * FastMath.pow(FastMath.cos(FastMath.toRadians(90.0 - elevation)), 3.0 / 5.0);
 
         if (logger.isDebugEnabled()) {
+            logger.debug("elevation     = {}", elevation);
             logger.debug("magnitude     = {}", magnitude);
             logger.debug("waveLength    = {}", waveLengths);
             logger.debug("diameter      = {}", diameter);
