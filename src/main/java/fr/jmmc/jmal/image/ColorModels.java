@@ -4,6 +4,10 @@
 package fr.jmmc.jmal.image;
 
 import fr.jmmc.jmcs.util.FileUtils;
+import java.awt.Color;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.image.BufferedImage;
 import java.awt.image.IndexColorModel;
 import java.io.BufferedReader;
 import java.io.File;
@@ -59,6 +63,8 @@ public class ColorModels {
     private final static Vector<String> colorModelNames = new Vector<String>(64);
     /** Color models keyed by names */
     private final static Map<String, IndexColorModel> colorModels = new HashMap<String, IndexColorModel>(64);
+    /** Images of each Color model keyed by names */
+    private final static Map<String, BufferedImage> colorModelImages = new HashMap<String, BufferedImage>(64);
     /** Cyclic Color models keyed by names */
     private final static Map<String, IndexColorModel> cyclicColorModels = new HashMap<String, IndexColorModel>(64);
     /**
@@ -214,6 +220,7 @@ public class ColorModels {
     private static void addColorModel(final String name, final IndexColorModel colorModel) {
         colorModelNames.add(name);
         colorModels.put(name, colorModel);
+        colorModelImages.put(name, createImage(colorModel));
     }
 
     /**
@@ -253,6 +260,15 @@ public class ColorModels {
     }
 
     /**
+     * Return the image of the IndexColorModel given its name
+     * @param name
+     * @return BufferedImage or null if the name was not found
+     */
+    public static BufferedImage getColorModelImage(final String name) {
+        return colorModelImages.get(name);
+    }
+
+    /**
      * Return the cyclic IndexColorModel given its name
      * @param name
      * @return IndexColorModel or the default IndexColorModel if the name was not found
@@ -269,11 +285,11 @@ public class ColorModels {
     /** @return the 'earth' color model */
     private static IndexColorModel getEarthColorModel() {
         /* dk blue - lt blue - dk green - yellow green - lt brown - white */
-        /* sort of like mapmakers colors from deep ocean to snow capped peak */
-        /* ncolors= 240 */
-        /* ntsc gray scale looks slightly better than straight intensity */
-        /* ntsc= 1 */
-        /* r g b */
+ /* sort of like mapmakers colors from deep ocean to snow capped peak */
+ /* ncolors= 240 */
+ /* ntsc gray scale looks slightly better than straight intensity */
+ /* ntsc= 1 */
+ /* r g b */
         final byte[] r = new byte[NB_COLORS];
         final byte[] g = new byte[NB_COLORS];
         final byte[] b = new byte[NB_COLORS];
@@ -1004,9 +1020,9 @@ public class ColorModels {
     /** @return the 'rainbow' color model */
     private static IndexColorModel getRainbowColorModel() {
         /* red - orange - yellow - green - blue - purple */
-        /* colors in spectral order */
-        /* ncolors= 240 */
-        /* r g b */
+ /* colors in spectral order */
+ /* ncolors= 240 */
+ /* r g b */
         //int nbColors = 240;
         final byte[] r = new byte[NB_COLORS];
         final byte[] g = new byte[NB_COLORS];
@@ -1792,7 +1808,6 @@ public class ColorModels {
             final float[] gf = new float[MAX_COLORS];
             final float[] bf = new float[MAX_COLORS];
 
-
             for (int i = 0, n = 0; (line = reader.readLine()) != null && n <= LEN; i += 2, n++) {
                 tok = new StringTokenizer(line, " ");
 
@@ -1916,4 +1931,33 @@ public class ColorModels {
         // test case :
         ColorModels.getDefaultColorModel();
     }
+
+    /** alpha integer mask */
+    private static BufferedImage createImage(final IndexColorModel colorModel) {
+
+        final int mapSize = colorModel.getMapSize();
+        final int iMaxColor = mapSize - 1;
+
+        final int width = 256; // always 256px to be consistent among color models
+        final int height = 16;
+
+        final BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+
+        final Graphics2D g2d = (Graphics2D) image.getGraphics();
+        g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+
+        try {
+            for (int n = 0; n < mapSize; n++) {
+                final int rgb = ImageUtils.getRGB(colorModel, iMaxColor, n, 0);
+
+                // paint color:
+                g2d.setColor(new Color(rgb)); // ignore alpha
+                g2d.fillRect(n, 0, n + 1, height);
+            }
+        } finally {
+            g2d.dispose();
+        }
+        return image;
+    }
+
 }
