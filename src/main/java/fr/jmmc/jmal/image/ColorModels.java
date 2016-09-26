@@ -118,9 +118,8 @@ public class ColorModels {
         addColorModel(COLOR_MODEL_RAINBOW_ALPHA, getRainbowColorModelAlpha(0.8f));
 
         // color models from lut files :
-        IndexColorModel colorModel;
         for (String name : LUT_FILES) {
-            colorModel = loadFromFile(name);
+            final IndexColorModel colorModel = loadFromFile(name);
             if (colorModel != null) {
                 addColorModel(name.substring(0, name.indexOf('.')), colorModel);
             }
