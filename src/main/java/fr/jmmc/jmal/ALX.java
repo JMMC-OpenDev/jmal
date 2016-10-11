@@ -241,7 +241,7 @@ public final class ALX {
         }
         /* check boundaries */
         if (absAngle > maxValue) {
-            return sb.append("~");
+            return sb.append('~');
         }
         /* print deg field */
         final int iDeg = (int) Math.floor(absAngle);
@@ -277,7 +277,7 @@ public final class ALX {
         }
         /* check boundaries */
         if (absAngle > 24d) {
-            return sb.append("~");
+            return sb.append('~');
         }
         /* print hour field */
         final int iHour = (int) Math.floor(absAngle);
