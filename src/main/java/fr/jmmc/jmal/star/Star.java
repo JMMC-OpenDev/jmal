@@ -76,12 +76,24 @@ public class Star extends Observable {
     }
 
     /**
+     * Return the main identifier or null if it is undefined
+     * @return star name or null
+     */
+    public final String getMainId() {
+        final String mainId = _stringContent.get(Property.MAIN_ID);
+        if (StringUtils.isEmpty(mainId)) {
+            return null;
+        }
+        return mainId;
+    }
+
+    /**
      * Return the star identifier (main id or first IDS or 'RA DEC' or null if all are undefined
      * @return star identifier or 'RA DEC' or null
      */
     public final String getId() {
-        String mainId = _stringContent.get(Property.MAIN_ID);
-        if (!StringUtils.isEmpty(mainId)) {
+        final String mainId = getMainId();
+        if (mainId != null) {
             return mainId;
         }
         final String ids = _stringContent.get(Property.IDS);
@@ -195,7 +207,7 @@ public class Star extends Observable {
     public enum Property {
 
         RA, DEC, RA_d, DEC_d,
-        FLUX_B, FLUX_V, FLUX_R, FLUX_I, FLUX_J, FLUX_H, FLUX_K, 
+        FLUX_B, FLUX_V, FLUX_R, FLUX_I, FLUX_J, FLUX_H, FLUX_K,
         UD_B, UD_I, UD_J, UD_H, UD_K, UD_L, UD_N, UD_R, UD_U, UD_V, TEFF, LOGG,
         OTYPELIST,
         PROPERMOTION_RA, PROPERMOTION_DEC,
