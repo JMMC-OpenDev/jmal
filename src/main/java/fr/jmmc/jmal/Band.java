@@ -57,7 +57,21 @@ public enum Band {
                 return b;
             }
         }
-        throw new IllegalStateException("no band found for the wave length = " + waveLength);
+        // replace Exception so we always found the nearest band
+        Band p = null;
+        for (Band b : values()) {
+            if (p == null) {
+                p = b;
+            } else if (waveLength < b.lambda && waveLength > p.lambda) {
+                if (waveLength - p.lambda < b.lambda - waveLength) {
+                    return p;
+                }
+                return b;
+            }
+            p = b;
+        }
+        return p;
+        //throw new IllegalStateException("no band found for the wave length = " + waveLength);
     }
 
     /**
@@ -72,10 +86,10 @@ public enum Band {
      * @return strehl ratio
      */
     public static double[] strehl(final double magnitude, final double[] waveLengths,
-                                  final double diameter, final double seeing, final int nbOfActuators,
-                                  final double elevation) {
+            final double diameter, final double seeing, final int nbOfActuators,
+            final double elevation) {
 
-        // r0(e)=cos(90-e)^(3/5) * r0 
+        // r0(e)=cos(90-e)^(3/5) * r0
         // r0_corr in [0; 0.251]
         final double r0_corr = R0_FACTOR * FastMath.pow(FastMath.cos(FastMath.toRadians(90.0 - elevation)), 3.0 / 5.0);
 
