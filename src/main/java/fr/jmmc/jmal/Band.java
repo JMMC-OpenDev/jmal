@@ -52,18 +52,29 @@ public enum Band {
      * @throws IllegalStateException if no band found
      */
     public static Band findBand(final double waveLength) throws IllegalStateException {
-        for (Band b : values()) {
+        final Band[] bands = values();
+        final int len = bands.length;
+
+        for (int i = 0; i < len; i++) {
+            final Band b = bands[i];
             if (Math.abs(waveLength - b.getLambda()) <= (0.5d * b.getBandWidth())) {
                 return b;
             }
         }
-        // replace Exception so we always found the nearest band
-        Band p = null;
-        for (Band b : values()) {
-            if (p == null) {
-                p = b;
-            } else if (waveLength < b.lambda && waveLength > p.lambda) {
-                if (waveLength - p.lambda < b.lambda - waveLength) {
+        // Return the nearest band:
+        if (waveLength <= bands[0].getLambda()) {
+            return bands[0];
+        }
+        if (waveLength >= bands[len - 1].getLambda()) {
+            return bands[len - 1];
+        }
+        // Handle discontinuity between bands:
+        Band p = bands[0];
+        for (int i = 1; i < len; i++) {
+            final Band b = bands[i];
+            if ((p.getLambda() <= waveLength) && (waveLength <= b.getLambda())) {
+                // wavelength is close to p or b bands:
+                if (Math.abs(waveLength - p.getLambda()) <= Math.abs(b.getLambda() - waveLength)) {
                     return p;
                 }
                 return b;
@@ -71,7 +82,6 @@ public enum Band {
             p = b;
         }
         return p;
-        //throw new IllegalStateException("no band found for the wave length = " + waveLength);
     }
 
     /**
@@ -86,8 +96,8 @@ public enum Band {
      * @return strehl ratio
      */
     public static double[] strehl(final double magnitude, final double[] waveLengths,
-            final double diameter, final double seeing, final int nbOfActuators,
-            final double elevation) {
+                                  final double diameter, final double seeing, final int nbOfActuators,
+                                  final double elevation) {
 
         // r0(e)=cos(90-e)^(3/5) * r0
         // r0_corr in [0; 0.251]
@@ -260,5 +270,13 @@ public enum Band {
          Band: N min: 8.709 mid: 11.63 max: 14.551
          Band: Q min: 14.549 mid: 16.575 max: 18.599
          */
+
+        double w = 0.1;
+
+        while (w < 20.0) {
+            System.out.println("findBand(" + NumberUtils.trimTo3Digits(w) + "): " + findBand(w));
+
+            w += (w < 1.0) ? 0.02 : 0.1;
+        }
     }
 }
