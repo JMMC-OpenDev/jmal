@@ -49,6 +49,8 @@ public class ColorModels {
     public final static String COLOR_MODEL_ASPRO = "aspro";
     /** Color model Aspro Isophot*/
     public final static String COLOR_MODEL_ASPRO_ISOPHOT = "aspro-isophot";
+    /** Color model Heat */
+    public final static String COLOR_MODEL_HEAT = "heat";
     /** Color model Gray */
     public final static String COLOR_MODEL_GRAY = "Gray";
     /** Color model Earth */
@@ -1750,9 +1752,9 @@ public class ColorModels {
         return new IndexColorModel(8, NB_COLORS, r, g, b);
     }
 
-    /** 
-     * @return a 'rainbow' color model with given opacity 
-     * @param alpha opacity 
+    /**
+     * @return a 'rainbow' color model with given opacity
+     * @param alpha opacity
      */
     private static IndexColorModel getRainbowColorModelAlpha(final float alpha) {
         final IndexColorModel rainbow = getRainbowColorModel();
