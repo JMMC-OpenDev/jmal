@@ -3,8 +3,6 @@
  ******************************************************************************/
 package fr.jmmc.jmal.model;
 
-import java.util.Random;
-
 /**
  * This interface provides methods used to apply noise on complex visibility
  * @author bourgesl
