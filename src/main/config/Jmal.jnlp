@@ -6,11 +6,11 @@
         <homepage href="http://www.jmmc.fr/dev/jmal/"/>
         <description>JMMC Astronomical library</description>
         <offline-allowed/>
-        <update check="background"/>
     </information>
     <security>
         <all-permissions/>
     </security>
+    <update check="background" policy="prompt-update"/>
     <resources>
         <!-- MANUALLY EDITED - Should be generated with maven ASAP ! -->
 
