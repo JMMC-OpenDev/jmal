@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<jnlp spec="6.0+" codebase="@GENERATED@" href="Jmal.jnlp">
+<jnlp spec="1.0+" codebase="@GENERATED@" href="Jmal.jnlp">
     <information>
         <title>jMAL Framework</title>
         <vendor>JMMC (Jean-Marie MARIOTTI Center)</vendor>
@@ -10,7 +10,6 @@
     <security>
         <all-permissions/>
     </security>
-    <update check="always" policy="always"/>
     <resources>
         <!-- MANUALLY EDITED - Should be generated with maven ASAP ! -->
 
