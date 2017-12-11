@@ -245,15 +245,25 @@ public enum Band {
     }
 
     public static void main(String[] args) {
+
+        /** Planck's constant in standard units (6.6262e-34) */
+        final double H_PLANCK = 6.62606896e-34d;
+        /** Speed of light (2.99792458e8) */
+        final double C_LIGHT = 2.99792458e8d;
+
         for (Band b : values()) {
             double half = 0.5d * b.getBandWidth();
             double mid = b.getLambda();
             double min = mid - half;
             double max = mid + half;
+
+            final double fzero = FastMath.pow(10d, b.getLogFluxZero()) * (b.getLambda() * 1e-6) / (H_PLANCK * C_LIGHT);
+
             System.out.println("Band: " + b.getName()
                     + " min: " + NumberUtils.trimTo3Digits(min)
                     + " mid: " + NumberUtils.trimTo3Digits(mid)
                     + " max: " + NumberUtils.trimTo3Digits(max)
+                    + " f0 : " + fzero
             );
         }
         /*
