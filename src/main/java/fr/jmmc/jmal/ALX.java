@@ -50,9 +50,11 @@ public final class ALX {
     public static final double DEG_IN_MIN = 60d / 15d;
     /** Specify the value of one hour in minute */
     public static final double HOUR_IN_MIN = 60d;
-    /** threshold for rounding millis (truncating) */
-    public static final double MILLIS_ROUND_THRESHOLD = 0.5e-3d;
-    
+    /** HMS precision for rounding millis (truncating) */
+    public static final double HMS_ROUND_PRECISION = 1e5d;
+    /** DMS precision for rounding millis (truncating) */
+    public static final double DMS_ROUND_PRECISION = 1e4d;
+
     /**
      * Forbidden constructor : utility class
      */
@@ -221,7 +223,7 @@ public final class ALX {
     public static StringBuilder toDMS(final StringBuilder sb, final double angle) {
         return toDMS(sb, angle, 90d);
     }
-        
+
     /**
      * Append the DMS format of the given angle to given string builder
      * @param sb string builder to append into
@@ -230,6 +232,9 @@ public final class ALX {
      * @return given string builder
      */
     public static StringBuilder toDMS(final StringBuilder sb, final double angle, final double maxValue) {
+        if (Double.isNaN(angle)) {
+            return sb;
+        }
         final boolean negative;
         final double absAngle;
         if (angle < 0.0D) {
@@ -254,7 +259,7 @@ public final class ALX {
         }
         sb.append(iDeg);
 
-        return toMS(sb, remainder);
+        return toMS(sb, remainder, DMS_ROUND_PRECISION);
     }
 
     /**
@@ -264,6 +269,9 @@ public final class ALX {
      * @return given string builder
      */
     public static StringBuilder toHMS(final StringBuilder sb, final double angle) {
+        if (Double.isNaN(angle)) {
+            return sb;
+        }
         final boolean negative;
         final double absAngle;
         if (angle < 0.0D) {
@@ -292,10 +300,11 @@ public final class ALX {
         }
         sb.append(iHour);
 
-        return toMS(sb, remainder);
+        return toMS(sb, remainder, HMS_ROUND_PRECISION);
     }
 
-    private static StringBuilder toMS(final StringBuilder sb, final double angle) {
+    private static StringBuilder toMS(final StringBuilder sb, final double angle, final double msRoundPrecision) {
+
         final double fMinute = DEG_IN_ARCMIN * angle;
         final int iMinute = (int) Math.floor(fMinute);
 
@@ -321,16 +330,24 @@ public final class ALX {
         }
         sb.append(iSecond);
 
-        if (remainder >= MILLIS_ROUND_THRESHOLD) {
-            final int iMillis = (int) Math.round(1e3d * remainder);
+        if ((msRoundPrecision * remainder) >= 0.5d) {
             sb.append('.');
-            if (iMillis < 100) {
+
+            final int iMillis = (int) Math.round(msRoundPrecision * remainder);
+            int tmp = (int) (msRoundPrecision) / 10;
+
+            while (iMillis < tmp) {
                 sb.append('0');
-            }
-            if (iMillis < 10) {
-                sb.append('0');
+                tmp /= 10;
             }
             sb.append(iMillis);
+
+            // remove trailing 0
+            tmp = sb.length() - 1;
+            while (sb.charAt(tmp) == '0') {
+                tmp--;
+            }
+            sb.setLength(tmp + 1);
         }
         return sb;
     }

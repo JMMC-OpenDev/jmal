@@ -216,7 +216,7 @@ public class ALXTest {
         }
         if (true) {
             double raDeg = 4.123456789123456789;
-            String expResult = "00:16:29.630";
+            String expResult = "00:16:29.62963";
             String result = ALX.toHMS(raDeg);
             assertEquals(expResult, result);
         }
@@ -246,7 +246,7 @@ public class ALXTest {
         }
         if (true) {
             double raDeg = 10.0 * ALX.MILLI_ARCSEC_IN_DEGREES * ALX.HOUR_IN_DEGREES;
-            String expResult = "00:00:00.010";
+            String expResult = "00:00:00.01";
             String result = ALX.toHMS(raDeg);
             assertEquals(expResult, result);
         }
@@ -258,13 +258,13 @@ public class ALXTest {
         }
         if (true) {
             double raDeg = 0.5 * ALX.MILLI_ARCSEC_IN_DEGREES * ALX.HOUR_IN_DEGREES;
-            String expResult = "00:00:00.001";
+            String expResult = "00:00:00.0005";
             String result = ALX.toHMS(raDeg);
             assertEquals(expResult, result);
         }
         if (true) {
             double raDeg = (0.5 - 3.0 * Math.ulp(0.5)) * ALX.MILLI_ARCSEC_IN_DEGREES * ALX.HOUR_IN_DEGREES;
-            String expResult = "00:00:00";
+            String expResult = "00:00:00.0005";
             String result = ALX.toHMS(raDeg);
             assertEquals(expResult, result);
         }
@@ -291,7 +291,7 @@ public class ALXTest {
         }
         if (true) {
             double decDeg = -5.523456789123456789;
-            String expResult = "-05:31:24.444";
+            String expResult = "-05:31:24.4444";
             String result = ALX.toDMS(decDeg);
             assertEquals(expResult, result);
         }
@@ -315,7 +315,7 @@ public class ALXTest {
         }
         if (true) {
             double decDeg = 5.523456789123456789;
-            String expResult = "+05:31:24.444";
+            String expResult = "+05:31:24.4444";
             String result = ALX.toDMS(decDeg);
             assertEquals(expResult, result);
         }
@@ -333,7 +333,7 @@ public class ALXTest {
         }
         if (true) {
             double decDeg = 10.0 * ALX.MILLI_ARCSEC_IN_DEGREES;
-            String expResult = "+00:00:00.010";
+            String expResult = "+00:00:00.01";
             String result = ALX.toDMS(decDeg);
             assertEquals(expResult, result);
         }
@@ -345,15 +345,80 @@ public class ALXTest {
         }
         if (true) {
             double decDeg = 0.5 * ALX.MILLI_ARCSEC_IN_DEGREES;
-            String expResult = "+00:00:00.001";
+            String expResult = "+00:00:00.0005";
             String result = ALX.toDMS(decDeg);
             assertEquals(expResult, result);
         }
         if (true) {
             double decDeg = (0.5 - 3.0 * Math.ulp(0.5)) * ALX.MILLI_ARCSEC_IN_DEGREES;
-            String expResult = "+00:00:00";
+            String expResult = "+00:00:00.0005";
             String result = ALX.toDMS(decDeg);
             assertEquals(expResult, result);
         }
+    }
+
+    /**
+     * Test of parse + toHMS method, of class ALX.
+     */
+    @Test
+    public void testFixRA() {
+        System.out.println("parseRA");
+
+        if (true) {
+            String raHms = "";
+            String expResult = "";
+            String result = fixRA(raHms);
+            assertEquals(expResult, result);
+        }
+        // HH:MM:SS.TT or HH MM SS.TT
+        if (true) {
+            String raHms = "01:23:45.67";
+            String expResult = raHms;
+            String result = fixRA(raHms);
+            assertEquals(expResult, result);
+        }
+        if (true) {
+            String raHms = "12:00:00.0";
+            String expResult = "12:00:00";
+            String result = fixRA(raHms);
+            assertEquals(expResult, result);
+        }
+        if (true) {
+            String raHms = "23:59:59.999";
+            String expResult = raHms;
+            String result = fixRA(raHms);
+            assertEquals(expResult, result);
+        }
+        // degenerated:
+        if (true) {
+            String raHms = "01:23.45";
+            String expResult = "01:23:27";
+            String result = fixRA(raHms);
+            assertEquals(expResult, result);
+        }
+        if (true) {
+            String raHms = "01.5";
+            String expResult = "01:30:00";
+            String result = fixRA(raHms);
+            assertEquals(expResult, result);
+        }
+    }
+
+    /**
+     * Fix RA: parse given value as HMS and re-format to HMS (normalization)
+     * @param ra right ascension as HMS
+     * @return right ascension as HMS
+     */
+    public static String fixRA(final String ra) {
+        return ALX.toHMS(ALX.parseHMS(ra));
+    }
+
+    /**
+     * Fix DEC: parse given value as DMS and re-format to DMS (normalization)
+     * @param dec declination as DMS
+     * @return declination as DMS
+     */
+    public static String fixDEC(final String dec) {
+        return ALX.toDMS(ALX.parseDEC(dec));
     }
 }
