@@ -4,17 +4,12 @@
 package fr.jmmc.jmal;
 
 import net.jafama.FastMath;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Astronomical Coordinate utilities (distance ...)
  * @author bourgesl
  */
 public final class CoordUtils {
-
-    /** Logger */
-    private static final Logger _logger = LoggerFactory.getLogger(CoordUtils.class.getName());
 
     /**
      * Forbidden constructor : utility class
