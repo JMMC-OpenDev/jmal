@@ -12,7 +12,6 @@ import java.awt.Image;
 import java.awt.RenderingHints;
 import java.awt.Toolkit;
 
-
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionListener;
 
@@ -61,54 +60,54 @@ public class ImageCanvas extends Canvas implements MouseMotionListener {
     /** draw ticks flag */
     private boolean drawTicks = true;
     /** color model used by image */
-    private IndexColorModel colorModel_;
+    private IndexColorModel colorModel;
     /** wedge image */
-    private transient Image wedge_ = null;
+    private transient Image wedge = null;
     /** main image */
-    private transient BufferedImage image_ = null;
+    private transient BufferedImage image = null;
     /** observable image instance */
-    private ObservableImage observe_;
+    private ObservableImage observe;
     /** image width */
-    private int w_;
+    private int w;
     /** image height */
-    private int h_;
+    private int h;
     /** canvas width */
-    private int canvasWidth_;
+    private int canvasWidth;
     /** canvas height */
-    private int canvasHeight_;
+    private int canvasHeight;
     /** mouse x coordinate */
-    private int mouseX_;
+    private int mouseX;
     /** mouse y coordinate */
-    private int mouseY_;
+    private int mouseY;
     /** mouse pixel value */
-    private int mousePixel_;
+    private int mousePixel;
     /* data */
     /** float data array (1D) */
     private float[] data1D = null;
     /** float data array (2D) */
     private float[][] data2D = null;
     /** Minimum Float value */
-    private float minValue_;
+    private float minValue;
     /** Maximum Float value */
-    private float maxValue_;
+    private float maxValue;
     /** float value to Pixel conversion factor */
-    private float normalisePixelCoefficient_;
+    private float normalisePixelCoefficient;
 
     /**
      * Creates a new instance of ImageCanvas
      */
     public ImageCanvas() {
         // set default properties
-        colorModel_ = ColorModels.getDefaultColorModel();
+        colorModel = ColorModels.getDefaultColorModel();
         antiAliasing = true;
 
-        setColorModel(colorModel_);
-        w_ = 0;
-        h_ = 0;
-        canvasWidth_ = 600;
-        canvasHeight_ = 600;
+        setColorModel(colorModel);
+        w = 0;
+        h = 0;
+        canvasWidth = 600;
+        canvasHeight = 600;
 
-        observe_ = new ObservableImage();
+        observe = new ObservableImage();
         this.addMouseMotionListener(this);
     }
 
@@ -122,7 +121,6 @@ public class ImageCanvas extends Canvas implements MouseMotionListener {
     public void initImage(int width, int height, float[] array) {
 
         // search min and max of input array
-
         final int size = array.length;
 
         float min = array[0];
@@ -158,7 +156,6 @@ public class ImageCanvas extends Canvas implements MouseMotionListener {
     public void initImage(int width, int height, float[][] array) {
 
         // search min and max of input array
-
         float min = array[0][0];
         float max = array[0][0];
 
@@ -221,15 +218,15 @@ public class ImageCanvas extends Canvas implements MouseMotionListener {
      * @param max maximum value
      */
     private void initImage(int width, int height, float[] array1D, float[][] array2D, final float min, final float max) {
-        this.w_ = width;
-        this.h_ = height;
+        this.w = width;
+        this.h = height;
 
         if (logger.isDebugEnabled()) {
             logger.debug("initImage: using array of size {} x {}", width, height);
         }
 
-        this.minValue_ = min;
-        this.maxValue_ = max;
+        this.minValue = min;
+        this.maxValue = max;
         this.data1D = array1D;
         this.data2D = array2D;
 
@@ -248,12 +245,12 @@ public class ImageCanvas extends Canvas implements MouseMotionListener {
      * @param observer observer to add
      */
     public void addObserver(final Observer observer) {
-        observe_.addObserver(observer);
+        observe.addObserver(observer);
     }
 
     /** Change color model and repaint canvas */
     public void setColorModel(IndexColorModel cm) {
-        colorModel_ = cm;
+        colorModel = cm;
 
         buildWedge();
         buildImage();
@@ -268,18 +265,18 @@ public class ImageCanvas extends Canvas implements MouseMotionListener {
      */
     @Override
     public void mouseMoved(MouseEvent me) {
-        mouseX_ = ((me.getX() - leftInset) * w_) / canvasWidth_;
-        mouseY_ = ((me.getY() - topInset) * h_) / canvasHeight_;
+        mouseX = ((me.getX() - leftInset) * w) / canvasWidth;
+        mouseY = ((me.getY() - topInset) * h) / canvasHeight;
 
-        if ((mouseX_ >= 0) && (mouseY_ >= 0) && (mouseX_ < w_) && (mouseY_ < h_)) {
-            if (image_ != null) {
+        if ((mouseX >= 0) && (mouseY >= 0) && (mouseX < w) && (mouseY < h)) {
+            if (image != null) {
                 // first band = Red. => buggy with RGB rendering
-                mousePixel_ = image_.getRaster().getSample(mouseX_, mouseY_, 0);
-                observe_.setChanged();
+                mousePixel = image.getRaster().getSample(mouseX, mouseY, 0);
+                observe.setChanged();
             }
         }
 
-        observe_.notifyObservers();
+        observe.notifyObservers();
     }
 
     /**
@@ -292,7 +289,7 @@ public class ImageCanvas extends Canvas implements MouseMotionListener {
     }
 
     private void buildWedge() {
-        final int wedgeSize = colorModel_.getMapSize();
+        final int wedgeSize = colorModel.getMapSize();
 
         final int[] pixels = new int[wedgeSize];
 
@@ -301,8 +298,8 @@ public class ImageCanvas extends Canvas implements MouseMotionListener {
         }
 
         // max first, min last:
-        wedge_ = Toolkit.getDefaultToolkit().createImage(
-                new MemoryImageSource(1, wedgeSize, colorModel_, pixels, 0, 1));
+        wedge = Toolkit.getDefaultToolkit().createImage(
+                new MemoryImageSource(1, wedgeSize, colorModel, pixels, 0, 1));
     }
 
     /**
@@ -311,25 +308,25 @@ public class ImageCanvas extends Canvas implements MouseMotionListener {
     private void buildImage() {
         // build image with RGB linear LUT interpolation :
         if (this.data1D != null) {
-            this.normalisePixelCoefficient_ = ImageUtils.computeScalingFactor(this.minValue_, this.maxValue_, colorModel_.getMapSize());
-            this.image_ = ImageUtils.createImage(this.w_, this.h_, this.data1D, this.minValue_, colorModel_, normalisePixelCoefficient_);
+            this.normalisePixelCoefficient = ImageUtils.computeScalingFactor(this.minValue, this.maxValue, colorModel.getMapSize());
+            this.image = ImageUtils.createImage(this.w, this.h, this.data1D, this.minValue, colorModel, normalisePixelCoefficient);
 
         } else if (this.data2D != null) {
-            this.normalisePixelCoefficient_ = ImageUtils.computeScalingFactor(this.minValue_, this.maxValue_, colorModel_.getMapSize());
-            this.image_ = ImageUtils.createImage(this.w_, this.h_, this.data2D, this.minValue_, colorModel_, normalisePixelCoefficient_);
+            this.normalisePixelCoefficient = ImageUtils.computeScalingFactor(this.minValue, this.maxValue, colorModel.getMapSize());
+            this.image = ImageUtils.createImage(this.w, this.h, this.data2D, this.minValue, colorModel, normalisePixelCoefficient);
         }
     }
 
     public Dimension getCanvasDimension() {
         Dimension canvasDim = new Dimension();
-        canvasDim.setSize(canvasHeight_, canvasWidth_);
+        canvasDim.setSize(canvasHeight, canvasWidth);
 
         return canvasDim;
     }
 
     public Dimension getImageDimension() {
         Dimension imageDim = new Dimension();
-        imageDim.setSize(h_, w_);
+        imageDim.setSize(h, w);
 
         return imageDim;
     }
@@ -358,54 +355,53 @@ public class ImageCanvas extends Canvas implements MouseMotionListener {
         }
 
         Dimension d = new Dimension(this.getWidth(), this.getHeight());
-        canvasWidth_ = (int) d.getWidth() - leftInset - rightInset - wedgeWidth
+        canvasWidth = (int) d.getWidth() - leftInset - rightInset - wedgeWidth
                 - wedgeImageDist;
-        canvasHeight_ = (int) d.getHeight() - topInset - bottomInset;
+        canvasHeight = (int) d.getHeight() - topInset - bottomInset;
 
         g2d.setColor(Color.GRAY);
         g2d.fillRect(0, 0, (int) d.getWidth(), (int) d.getHeight());
         g2d.setColor(Color.BLACK);
 
-        if ((canvasWidth_ > 0) && (canvasHeight_ > 0)) {
-            if (image_ != null) {
+        if ((canvasWidth > 0) && (canvasHeight > 0)) {
+            if (image != null) {
                 // draw image into rect
-                g2d.drawImage(image_, leftInset + 1, topInset + 1, canvasWidth_, canvasHeight_, null);
+                g2d.drawImage(image, leftInset + 1, topInset + 1, canvasWidth, canvasHeight, null);
 
                 if (isDrawTicks()) {
-
-                    final int step = 32;
+                    final int step = 5;
 
                     // draw vertical tics
-                    for (int i = 0; i < h_; i += step) {
-                        int y = topInset + ((canvasHeight_ * i) / h_) + (canvasHeight_ / (2 * h_));
+                    for (int i = 0; i < h; i += step) {
+                        int y = topInset + ((canvasHeight * i) / h) + (canvasHeight / (2 * h));
                         g2d.drawLine(leftInset - 2, y, leftInset, y);
                         g2d.drawString(Integer.toString(i), leftInset - 20, y + 4);
                     }
 
                     // draw horizontal tics
-                    for (int i = 0; i < w_; i += step) {
-                        int x = leftInset + ((canvasWidth_ * i) / w_) + (canvasWidth_ / (2 * w_));
-                        g2d.drawLine(x, topInset + canvasHeight_, x, topInset + canvasHeight_ + 3);
-                        g2d.drawString(Integer.toString(i), x - 4, topInset + canvasHeight_ + 15);
+                    for (int i = 0; i < w; i += step) {
+                        int x = leftInset + ((canvasWidth * i) / w) + (canvasWidth / (2 * w));
+                        g2d.drawLine(x, topInset + canvasHeight, x, topInset + canvasHeight + 3);
+                        g2d.drawString(Integer.toString(i), x - 4, topInset + canvasHeight + 15);
                     }
                 }
 
-                g2d.drawRect(leftInset, topInset, canvasWidth_ + 1, canvasHeight_ + 1);
+                g2d.drawRect(leftInset, topInset, canvasWidth + 1, canvasHeight + 1);
             }
 
-            if (wedge_ != null) {
-                g2d.drawRect(leftInset + canvasWidth_ + wedgeImageDist, topInset + wedgeLegendDist, wedgeWidth + 1,
-                        canvasHeight_ - wedgeLegendDist + 1);
-                g2d.drawString(floatFormatter.format(maxValue_),
-                        leftInset + canvasWidth_ + wedgeImageDist - 4, topInset + 6);
-                g2d.drawString(floatFormatter.format(minValue_), leftInset + canvasWidth_ + wedgeImageDist - 4,
-                        topInset + canvasHeight_ + 15);
-                g2d.drawImage(wedge_, leftInset + canvasWidth_ + wedgeImageDist + 1, topInset + wedgeLegendDist + 1,
-                        wedgeWidth, canvasHeight_ - wedgeLegendDist, null);
+            if (wedge != null) {
+                g2d.drawRect(leftInset + canvasWidth + wedgeImageDist, topInset + wedgeLegendDist, wedgeWidth + 1,
+                        canvasHeight - wedgeLegendDist + 1);
+                g2d.drawString(floatFormatter.format(maxValue),
+                        leftInset + canvasWidth + wedgeImageDist - 4, topInset + 6);
+                g2d.drawString(floatFormatter.format(minValue), leftInset + canvasWidth + wedgeImageDist - 4,
+                        topInset + canvasHeight + 15);
+                g2d.drawImage(wedge, leftInset + canvasWidth + wedgeImageDist + 1, topInset + wedgeLegendDist + 1,
+                        wedgeWidth, canvasHeight - wedgeLegendDist, null);
             }
         }
 
-        observe_.notifyImageObservers();
+        observe.notifyImageObservers();
     }
 
     @Override
@@ -437,27 +433,27 @@ public class ImageCanvas extends Canvas implements MouseMotionListener {
     }
 
     public int getMousePixel() {
-        return mousePixel_;
+        return mousePixel;
     }
 
     public int getMouseX() {
-        return mouseX_;
+        return mouseX;
     }
 
     public int getMouseY() {
-        return mouseY_;
+        return mouseY;
     }
 
     public float getNormalisePixelCoefficient() {
-        return normalisePixelCoefficient_;
+        return normalisePixelCoefficient;
     }
 
     public float getMinValue() {
-        return minValue_;
+        return minValue;
     }
 
     public float getMaxValue() {
-        return maxValue_;
+        return maxValue;
     }
 
     public boolean isAntiAliasing() {
