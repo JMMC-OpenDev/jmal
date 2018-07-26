@@ -29,7 +29,7 @@ public abstract class GenericWeakCache<K> {
     private WeakReference<ArrayDeque<K>> recycled_items_queue = new WeakReference<ArrayDeque<K>>(null);
 
     protected GenericWeakCache(final String name) {
-        this(name, false);
+        this(name, true);
     }
 
     protected GenericWeakCache(final String name, final boolean recycleBadElementSize) {

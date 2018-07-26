@@ -17,7 +17,7 @@ public final class FloatArrayCache {
     private static final Logger logger = LoggerFactory.getLogger(FloatArrayCache.class.getName());
 
     /** weak image cache for createImage()/recycleImage() */
-    private final static GenericWeakCache<float[][]> array2dCache = new GenericWeakCache<float[][]>("FloatArray2D", true) {
+    private final static GenericWeakCache<float[][]> array2dCache = new GenericWeakCache<float[][]>("FloatArray2D") {
 
         @Override
         protected boolean checkSizes(float[][] array2D, int length, int length2) {
