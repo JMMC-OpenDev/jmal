@@ -8,6 +8,14 @@ package fr.jmmc.jmal.image;
 import fr.jmmc.jmal.util.GenericWeakCache;
 import fr.jmmc.jmcs.util.concurrent.InterruptedJobException;
 import fr.jmmc.jmcs.util.concurrent.ParallelJobExecutor;
+import java.awt.Color;
+import java.awt.Graphics2D;
+import java.awt.Rectangle;
+import java.awt.RenderingHints;
+import java.awt.geom.AffineTransform;
+import java.awt.geom.Point2D;
+import java.awt.geom.Rectangle2D;
+import java.awt.image.AffineTransformOp;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.awt.image.DataBuffer;
@@ -26,6 +34,8 @@ public final class ImageUtils {
 
     /** Class logger */
     private static final Logger logger = LoggerFactory.getLogger(ImageUtils.class.getName());
+    /** debug rotate flag (red zone) */
+    private final static boolean DEBUG_ROTATE = false;
     /** alpha integer mask */
     private final static int ALPHA_MASK = 0xff << 24;
     /** flag to use RGB color interpolation */
@@ -367,6 +377,136 @@ public final class ImageUtils {
         return image;
     }
 
+    public static BufferedImage transformImage(final BufferedImage image, final IndexColorModel colorModel,
+                                               final AffineTransform at, final int w, final int h) {
+        return transformImage(image, colorModel, at, w, h, true);
+    }
+
+    public static BufferedImage transformImage(final BufferedImage image, final IndexColorModel colorModel,
+                                               final AffineTransform at, final int w, final int h,
+                                               final boolean recycle) {
+
+        // get the original image's width and height
+        final int iw = image.getWidth();
+        final int ih = image.getHeight();
+
+        final BufferedImage outImage = createImage(w, h, colorModel);
+
+        final Graphics2D g2d = (Graphics2D) outImage.getGraphics();
+        try {
+            g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
+
+            g2d.setBackground(
+                    DEBUG_ROTATE ? Color.RED : new Color(colorModel.getRGB(0)) // min color means background
+            );
+            g2d.clearRect(0, 0, w, h);
+
+            // Force rendering hints :
+            // set quality flags:
+            g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+            g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
+            g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
+
+            // Use bicubic interpolation (slower) for quality:
+            g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+
+            // compute the location to draw the original image on the new image
+            final double offX = (w - iw) / 2.0;
+            final double offY = (h - ih) / 2.0;
+
+            // move first to the offsetted origin in the new image (larger one):
+            g2d.translate(offX, offY);
+            // concatenate transforms based on the original image:
+            g2d.transform(at);
+
+            g2d.drawImage(image, 0, 0, iw, ih, null);
+
+        } finally {
+            g2d.dispose();
+        }
+        if (recycle) {
+            // recycle previous image:
+            ImageUtils.recycleImage(image);
+        }
+        return outImage;
+    }
+
+    public static Rectangle2D.Double getBoundingBox(final AffineTransform at, final Rectangle2D box) {
+        final double x0 = box.getMinX();
+        final double x1 = box.getMaxX();
+        final double y0 = box.getMinY();
+        final double y1 = box.getMaxY();
+
+        double xmin, xmax, ymin, ymax;
+        double x, y;
+
+        final Point2D ptSrc = new Point2D.Double();
+        final Point2D ptDst = new Point2D.Double();
+
+        // x0, y0:
+        ptSrc.setLocation(x0, y0);
+        at.transform(ptSrc, ptDst);
+        x = ptDst.getX();
+        y = ptDst.getY();
+
+        xmin = xmax = x;
+        ymin = ymax = y;
+
+        // x1, y0:
+        ptSrc.setLocation(x1, y0);
+        at.transform(ptSrc, ptDst);
+        x = ptDst.getX();
+        y = ptDst.getY();
+
+        if (x < xmin) {
+            xmin = x;
+        } else if (x > xmax) {
+            xmax = x;
+        }
+        if (y < ymin) {
+            ymin = y;
+        } else if (y > ymax) {
+            ymax = y;
+        }
+
+        // x0, y1:
+        ptSrc.setLocation(x0, y1);
+        at.transform(ptSrc, ptDst);
+        x = ptDst.getX();
+        y = ptDst.getY();
+
+        if (x < xmin) {
+            xmin = x;
+        } else if (x > xmax) {
+            xmax = x;
+        }
+        if (y < ymin) {
+            ymin = y;
+        } else if (y > ymax) {
+            ymax = y;
+        }
+
+        // x1, y1:
+        ptSrc.setLocation(x1, y1);
+        at.transform(ptSrc, ptDst);
+        x = ptDst.getX();
+        y = ptDst.getY();
+
+        if (x < xmin) {
+            xmin = x;
+        } else if (x > xmax) {
+            xmax = x;
+        }
+        if (y < ymin) {
+            ymin = y;
+        } else if (y > ymax) {
+            ymax = y;
+        }
+
+        return new Rectangle2D.Double(xmin, ymin, xmax - xmin, ymax - ymin);
+    }
+
     /**
      * Create an Image from the given data array using the specified Color Model
      *
@@ -416,12 +556,11 @@ public final class ImageUtils {
     /**
      * Return the color index using the indexed color model for the given value (linear scale)
      *
-     * @param colorModel color model
      * @param iMaxColor index of the highest color
      * @param value data value to convert between 0.0 and 255.0
      * @return color index
      */
-    public static int getColor(final IndexColorModel colorModel, final int iMaxColor, final float value) {
+    public static int getColor(final int iMaxColor, final float value) {
         int colorIdx = Math.round(value);
 
         if (colorIdx < 0) {
@@ -664,7 +803,7 @@ public final class ImageUtils {
                 if (array1D != null) {
                     for (int i = jobIndex; i < width; i += jobCount) {
 
-                        dataBuffer.setElem(i, getColor(colorModel, iMaxColor,
+                        dataBuffer.setElem(i, getColor(iMaxColor,
                                 getScaledValue(doLog10, scaledMin, scalingFactor, array1D[i])));
 
                         // fast interrupt:
@@ -682,7 +821,7 @@ public final class ImageUtils {
 
                         for (i = 0; i < width; i++) {
 
-                            dataBuffer.setElem(offset + i, getColor(colorModel, iMaxColor,
+                            dataBuffer.setElem(offset + i, getColor(iMaxColor,
                                     getScaledValue(doLog10, scaledMin, scalingFactor, row[i])));
                         }
 
