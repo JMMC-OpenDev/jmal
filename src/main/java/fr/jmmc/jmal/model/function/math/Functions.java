@@ -169,6 +169,12 @@ public final class Functions {
         return ufreq * cosBeta * anamorphoseRatio + vfreq * sinBeta * anamorphoseRatio;
     }
 
+    public static double transformU(final double ufreq, final double vfreq,
+                                    final double cosBeta, final double sinBeta) {
+
+        return ufreq * cosBeta + vfreq * sinBeta;
+    }
+
     /**
      * Return the new spatial frequency V
      * transform(ufreq, vfreq, t_ana, rotation)
