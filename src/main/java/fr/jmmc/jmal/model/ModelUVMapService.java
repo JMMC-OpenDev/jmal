@@ -11,6 +11,7 @@ import fr.jmmc.jmal.model.targetmodel.Model;
 import fr.jmmc.jmal.util.ThreadLocalRandom;
 import fr.jmmc.jmcs.util.concurrent.InterruptedJobException;
 import fr.jmmc.jmcs.util.concurrent.ParallelJobExecutor;
+import java.awt.geom.AffineTransform;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.IndexColorModel;
@@ -166,7 +167,6 @@ public final class ModelUVMapService {
             }
 
             // 2 - Compute complex visibility for the given models :
-
             // use single precision for performance (image needs not double precision) :
             visData = new float[imageSize][2 * imageSize];
 
@@ -192,9 +192,7 @@ public final class ModelUVMapService {
             visData = refVisData;
         }
 
-
         // 3 - Extract the amplitude/phase/square amplitude to get the uv map :
-
         // data as float [rows][cols]:
         final float[][] data = convert(imageSize, visData, mode, noiseService);
 
@@ -203,10 +201,9 @@ public final class ModelUVMapService {
             throw ije;
         }
 
-
         // 4 - Get the image with the given color model and color scale :
         final UVMapData uvMapData = computeImage(uvRect, refMin, refMax, mode, imageSize, colorModel, colorScale,
-                imageSize, visData, data, uvRect, noiseService);
+                imageSize, visData, data, uvRect, noiseService, 0.0, 0);
 
         if (logger.isInfoEnabled()) {
             logger.info("compute : duration = {} ms.", 1e-6d * (System.nanoTime() - start));
@@ -229,6 +226,8 @@ public final class ModelUVMapService {
      * @param imgData model image data (amplitude/phase/square amplitude)
      * @param uvMapRect concrete UV frequency area in rad-1
      * @param noiseService optional noise service to compute noisy complex visibilities before computing amplitude or phase
+     * @param rotationAngle rotation angle in degrees (FT only)
+     * @param rotImgSize rotated image size (FT only)
      * @return UVMapData
      * 
      * @throws InterruptedJobException if the current thread is interrupted (cancelled)
@@ -245,7 +244,9 @@ public final class ModelUVMapService {
                                          final float[][] data,
                                          final float[][] imgData,
                                          final Rectangle2D.Double uvMapRect,
-                                         final VisNoiseService noiseService) {
+                                         final VisNoiseService noiseService,
+                                         final double rotationAngle,
+                                         final int rotImgSize) {
 
         // ignore zero values if log color scale:
         final ImageMinMaxJob minMaxJob = new ImageMinMaxJob(imgData, dataSize, dataSize, (colorScale == ColorScale.LOGARITHMIC));
@@ -310,11 +311,29 @@ public final class ModelUVMapService {
         }
 
         // throws InterruptedJobException if the current thread is interrupted (cancelled):
-        final BufferedImage uvMap = ImageUtils.createImage(dataSize, dataSize, imgData, min.floatValue(), max.floatValue(), colorModel, usedColorScale);
+        BufferedImage uvMap = ImageUtils.createImage(dataSize, dataSize, imgData, min.floatValue(), max.floatValue(), colorModel, usedColorScale);
 
-        // provide results :;
+        final int outputSize;
+        if (rotationAngle != 0.0) {
+            // angle sign is same direction (North -> East):
+            final double theta = Math.toRadians(rotationAngle);
+            // rotation happens at the image center:
+            final double anchorx = uvMap.getWidth() / 2.0;
+            final double anchory = uvMap.getHeight() / 2.0;
+
+            // crop properly rotated image to match the UV rect:
+            outputSize = rotImgSize;
+
+            final AffineTransform at = AffineTransform.getRotateInstance(theta, anchorx, anchory);
+
+            uvMap = ImageUtils.transformImage(uvMap, colorModel, at, outputSize, outputSize);
+        } else {
+            outputSize = dataSize;
+        }
+
+        // provide results :
         return new UVMapData(uvRect, mode, imageSize, colorModel, usedColorScale, min, max, Float.valueOf(dataMin), Float.valueOf(dataMax),
-                data, uvMap, dataSize, uvMapRect, noiseService);
+                data, uvMap, outputSize, uvMapRect, noiseService);
     }
 
     /**
@@ -420,7 +439,6 @@ public final class ModelUVMapService {
             final int stepInterrupt = Math.min(4, 1 + imageSize / 32);
 
             // Compute model line by line to reduce memory footprint (complex array, double[] U and v frequencies ...)
-
             float[] row;
 
             // Compute model line by line:
@@ -528,7 +546,9 @@ public final class ModelUVMapService {
         // execute jobs in parallel or using current thread if only one job (throws InterruptedJobException if interrupted):
         jobExecutor.forkAndJoin("ModelUVMapService.convert", jobs);
 
-        logger.info("convert: duration = {} ms.", 1e-6d * (System.nanoTime() - start));
+        if (logger.isInfoEnabled()) {
+            logger.info("convert: duration = {} ms.", 1e-6d * (System.nanoTime() - start));
+        }
 
         return output;
     }
