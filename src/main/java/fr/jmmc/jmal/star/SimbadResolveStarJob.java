@@ -61,7 +61,7 @@ final class SimbadResolveStarJob implements Callable<StarResolverResult> {
     /** temporary parsing result */
     private Star _parsedStar = null;
 
-    /** 
+    /**
      * @param names list of queried identifiers
      * @param listener callback listener with results
      */
@@ -283,6 +283,10 @@ final class SimbadResolveStarJob implements Callable<StarResolverResult> {
     private void parseResult() {
         _logger.trace("SimbadResolveStarJob.parseResult");
         _logger.debug("CDS Simbad raw response:\n{}", _response);
+        // If the response is null (when simbad server fails)
+        if (_response == null) {
+            throw new IllegalStateException("No data for star(s) " + _result.getNames() + ", Simbad service may be off or unreachable.");
+        }
         // If the response string is empty
         if (_response.length() < 1) {
             throw new IllegalStateException("No data for star(s) " + _result.getNames() + ".");
