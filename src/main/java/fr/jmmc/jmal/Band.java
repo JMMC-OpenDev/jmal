@@ -31,12 +31,12 @@ public enum Band {
     H("H", 1.679625d, 0.46425d, -2.94d, 0.84d),
     /** K (Near Infrared) */
     K("K", 2.365625d, 0.912d, -3.4d, 0.93d),
-    /** L (Near Infrared) */
-    L("L", 3.45875d, 1.2785d, -4.15d, 0.972d),
-    /** M (Mid Infrared) */
-    M("M", 6.4035d, 4.615d, -4.69d, 0.985d),
-    /** N (Mid Infrared) */
-    N("N", 11.63d, 5.842d, -5.91d, 0.996d),
+    /** L (Near Infrared) (MATISSE) [2.8 - 4.2] */
+    L("L", 3.5d, 1.4d, -4.154d, 0.972d),
+    /** M (Mid Infrared) (MATISSE) [4.2 - 8] */
+    M("M", 6.1d, 3.8d, -4.568d, 0.985d),
+    /** N (Mid Infrared) (MATISSE) [8 - 13] */
+    N("N", 10.5d, 5.0d, -6.0d, 0.996d),
     /** Q (Mid Infrared) */
     Q("Q", 16.575d, 4.05d, -7.17d, 0.999d);
     /** Class logger */
@@ -55,7 +55,7 @@ public enum Band {
         final Band[] bands = values();
         final int len = bands.length;
 
-        for (int i = 0; i < len; i++) {
+        for (int i = len - 1; i >= 0; i--) {
             final Band b = bands[i];
             if (Math.abs(waveLength - b.getLambda()) <= (0.5d * b.getBandWidth())) {
                 return b;
@@ -246,6 +246,16 @@ public enum Band {
 
     public static void main(String[] args) {
 
+        /*
+        Fix MATISSE bands:
+        L: 2.8 - 4.2    f0= 7e-11 W.m − 2.um-1 (3.5um)
+        M: 4.2 - 8.0    f0= 2.7e-11 W.m − 2.um-1 (4.5um)
+        N: 8.0 - 13.0   f0= 1e-12 W.m − 2.um-1 (10.5um)
+         */
+        System.out.println("log(f0) L: " + NumberUtils.trimTo3Digits(Math.log10(1e6 * 7e-11)));
+        System.out.println("log(f0) M: " + NumberUtils.trimTo3Digits(Math.log10(1e6 * 2.7e-11)));
+        System.out.println("log(f0) N: " + NumberUtils.trimTo3Digits(Math.log10(1e6 * 1e-12)));
+
         /** Planck's constant in standard units (6.6262e-34) */
         final double H_PLANCK = 6.62606896e-34d;
         /** Speed of light (2.99792458e8) */
@@ -257,13 +267,15 @@ public enum Band {
             double min = mid - half;
             double max = mid + half;
 
-            final double fzero = FastMath.pow(10d, b.getLogFluxZero()) * (b.getLambda() * 1e-6) / (H_PLANCK * C_LIGHT);
+            final double fzero = FastMath.pow(10d, b.getLogFluxZero()) * 1e-6;
+            final double nzero = fzero * b.getLambda() / (H_PLANCK * C_LIGHT);
 
             System.out.println("Band: " + b.getName()
                     + " min: " + NumberUtils.trimTo3Digits(min)
                     + " mid: " + NumberUtils.trimTo3Digits(mid)
                     + " max: " + NumberUtils.trimTo3Digits(max)
-                    + " f0 : " + fzero
+                    + " f0 (W/m^2/µm) : " + fzero
+                    + " n0 : " + nzero
             );
         }
         /*
@@ -286,7 +298,7 @@ public enum Band {
         while (w < 20.0) {
             System.out.println("findBand(" + NumberUtils.trimTo3Digits(w) + "): " + findBand(w));
 
-            w += (w < 1.0) ? 0.02 : 0.1;
+            w += (w < 1.0) ? 0.02 : 0.05;
         }
     }
 }
