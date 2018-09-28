@@ -47,7 +47,6 @@ public final class StarResolver {
         _simbadMirrors.put("SIMBAD Strasbourg, FR", "http://simbad.u-strasbg.fr/simbad/sim-script");
         _simbadMirrors.put("SIMBAD Harvard, US", "http://simbad.harvard.edu/simbad/sim-script");
         _simbadMirrors.put("SIMBAD Strasbourg, FR [IP]", "http://130.79.128.4/simbad/sim-script");
-        _simbadMirrors.put("SIMBAD Harvard, US [IP]", "http://131.142.185.22/simbad/sim-script");
     }
 
     /**
