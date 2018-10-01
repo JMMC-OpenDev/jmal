@@ -10,12 +10,10 @@ import fr.jmmc.jmcs.util.concurrent.InterruptedJobException;
 import fr.jmmc.jmcs.util.concurrent.ParallelJobExecutor;
 import java.awt.Color;
 import java.awt.Graphics2D;
-import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
-import java.awt.image.AffineTransformOp;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.awt.image.DataBuffer;
@@ -42,8 +40,10 @@ public final class ImageUtils {
     public final static boolean USE_RGB_INTERPOLATION = true;
     /** threshold to use parallel jobs (256 x 256 pixels) */
     private final static int JOB_THRESHOLD = 256 * 256 - 1;
+    /** Graphics image interpolation */
+    private static Object IMAGE_INTERPOLATION = RenderingHints.VALUE_INTERPOLATION_BICUBIC;
     /** Jmcs Parallel Job executor */
-    private static final ParallelJobExecutor jobExecutor = ParallelJobExecutor.getInstance();
+    private final static ParallelJobExecutor jobExecutor = ParallelJobExecutor.getInstance();
     /** weak image cache for createImage()/recycleImage() */
     private final static GenericWeakCache<BufferedImage> imageCache = new GenericWeakCache<BufferedImage>("ImageUtils") {
 
@@ -58,11 +58,48 @@ public final class ImageUtils {
         }
     };
 
+    public enum ImageInterpolation {
+        /** No image interpolation */
+        None,
+        /** Bilinear image interpolation */
+        Bilinear,
+        /** Bicubic image interpolation */
+        Bicubic;
+    }
+
     /**
      * Forbidden constructor
      */
     private ImageUtils() {
         // no-op
+    }
+
+    public static Object getImageInterpolationHint() {
+        return IMAGE_INTERPOLATION;
+    }
+
+    public static ImageInterpolation getImageInterpolation() {
+        if (IMAGE_INTERPOLATION == RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR) {
+            return ImageInterpolation.None;
+        } else if (IMAGE_INTERPOLATION == RenderingHints.VALUE_INTERPOLATION_BILINEAR) {
+            return ImageInterpolation.Bilinear;
+        } else {
+            return ImageInterpolation.Bicubic;
+        }
+    }
+
+    public static void setImageInterpolation(final ImageInterpolation interpolation) {
+        switch (interpolation) {
+            case None:
+                IMAGE_INTERPOLATION = RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR;
+                break;
+            case Bilinear:
+                IMAGE_INTERPOLATION = RenderingHints.VALUE_INTERPOLATION_BILINEAR;
+                break;
+            default:
+            case Bicubic:
+                IMAGE_INTERPOLATION = RenderingHints.VALUE_INTERPOLATION_BICUBIC;
+        }
     }
 
     /**
@@ -409,7 +446,7 @@ public final class ImageUtils {
             g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
 
             // Use bicubic interpolation (slower) for quality:
-            g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+            g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, ImageUtils.getImageInterpolationHint());
 
             // compute the location to draw the original image on the new image
             final double offX = (w - iw) / 2.0;
