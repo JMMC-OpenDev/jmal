@@ -77,8 +77,8 @@ public final class FFTUtils {
         final int fftSubSize = Math.max(inputSize, outputSize);
 
         if (logger.isInfoEnabled()) {
-            logger.info("computeFFT: FFT size = {} - sub size = {} - input size = {}",
-                    fftSize, fftSubSize, inputSize);
+            logger.info("computeFFT: FFT size = {} - sub size = {} - input size = {} - output size = {}",
+                    fftSize, fftSubSize, inputSize, outputSize);
         }
 
         long start = System.nanoTime();
@@ -97,10 +97,10 @@ public final class FFTUtils {
         try {
             // Get an output array from weak cache or allocate a new array with enough capacity:
             fftData = FloatArrayCache.getArray(fftSubSize, fftSubSize + 2);
-            
+
             // compute subset of real FFT (power of 2):
             fftData = fft2d.realForwardSubset(fftSubSize, inputSize, array, fftData);
-            
+
         } catch (RuntimeException re) {
             logger.debug("recycleArray <= interrupted job:");
             FloatArrayCache.recycleArray(fftData);
@@ -286,7 +286,7 @@ public final class FFTUtils {
         final long start = System.nanoTime();
 
         // shift quadrants:
-    /*
+        /*
          * | 1 2 | => | 3 4 |
          * | 4 3 |    | 2 1 |
          */
