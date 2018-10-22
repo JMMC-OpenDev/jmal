@@ -428,5 +428,13 @@ public final class ALX {
     public static double hours2min(final double hours) {
         return hours * HOUR_IN_MIN;
     }
+
+    public static double convertRadToMas(final double angRad) {
+        return Math.toDegrees(angRad) * ALX.DEG_IN_MILLI_ARCSEC;
+    }
+
+    public static double convertMasToRad(final double angMas) {
+        return Math.toRadians(angMas * ALX.MILLI_ARCSEC_IN_DEGREES);
+    }
 }
 /*___oOo___*/
