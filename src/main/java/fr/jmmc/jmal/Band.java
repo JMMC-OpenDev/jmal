@@ -33,16 +33,21 @@ public enum Band {
     K("K", 2.365625d, 0.912d, -3.4d, 0.93d),
     /** L (Near Infrared) (MATISSE) [2.8 - 4.2] */
     L("L", 3.5d, 1.4d, -4.154d, 0.972d),
+    // was L("L", 3.45875d, 1.2785d, -4.15d, 0.972d),
     /** M (Mid Infrared) (MATISSE) [4.2 - 8] */
     M("M", 6.1d, 3.8d, -4.568d, 0.985d),
+    // was M("M", 6.4035d, 4.615d, -4.69d, 0.985d),
     /** N (Mid Infrared) (MATISSE) [8 - 13] */
     N("N", 10.5d, 5.0d, -6.0d, 0.996d),
+    // was N("N", 11.63d, 5.842d, -5.91d, 0.996d),
     /** Q (Mid Infrared) */
     Q("Q", 16.575d, 4.05d, -7.17d, 0.999d);
     /** Class logger */
     private static final Logger logger = LoggerFactory.getLogger(Band.class.getName());
-    /** r0 factor = 1.22*1E-6/a and a = PI / ( 180 * 3600 ) */
-    private static final double R0_FACTOR = 1.22e-6 * (180 * 3600) / Math.PI;
+    /** Planck's constant in standard units (6.6262e-34) */
+    public final static double H_PLANCK = 6.62606896e-34d;
+    /** Speed of light (2.99792458e8) */
+    public final static double C_LIGHT = 2.99792458e8d;
 
     /**
      * Find the band corresponding to the given wavelength
@@ -91,13 +96,177 @@ public enum Band {
      * @param waveLengths wave lengths in meters
      * @param diameter telescope diameter in meters
      * @param seeing seeing in arc sec
-     * @param nbOfActuators number of actuators
+     * @param nbSubPupils number of sub-pupils (interesting pixels on the camera)
      * @param elevation target elevation in degrees [0; 90]
      * @return strehl ratio
      */
     public static double[] strehl(final double magnitude, final double[] waveLengths,
-                                  final double diameter, final double seeing, final int nbOfActuators,
+                                  final double diameter, final double seeing, final int nbSubPupils,
                                   final double elevation) {
+        return strehl(Band.V, magnitude, waveLengths, diameter, seeing,
+                nbSubPupils, elevation);
+    }
+
+    /** r0 factor = 1.22*1E-6/a and a = PI / ( 180 * 3600 ) */
+    private static final double R0_FACTOR = 1.22e-6 * (180 * 3600) / Math.PI;
+
+    public static final double DEFAULT_TD = 1.0;
+    public static final double DEFAULT_T0 = 5.0;
+
+    public static final double DEFAULT_QE = 0.95;
+    public static final double DEFAULT_RON = 1.0;
+
+    public static double[] strehl(final Band aoBand, final double magnitude, final double[] waveLengths,
+                                  final double diameter, final double seeing, final int nbSubPupils,
+                                  final double elevation) {
+        return strehl(aoBand, magnitude, waveLengths, diameter, seeing, nbSubPupils,
+                DEFAULT_TD, DEFAULT_T0, elevation);
+    }
+
+    public static double[] strehl(final Band aoBand, final double magnitude, final double[] waveLengths,
+                                  final double diameter, final double seeing, final int nbSubPupils,
+                                  final double td, final double t0,
+                                  final double elevation) {
+        return strehl(aoBand, magnitude, waveLengths, diameter, seeing, nbSubPupils, td, t0,
+                DEFAULT_QE, DEFAULT_RON, elevation);
+    }
+
+    /**
+     * Compute the strehl ratio. see le louarn et al (1998, mnras 295, 756), and amb-igr-011 p.5
+     *
+     * @param aoBand band of the AO system (V by default)
+     * @param magnitude object magnitude in AO's band
+     * @param waveLengths wave lengths in meters
+     * @param diameter telescope diameter in meters
+     * @param seeing seeing in arc sec
+     * @param nbSubPupils number of sub-pupils (interesting pixels on the camera)
+     * @param td detector time (ms)
+     * @param t0 coherence time (ms)
+     * @param quantumEfficiency Detector quantum efficiency
+     * @param ron Detector readout noise
+     * @param elevation target elevation in degrees [0; 90]
+     * @return strehl ratio
+     */
+    public static double[] strehl(final Band aoBand, final double magnitude, final double[] waveLengths,
+                                  final double diameter, final double seeing, final int nbSubPupils,
+                                  final double td, final double t0,
+                                  final double quantumEfficiency, final double ron,
+                                  final double elevation) {
+
+        final double lambdaV = 0.5; // seeing is given at 500 nm
+
+        final double lambdaAO = (aoBand != Band.V) ? aoBand.getLambda() : lambdaV;
+
+        // r0(e)=cos(90-e)^(3/5) * r0
+        final double r0_corr = R0_FACTOR * FastMath.pow(FastMath.cos(FastMath.toRadians(90.0 - elevation)), 3.0 / 5.0);
+
+        final double td_over_t0 = td / t0;
+
+        // size of a square sub pupil:
+        final double ds2 = Math.PI * FastMath.pow(0.5 * diameter, 2.0) / nbSubPupils;
+        final double ds = Math.sqrt(ds2);
+
+        if (logger.isDebugEnabled()) {
+            logger.debug("elevation     = {}", elevation);
+            logger.debug("lambdaAO      = {}", lambdaAO);
+            logger.debug("magnitude     = {}", magnitude);
+            logger.debug("diameter      = {}", diameter);
+            logger.debug("seeing        = {}", seeing);
+            logger.debug("nbSubPupils   = {}", nbSubPupils);
+            logger.debug("(td/t0)       = {}", td_over_t0);
+            logger.debug("ds              = {}", ds);
+        }
+
+        // NbPhot(AO) per DIT per sub aperture:
+        final double n0_per_subPupil = aoBand.getNbPhotZero(lambdaV * 1E-6) * aoBand.getBandWidth() * (1E-6 * 1E-3) * td;
+
+        // flux_per_subap=0.25*f*10.^(-0.4*mag)*ds^2
+        // LBO: remove 0.25
+        final double nphot_per_subPupil = quantumEfficiency * n0_per_subPupil * FastMath.pow(10.0, -0.4 * magnitude) * ds2;
+
+        final int nWLen = waveLengths.length;
+        final double[] strehlPerChannel = new double[nWLen];
+
+        double lambdaObs, lambdaRatio;
+        double r0, d_over_r0, ds_over_r0;
+
+        double sigmaphi2_alias_fit, sigmaphi2_phot, sigmaphi2_sensor, sigmaphi2_fixed, sigmaphi2, e_sigmaphi2;
+
+        final double sigmaphi2_bw = 0.962 * FastMath.pow(td_over_t0, 5.0 / 3.0);
+
+        for (int i = 0; i < nWLen; i++) {
+            lambdaObs = waveLengths[i] * 1e6; // microns
+
+            // explication formule r0:
+            // seeing=angular FWHM of seeing in V= 1.22 lambdaV/(r0) r0=fried coherence length.
+            // to have seeing in arcsec and all wavelengths in microns, we have
+            // seeing * a = 1.22 * lambdaV * 1e-6 / r0 with a=1 arcsec in RD=PI/180*3600
+            // thus r0 = 1.22*1E-6 / a * seeing = 0.251 * lambdaV / seeing
+            // R0_FACTOR = 0.251...
+            // use lambdaV as seeing is given for V:
+            lambdaRatio = (lambdaObs / lambdaV);
+
+            // r0 at lambda AO:
+            r0 = r0_corr * (lambdaV / seeing) * FastMath.pow(lambdaRatio, 6.0 / 5.0);
+            d_over_r0 = diameter / r0; // Math.max(1.0, diameter / r0);
+            ds_over_r0 = ds / r0;
+
+            // constant was 0.87 = AMD-REP 001 p32 (related to AO system)
+            // MATISSE uses 0.54, adopted in 2018.11
+            sigmaphi2_alias_fit = 0.54 * FastMath.pow(ds_over_r0, 5.0 / 3.0);
+
+            // use lambdaAO as magAO corresponds to this AO band:
+            lambdaRatio = (lambdaObs / lambdaAO);
+
+            // photon error:
+            // (4.*(!DPI^2)/3.)*(lambda_ao/lambda_sc)^2/Nphot_ao_ds
+            sigmaphi2_phot = (4.0 / 3.0 * Math.PI * Math.PI) * FastMath.pow(lambdaRatio, -2.0) / nphot_per_subPupil;
+
+            // sensor error:
+            // (4.*(!DPI^2)/3.)*(lambda_ao/lambda_sc)^2/Nphot_ao_ds
+            sigmaphi2_sensor = (8.0 / 9.0 * Math.PI * Math.PI) * FastMath.pow(lambdaRatio, -2.0) * FastMath.pow(ron / nphot_per_subPupil, 2.0);
+            sigmaphi2_sensor *= FastMath.pow(1.0 + FastMath.pow(lambdaRatio, 12.0 / 5.0) * FastMath.pow(ds_over_r0, 2.0), 2.0);
+            sigmaphi2_sensor *= FastMath.pow(lambdaRatio, -12.0 / 5.0);
+            sigmaphi2_sensor *= FastMath.pow(ds_over_r0, -2.0);
+
+            sigmaphi2_fixed = -Math.log(findBand(lambdaObs).getStrehlMax());
+
+            sigmaphi2 = sigmaphi2_alias_fit + sigmaphi2_bw + sigmaphi2_phot + sigmaphi2_sensor + sigmaphi2_fixed;
+
+            e_sigmaphi2 = FastMath.exp(-sigmaphi2);
+
+            strehlPerChannel[i] = e_sigmaphi2 + (1.0 - e_sigmaphi2) / (1.0 + d_over_r0 * d_over_r0);
+
+            if (logger.isDebugEnabled()) {
+                logger.debug("lambda          = {}", lambdaObs);
+                logger.debug("r0              = {}", r0);
+                logger.debug("nphot_per_subPupil = {}", nphot_per_subPupil);
+                logger.debug("sigmaphi2_alias = {}", sigmaphi2_alias_fit);
+                logger.debug("sigmaphi2_phot  = {}", sigmaphi2_phot);
+                logger.debug("sigmaphi2_det   = {}", sigmaphi2_bw);
+                logger.debug("sigmaphi2_fixed = {}", sigmaphi2_fixed);
+                logger.debug("sigmaphi2       = {}", sigmaphi2);
+                logger.debug("strehl          = {}", strehlPerChannel[i]);
+            }
+        }
+
+        return strehlPerChannel;
+    }
+
+    /**
+     * Compute the strehl ratio. see le louarn et al (1998, mnras 295, 756), and amb-igr-011 p.5
+     *
+     * @param magnitude object magnitude in AO's band
+     * @param waveLengths wave lengths in meters
+     * @param diameter telescope diameter in meters
+     * @param seeing seeing in arc sec
+     * @param nbOfActuators number of actuators
+     * @param elevation target elevation in degrees [0; 90]
+     * @return strehl ratio
+     */
+    public static double[] strehlOLD(final double magnitude, final double[] waveLengths,
+                                     final double diameter, final double seeing, final int nbOfActuators,
+                                     final double elevation) {
 
         // r0(e)=cos(90-e)^(3/5) * r0
         // r0_corr in [0; 0.251]
@@ -169,6 +338,7 @@ public enum Band {
 
         return strehlPerChannel;
     }
+
 
     /* members */
     /** single char band name (upper case) */
@@ -244,22 +414,28 @@ public enum Band {
         return strehlMax;
     }
 
+    /**
+     * Return the number of photons in m^-2.s^-1.m^-1 for an object at magnitude 0
+     * @param wavelength wavelength in meters
+     * @return nb of photons in m^-2.s^-1.m^-1 for an object at magnitude 0
+     */
+    public double getNbPhotZero(final double wavelength) {
+        // nb of photons m^-2.s^-1.m^-1 for an object at magnitude 0:
+        // note: fzero depends on the spectral band:
+        return FastMath.pow(10d, getLogFluxZero()) * wavelength / (H_PLANCK * C_LIGHT);
+    }
+
     public static void main(String[] args) {
 
         /*
-        Fix MATISSE bands:
-        L: 2.8 - 4.2    f0= 7e-11 W.m − 2.um-1 (3.5um)
-        M: 4.2 - 8.0    f0= 2.7e-11 W.m − 2.um-1 (4.5um)
-        N: 8.0 - 13.0   f0= 1e-12 W.m − 2.um-1 (10.5um)
+            Fix MATISSE bands:
+            L: 2.8 - 4.2    f0= 7e-11 W.m − 2.um-1 (3.5um)
+            M: 4.2 - 8.0    f0= 2.7e-11 W.m − 2.um-1 (4.5um)
+            N: 8.0 - 13.0   f0= 1e-12 W.m − 2.um-1 (10.5um)
          */
         System.out.println("log(f0) L: " + NumberUtils.trimTo3Digits(Math.log10(1e6 * 7e-11)));
         System.out.println("log(f0) M: " + NumberUtils.trimTo3Digits(Math.log10(1e6 * 2.7e-11)));
         System.out.println("log(f0) N: " + NumberUtils.trimTo3Digits(Math.log10(1e6 * 1e-12)));
-
-        /** Planck's constant in standard units (6.6262e-34) */
-        final double H_PLANCK = 6.62606896e-34d;
-        /** Speed of light (2.99792458e8) */
-        final double C_LIGHT = 2.99792458e8d;
 
         for (Band b : values()) {
             double half = 0.5d * b.getBandWidth();
@@ -267,30 +443,28 @@ public enum Band {
             double min = mid - half;
             double max = mid + half;
 
-            final double fzero = FastMath.pow(10d, b.getLogFluxZero()) * 1e-6;
-            final double nzero = fzero * b.getLambda() / (H_PLANCK * C_LIGHT);
+            final double nzero = b.getNbPhotZero(b.getLambda() * 1e-6);
 
             System.out.println("Band: " + b.getName()
                     + " min: " + NumberUtils.trimTo3Digits(min)
                     + " mid: " + NumberUtils.trimTo3Digits(mid)
                     + " max: " + NumberUtils.trimTo3Digits(max)
-                    + " f0 (W/m^2/µm) : " + fzero
                     + " n0 : " + nzero
             );
         }
         /*
-         Band: U min: 0.301 mid: 0.334 max: 0.367
-         Band: B min: 0.421 mid: 0.461 max: 0.502
-         Band: V min: 0.5 mid: 0.556 max: 0.611
-         Band: R min: 0.609 mid: 0.662 max: 0.715
-         Band: I min: 0.713 mid: 0.869 max: 1.025
-         Band: J min: 1.023 mid: 1.236 max: 1.449
-         Band: H min: 1.447 mid: 1.679 max: 1.911
-         Band: K min: 1.909 mid: 2.365 max: 2.821
-         Band: L min: 2.819 mid: 3.458 max: 4.098
-         Band: M min: 4.096 mid: 6.403 max: 8.711
-         Band: N min: 8.709 mid: 11.63 max: 14.551
-         Band: Q min: 14.549 mid: 16.575 max: 18.599
+            Band: U min: 0.301 mid: 0.334 max: 0.367 n0 : 6.6937549979784128E16
+            Band: B min: 0.421 mid: 0.461 max: 0.502 n0 : 1.46705974779427744E17
+            Band: V min: 0.5 mid: 0.556 max: 0.611 n0 : 1.01624433397212688E17
+            Band: R min: 0.609 mid: 0.662 max: 0.715 n0 : 7.466365193537544E16
+            Band: I min: 0.713 mid: 0.869 max: 1.025 n0 : 5.0263805017315112E16
+            Band: J min: 1.023 mid: 1.236 max: 1.449 n0 : 1.9684186281571248E16
+            Band: H min: 1.447 mid: 1.679 max: 1.911 n0 : 9.708132068674186E15
+            Band: K min: 1.909 mid: 2.365 max: 2.821 n0 : 4.74099226559661E15
+            Band: L min: 2.8 mid: 3.5 max: 4.2 n0 : 1.2359229306721938E15
+            Band: M min: 4.199 mid: 6.1 max: 8.0 n0 : 8.303346866438889E14
+            Band: N min: 8.0 mid: 10.5 max: 13.0 n0 : 5.285823345220047E13
+            Band: Q min: 14.549 mid: 16.575 max: 18.599 n0 : 5.64126995424172E12
          */
 
         double w = 0.1;
