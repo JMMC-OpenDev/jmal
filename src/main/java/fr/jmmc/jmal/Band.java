@@ -89,47 +89,8 @@ public enum Band {
         return p;
     }
 
-    /**
-     * Compute the strehl ratio. see le louarn et al (1998, mnras 295, 756), and amb-igr-011 p.5
-     *
-     * @param magnitude object magnitude in AO's band
-     * @param waveLengths wave lengths in meters
-     * @param diameter telescope diameter in meters
-     * @param seeing seeing in arc sec
-     * @param nbSubPupils number of sub-pupils (interesting pixels on the camera)
-     * @param elevation target elevation in degrees [0; 90]
-     * @return strehl ratio
-     */
-    public static double[] strehl(final double magnitude, final double[] waveLengths,
-                                  final double diameter, final double seeing, final int nbSubPupils,
-                                  final double elevation) {
-        return strehl(Band.V, magnitude, waveLengths, diameter, seeing,
-                nbSubPupils, elevation);
-    }
-
     /** r0 factor = 1.22*1E-6/a and a = PI / ( 180 * 3600 ) */
     private static final double R0_FACTOR = 1.22e-6 * (180 * 3600) / Math.PI;
-
-    public static final double DEFAULT_TD = 1.0;
-    public static final double DEFAULT_T0 = 5.0;
-
-    public static final double DEFAULT_QE = 0.95;
-    public static final double DEFAULT_RON = 1.0;
-
-    public static double[] strehl(final Band aoBand, final double magnitude, final double[] waveLengths,
-                                  final double diameter, final double seeing, final int nbSubPupils,
-                                  final double elevation) {
-        return strehl(aoBand, magnitude, waveLengths, diameter, seeing, nbSubPupils,
-                DEFAULT_TD, DEFAULT_T0, elevation);
-    }
-
-    public static double[] strehl(final Band aoBand, final double magnitude, final double[] waveLengths,
-                                  final double diameter, final double seeing, final int nbSubPupils,
-                                  final double td, final double t0,
-                                  final double elevation) {
-        return strehl(aoBand, magnitude, waveLengths, diameter, seeing, nbSubPupils, td, t0,
-                DEFAULT_QE, DEFAULT_RON, elevation);
-    }
 
     /**
      * Compute the strehl ratio. see le louarn et al (1998, mnras 295, 756), and amb-igr-011 p.5
