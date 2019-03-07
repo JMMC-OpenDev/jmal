@@ -119,7 +119,7 @@ public final class ALX {
      *
      * @param raHms the right ascension as a HH:MM:SS.TT or HH MM SS.TT string.
      *
-     * @return the right ascension as a double in degrees [-180; -180] or NaN if invalid value
+     * @return the right ascension as a double in degrees [-180; +180] or NaN if invalid value
      */
     public static double parseRA(final String raHms) {
         double ra = parseHMS(raHms);
