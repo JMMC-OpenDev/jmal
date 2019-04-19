@@ -29,14 +29,17 @@ import org.slf4j.LoggerFactory;
  */
 public final class StarResolver {
 
+    /** semicolon separator (multiple identifier separator) */
+    public static final String SEPARATOR_SEMI_COLON = ";";
+    /** special flag to skip fixing Star name */
+    public static final String FLAG_SKIP_FIX_NAME = "skipFixName";
+
     /** Logger - register on the current class to collect local logs */
     private static final Logger _logger = LoggerFactory.getLogger(StarResolver.class.getName());
     /** The collection of CDS mirrors (initialized into getSimbadMirrors()) */
     private static final Map<String, String> _simbadMirrors;
     /** SIMBAD selected mirror (selected using setSimbadMirror()) */
     private static String _simbadMirror = null;
-    /** semicolon separator (multiple identifier separator) */
-    public static final String SEPARATOR_SEMI_COLON = ";";
     /** RegExp expression to match underscore character */
     private final static Pattern PATTERN_UNDERSCORE = Pattern.compile("_");
     /** RegExp expression to match white spaces arround semicolon separator */
@@ -150,11 +153,12 @@ public final class StarResolver {
 
     /**
      * Asynchronously query CDS SIMBAD to retrieve a given star information according to its name.
+     * @param flags optional flags associated with the query
      * @param name the name of the star to resolve.
      * @return Future instance to use for synchronous mode (wait for)
      * @throws IllegalArgumentException if the given name is empty
      */
-    public Future<StarResolverResult> resolve(final String name) throws IllegalArgumentException {
+    public Future<StarResolverResult> resolve(final Set<String> flags, final String name) throws IllegalArgumentException {
         _logger.debug("Searching data for star '{}'.", name);
 
         if (isMultiple(name)) {
@@ -167,17 +171,18 @@ public final class StarResolver {
             throw new IllegalArgumentException("Empty star name !");
         }
 
-        return multipleResolve(Arrays.asList(cleanedName));
+        return multipleResolve(flags, Arrays.asList(cleanedName));
     }
 
     /**
      * Asynchronously query CDS SIMBAD to retrieve multiple stars information according to their names.
+     * @param flags optional flags associated with the query
      * @param names the names of the star to resolve, separated by semi-colons.
      * @return Future instance to use for synchronous mode (wait for)
      * @throws IllegalArgumentException if the given names are empty
      */
-    public Future<StarResolverResult> multipleResolve(final String names) throws IllegalArgumentException {
-        return multipleResolve(prepareNames(names));
+    public Future<StarResolverResult> multipleResolve(final Set<String> flags, final String names) throws IllegalArgumentException {
+        return multipleResolve(flags, prepareNames(names));
     }
 
     /**
@@ -187,6 +192,17 @@ public final class StarResolver {
      * @throws IllegalArgumentException if the given names are empty
      */
     public Future<StarResolverResult> multipleResolve(final List<String> nameList) throws IllegalArgumentException {
+        return multipleResolve(null, nameList);
+    }
+
+    /**
+     * Asynchronously query CDS SIMBAD to retrieve multiple stars information according to their names.
+     * @param flags optional flags associated with the query
+     * @param nameList the names of the star to resolve (clean ie no semicolon separator) nor empty strings
+     * @return Future instance to use for synchronous mode (wait for)
+     * @throws IllegalArgumentException if the given names are empty
+     */
+    public Future<StarResolverResult> multipleResolve(final Set<String> flags, final List<String> nameList) throws IllegalArgumentException {
         _logger.debug("Searching data for stars '{}'.", nameList);
 
         if (CollectionUtils.isEmpty(nameList)) {
@@ -194,7 +210,7 @@ public final class StarResolver {
         }
 
         // Launch the query in the background in order to keep GUI updated
-        return submitJob(new SimbadResolveStarJob(nameList, _listener));
+        return submitJob(new SimbadResolveStarJob(flags, nameList, _listener));
     }
 
     private Future<StarResolverResult> submitJob(final SimbadResolveStarJob resolveStarJob) {
@@ -308,7 +324,7 @@ public final class StarResolver {
 
         // Seek data about the given star name (first arg on command line)
         // Wait for StarResolver task done (and listener calls) :
-        final StarResolverResult result = waitFor(new StarResolver(asyncListener).multipleResolve(names));
+        final StarResolverResult result = waitFor(new StarResolver(asyncListener).multipleResolve(null, names));
 
         _logger.info("SYNC star resolver result:\n{}", result);
 

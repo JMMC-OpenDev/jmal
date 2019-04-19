@@ -48,6 +48,8 @@ final class SimbadResolveStarJob implements Callable<StarResolverResult> {
     public static final String MARKER_DATA = "::data";
 
     /* members */
+    /** optional flags associated with the query */
+    private final Set<String> _flags;
     /** callback listener with results */
     private final StarResolverProgressListener _listener;
     /** result */
@@ -62,10 +64,12 @@ final class SimbadResolveStarJob implements Callable<StarResolverResult> {
     private Star _parsedStar = null;
 
     /**
+     * @param flags optional flags associated with the query
      * @param names list of queried identifiers
      * @param listener callback listener with results
      */
-    SimbadResolveStarJob(final List<String> names, final StarResolverProgressListener listener) {
+    SimbadResolveStarJob(final Set<String> flags, final List<String> names, final StarResolverProgressListener listener) {
+        _flags = flags;
         _listener = listener;
         _result = new StarResolverResult(names);
     }
@@ -593,39 +597,41 @@ final class SimbadResolveStarJob implements Callable<StarResolverResult> {
         }
         _parsedStar.setPropertyAsString(Star.Property.IDS, cleanedIds);
 
-        // Compare the star name with identifiers to find one proper name (case sensitive):
-        final String name = _parsedStar.getName(); // should be white space cleaned
-        final String[] ids = cleanedIds.split(SEPARATOR_COMMA);
-        final int len = ids.length;
+        if (_flags == null || !_flags.contains(StarResolver.FLAG_SKIP_FIX_NAME)) {
+            // Compare the star name with identifiers to find one proper name (case sensitive):
+            final String name = _parsedStar.getName(); // should be white space cleaned
+            final String[] ids = cleanedIds.split(SEPARATOR_COMMA);
+            final int len = ids.length;
 
-        // name 'hd 1234' matches 'HD 1234' => 'HD 1234'
-        for (int i = 0; i < len; i++) {
-            final String id = ids[i];
-            if (id.equalsIgnoreCase(name)) {
-                _logger.debug("found ID: '{}' for name '{}'.", id, name);
-                _parsedStar.setName(id);
-                return;
+            // name 'hd 1234' matches 'HD 1234' => 'HD 1234'
+            for (int i = 0; i < len; i++) {
+                final String id = ids[i];
+                if (id.equalsIgnoreCase(name)) {
+                    _logger.debug("found ID: '{}' for name '{}'.", id, name);
+                    _parsedStar.setName(id);
+                    return;
+                }
             }
-        }
 
-        // remove all white spaces and convert to lower case:
-        final String nameLowerClean = StringUtils.removeWhiteSpaces(name).toLowerCase();
+            // remove all white spaces and convert to lower case:
+            final String nameLowerClean = StringUtils.removeWhiteSpaces(name).toLowerCase();
 
-        // Find the name into possible identifiers (case & white space ignored)
-        // name 'eps aur' matches '* eps Aur' => 'eps Aur'
-        // name 'hd1234' matches 'HD 1234' => 'HD 1234'
-        // name 'MWC297' matches 'EM* MWC297' => 'MWC297'
-        for (int i = 0; i < len; i++) {
-            final String id = ids[i];
-            final int pos = indexOfIgnoreCaseAndWhiteSpace(id, nameLowerClean);
-            if (pos != -1) {
-                final String idPart = id.substring(pos);
-                _logger.debug("found ID: '{}' for name '{}'.", idPart, name);
-                _parsedStar.setName(idPart);
-                return;
+            // Find the name into possible identifiers (case & white space ignored)
+            // name 'eps aur' matches '* eps Aur' => 'eps Aur'
+            // name 'hd1234' matches 'HD 1234' => 'HD 1234'
+            // name 'MWC297' matches 'EM* MWC297' => 'MWC297'
+            for (int i = 0; i < len; i++) {
+                final String id = ids[i];
+                final int pos = indexOfIgnoreCaseAndWhiteSpace(id, nameLowerClean);
+                if (pos != -1) {
+                    final String idPart = id.substring(pos);
+                    _logger.debug("found ID: '{}' for name '{}'.", idPart, name);
+                    _parsedStar.setName(idPart);
+                    return;
+                }
             }
+            _logger.debug("CHECK: no ID found for name '{}' among '{}'.", name, cleanedIds);
         }
-        _logger.debug("CHECK: no ID found for name '{}' among '{}'.", name, cleanedIds);
     }
 
     /**
@@ -720,7 +726,7 @@ final class SimbadResolveStarJob implements Callable<StarResolverResult> {
     }
 
     public static void main(String[] args) {
-        final SimbadResolveStarJob job = new SimbadResolveStarJob(Arrays.asList("TEST"), null);
+        final SimbadResolveStarJob job = new SimbadResolveStarJob(null, Arrays.asList("TEST"), null);
 
         if (false) {
             job._response = ":entry:eps aur\n"

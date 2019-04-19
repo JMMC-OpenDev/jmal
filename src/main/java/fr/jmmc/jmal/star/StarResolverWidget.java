@@ -11,6 +11,7 @@ import fr.jmmc.jmcs.gui.util.SwingUtils;
 import java.awt.BorderLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Future;
@@ -60,6 +61,8 @@ public class StarResolverWidget extends SearchField implements StarResolverProgr
     private StarResolverListener _childListener = null;
     /** flag indicating if the resolver can resolve multiple identifiers */
     private final boolean _supportMultiple;
+    /** optional flags associated with the query (atomic updates) */
+    private Set<String> _flags = null;
     /** star resolver instance */
     private final StarResolver _resolver;
     /** Single future instance used to cancel background requests */
@@ -103,9 +106,9 @@ public class StarResolverWidget extends SearchField implements StarResolverProgr
                 try {
                     // Keep future instance to possibly cancel the job:
                     if (isMultiple) {
-                        _future = _resolver.multipleResolve(names);
+                        _future = _resolver.multipleResolve(_flags, names);
                     } else {
-                        _future = _resolver.resolve(names);
+                        _future = _resolver.resolve(_flags, names);
                     }
 
                     // Disable search field while request processing to avoid concurrent requests:
@@ -146,6 +149,29 @@ public class StarResolverWidget extends SearchField implements StarResolverProgr
      */
     public boolean isSupportMultiple() {
         return _supportMultiple;
+    }
+
+    /**
+     * @return optional flags associated with the query (read-only)
+     */
+    public Set<String> getFlags() {
+        return _flags;
+    }
+
+    /**
+     * Define the optional flags associated with the query
+     * Note: atomic updates required for thread safety, use new Set instance
+     * @param _flags optional flags associated with the query
+     */
+    public void setFlags(final String... flags) {
+        Set<String> set = null;
+        if (flags.length != 0) {
+            set = new HashSet<String>();
+            for (String flag : flags) {
+                set.add(flag);
+            }
+        }
+        this._flags = set;
     }
 
     /**
