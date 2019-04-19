@@ -159,6 +159,13 @@ public class StarResolverWidget extends SearchField implements StarResolverProgr
     }
 
     /**
+     * Reset the optional flags associated with the query
+     */
+    public void resetFlags() {
+        _flags = null;
+    }
+
+    /**
      * Define the optional flags associated with the query
      * Note: atomic updates required for thread safety, use new Set instance
      * @param _flags optional flags associated with the query
