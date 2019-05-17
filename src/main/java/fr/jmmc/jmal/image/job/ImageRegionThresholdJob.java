@@ -100,7 +100,7 @@ public final class ImageRegionThresholdJob extends AbstractImageJob<BoundaryResu
      */
     @Override
     protected void processValue(final int col, final int row, final float value) {
-        if (value != 0f && value >= _threshold) {
+        if (value != 0f && value > _threshold) {
             final BoundaryResult result = _result;
 
             // column boundaries:
@@ -155,7 +155,7 @@ public final class ImageRegionThresholdJob extends AbstractImageJob<BoundaryResu
     /**
      * Result container
      */
-    protected static class BoundaryResult {
+    protected final static class BoundaryResult {
         /* members */
 
         /** lower column index where projected data != 0.0 */

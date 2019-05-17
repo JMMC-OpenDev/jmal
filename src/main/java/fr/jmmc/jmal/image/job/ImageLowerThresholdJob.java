@@ -91,7 +91,7 @@ public final class ImageLowerThresholdJob extends AbstractImageJob<AtomicInteger
      */
     @Override
     protected void processValue(final int col, final int row, final float value) {
-        if (value != 0f && value < _threshold) {
+        if (value != 0f && value <= _threshold) {
             if (DEBUG) {
                 logger.info("threshold reached at ({}, {}) : {}", col, row, value);
             }

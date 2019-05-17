@@ -158,7 +158,7 @@ public final class ImageMinMaxJob extends AbstractImageJob<MinMaxResult> {
     /**
      * Result container
      */
-    protected static class MinMaxResult {
+    protected static final class MinMaxResult {
 
         /** number of data */
         protected int _nData = 0;
