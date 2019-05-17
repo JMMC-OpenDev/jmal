@@ -60,6 +60,8 @@ public final class UVMapData {
     private Double wavelength = null;
     /** user model (user model only) */
     private Object userModel = null;
+    /** (optional) airy radius of the (first) user model data (apodization) */
+    private double airyRadius;
 
     /**
      * Constuctor
@@ -303,6 +305,22 @@ public final class UVMapData {
     }
 
     /**
+     * Return the (optional) airy radius of the (first) user model data (apodization)
+     * @return (optional) airy radius of the (first) user model data (apodization)
+     */
+    public double getAiryRadius() {
+        return airyRadius;
+    }
+
+    /**
+     * Define the (optional) airy radius of the (first) user model data (apodization)
+     * @param airyRadius (optional) airy radius of the (first) user model data (apodization)
+     */
+    public void setAiryRadius(double airyRadius) {
+        this.airyRadius = airyRadius;
+    }
+
+    /**
      * Return the optional Complex visibility Noise Service ready to use to compute noise on model images
      * @return optional Complex visibility Noise Service ready to use to compute noise on model images
      */
@@ -321,6 +339,7 @@ public final class UVMapData {
      * @param colorScale color scaling method
      * @param imageIndex image index used (user model only)
      * @param noiseService optional Complex visibility Noise Service ready to use to compute noise on model images
+     * @param airyRadius (optional) airy radius of the (first) user model data (apodization)
      * @return true only if input parameters are equals
      */
     public boolean isValid(final String targetName, final int targetVersion,
@@ -330,7 +349,8 @@ public final class UVMapData {
                            final IndexColorModel colorModel,
                            final ColorScale colorScale,
                            final int imageIndex,
-                           final VisNoiseService noiseService) {
+                           final VisNoiseService noiseService,
+                           final double airyRadius) {
 
         if (!targetName.equals(getTargetName())) {
             return false;
@@ -360,6 +380,10 @@ public final class UVMapData {
         if (noiseService != getNoiseService()) {
             return false;
         }
+        if (Double.isNaN(airyRadius) != Double.isNaN(getAiryRadius())
+                || !Double.isNaN(airyRadius) && airyRadius != getAiryRadius()) {
+            return false;
+        }
         return true;
     }
 
@@ -370,12 +394,14 @@ public final class UVMapData {
      * @param uvRect uv frequency area
      * @param imageSize number of pixels for both width and height of the generated image
      * @param imageIndex image index used (user model only)
+     * @param airyRadius (optional) airy radius of the (first) user model data (apodization)
      * @return true only if input parameters are equals
      */
     public boolean isDataValid(final String targetName, final int targetVersion,
                                final Rectangle.Double uvRect,
                                final int imageSize,
-                               final int imageIndex) {
+                               final int imageIndex,
+                               final double airyRadius) {
 
         if (!targetName.equals(getTargetName())) {
             return false;
@@ -390,6 +416,10 @@ public final class UVMapData {
             return false;
         }
         if (imageIndex != getImageIndex()) {
+            return false;
+        }
+        if (Double.isNaN(airyRadius) != Double.isNaN(getAiryRadius())
+                || !Double.isNaN(airyRadius) && airyRadius != getAiryRadius()) {
             return false;
         }
         return true;
