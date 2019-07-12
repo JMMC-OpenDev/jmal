@@ -181,7 +181,7 @@ final class SimbadResolveStarJob implements Callable<StarResolverResult> {
         sb.append("%MAIN_ID\\n"); // Main identifier (display)
         sb.append("%COO(d;A);%COO(d;D);%COO(A);%COO(D);\\n"); // RA and DEC coordinates as sexagesimal and decimal degree values
         sb.append("%OTYPELIST\\n"); // Object types enumeration
-        sb.append("%FLUXLIST(B,V,R,I,J,H,K;N=F,)\\n"); // Magnitudes among [U,B,V,R,I,J,H,K], 'Band=Value' format
+        sb.append("%FLUXLIST(B,V,G,R,I,J,H,K;N=F,)\\n"); // Magnitudes among [B,V,G,R,I,J,H,K], 'Band=Value' format
         sb.append("%PM(A;D)\\n"); // Proper motion with error
         sb.append("%PLX(V;E)\\n"); // Parallax with error
         sb.append("%SP(S)\\n"); // Spectral types enumeration
