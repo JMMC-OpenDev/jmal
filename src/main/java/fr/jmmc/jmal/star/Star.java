@@ -208,7 +208,7 @@ public class Star extends Observable {
 
         RA, DEC, RA_d, DEC_d,
         FLUX_B, FLUX_V, FLUX_G, FLUX_R, FLUX_I, FLUX_J, FLUX_H, FLUX_K,
-        UD_B, UD_I, UD_J, UD_H, UD_K, UD_L, UD_N, UD_R, UD_U, UD_V, TEFF, LOGG,
+        UD_U, UD_B, UD_V, UD_R, UD_I, UD_J, UD_H, UD_K, UD_L, UD_N, TEFF, LOGG,
         OTYPELIST,
         PROPERMOTION_RA, PROPERMOTION_DEC,
         PARALLAX, PARALLAX_err,
