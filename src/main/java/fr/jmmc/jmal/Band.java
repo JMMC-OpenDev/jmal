@@ -16,38 +16,38 @@ import org.slf4j.LoggerFactory;
 public enum Band {
 
     /** U (ultra violet) */
-    U("U", 0.334d, 0.066d, -1.4d, 0.3d),
+    U("U", 0.334, 0.066, -1.4, 0.3),
     /** B (Visible) */
-    B("B", 0.461875d, 0.08175d, -1.2d, 0.48d),
+    B("B", 0.461875, 0.08175, -1.2, 0.48),
     /** V (Visible) */
-    V("V", 0.556d, 0.1105d, -1.44d, 0.5d),
+    V("V", 0.556, 0.1105, -1.44, 0.5),
     /** R (Visible) */
-    R("R", 0.6625d, 0.10651d, -1.65d, 0.65d),
+    R("R", 0.6625, 0.10651, -1.65, 0.65),
     /** I (Near Infrared) */
-    I("I", 0.869625d, 0.31176d, -1.94d, 0.75d),
+    I("I", 0.869625, 0.31176, -1.94, 0.75),
     /** J (Near Infrared) */
-    J("J", 1.2365d, 0.426d, -2.5d, 0.77d),
+    J("J", 1.2365, 0.426, -2.5, 0.77),
     /** H (Near Infrared) */
-    H("H", 1.679625d, 0.46425d, -2.94d, 0.84d),
+    H("H", 1.679625, 0.46425, -2.94, 0.84),
     /** K (Near Infrared) */
-    K("K", 2.365625d, 0.912d, -3.4d, 0.93d),
+    K("K", 2.365625, 0.912, -3.4, 0.93),
     /** L (Near Infrared) (MATISSE) [2.8 - 4.2] */
-    L("L", 3.5d, 1.4d, -4.154d, 0.972d),
-    // was L("L", 3.45875d, 1.2785d, -4.15d, 0.972d),
-    /** M (Mid Infrared) (MATISSE) [4.2 - 8] */
-    M("M", 6.1d, 3.8d, -4.568d, 0.985d),
-    // was M("M", 6.4035d, 4.615d, -4.69d, 0.985d),
-    /** N (Mid Infrared) (MATISSE) [8 - 13] */
-    N("N", 10.5d, 5.0d, -6.0d, 0.996d),
-    // was N("N", 11.63d, 5.842d, -5.91d, 0.996d),
+    L("L", 3.5, 1.4, -4.154, 0.972),
+    // was L("L", 3.45875, 1.2785, -4.15, 0.972),
+    /** M (Mid Infrared) (MATISSE) [4.2 - 7.8] */
+    M("M", 6.0, 3.6, -4.568, 0.985, 4.5),
+    // was M("M", 6.4035, 4.615, -4.69, 0.985),
+    /** N (Mid Infrared) (MATISSE) [7.9 - 13.1] */
+    N("N", 10.5, 5.2, -6.0, 0.996),
+    // was N("N", 11.63, 5.842, -5.91, 0.996),
     /** Q (Mid Infrared) */
-    Q("Q", 16.575d, 4.05d, -7.17d, 0.999d);
+    Q("Q", 16.575, 4.05, -7.17, 0.999);
     /** Class logger */
     private static final Logger logger = LoggerFactory.getLogger(Band.class.getName());
     /** Planck's constant in standard units (6.6262e-34) */
-    public final static double H_PLANCK = 6.62606896e-34d;
+    public final static double H_PLANCK = 6.62606896e-34;
     /** Speed of light (2.99792458e8) */
-    public final static double C_LIGHT = 2.99792458e8d;
+    public final static double C_LIGHT = 2.99792458e8;
 
     /**
      * Find the band corresponding to the given wavelength
@@ -62,7 +62,7 @@ public enum Band {
 
         for (int i = len - 1; i >= 0; i--) {
             final Band b = bands[i];
-            if (Math.abs(waveLength - b.getLambda()) <= (0.5d * b.getBandWidth())) {
+            if (Math.abs(waveLength - b.getLambda()) <= (0.5 * b.getBandWidth())) {
                 return b;
             }
         }
@@ -116,7 +116,7 @@ public enum Band {
 
         final double lambdaV = 0.5; // seeing is given at 500 nm
 
-        final double lambdaAO = (aoBand != Band.V) ? aoBand.getLambda() : lambdaV;
+        final double lambdaAO = (aoBand != Band.V) ? aoBand.getLambdaFluxZero() : lambdaV;
 
         // r0(e)=cos(90-e)^(3/5) * r0
         final double r0_corr = R0_FACTOR * FastMath.pow(FastMath.cos(FastMath.toRadians(90.0 - elevation)), 3.0 / 5.0);
@@ -135,11 +135,11 @@ public enum Band {
             logger.debug("seeing        = {}", seeing);
             logger.debug("nbSubPupils   = {}", nbSubPupils);
             logger.debug("(td/t0)       = {}", td_over_t0);
-            logger.debug("ds              = {}", ds);
+            logger.debug("ds            = {}", ds);
         }
 
         // NbPhot(AO) per DIT per sub aperture:
-        final double n0_per_subPupil = aoBand.getNbPhotZero(lambdaV * 1E-6) * aoBand.getBandWidth() * (1E-6 * 1E-3) * td;
+        final double n0_per_subPupil = aoBand.getNbPhotZero() * aoBand.getBandWidth() * (1e-6 * 1e-3) * td;
 
         // flux_per_subap=0.25*f*10.^(-0.4*mag)*ds^2
         // LBO: remove 0.25
@@ -161,7 +161,7 @@ public enum Band {
             // explication formule r0:
             // seeing=angular FWHM of seeing in V= 1.22 lambdaV/(r0) r0=fried coherence length.
             // to have seeing in arcsec and all wavelengths in microns, we have
-            // seeing * a = 1.22 * lambdaV * 1e-6 / r0 with a=1 arcsec in RD=PI/180*3600
+            // seeing * a = 1.22 * lambdaV * 1E-6 / r0 with a=1 arcsec in RD=PI/180*3600
             // thus r0 = 1.22*1E-6 / a * seeing = 0.251 * lambdaV / seeing
             // R0_FACTOR = 0.251...
             // use lambdaV as seeing is given for V:
@@ -257,23 +257,23 @@ public enum Band {
         double sigmaphi2_alias, sigmaphi2_phot, sigmaphi2_fixe, sigmaphi2, e_sigmaphi2;
 
         for (int i = 0; i < nWLen; i++) {
-            waveLength = waveLengths[i] * 1e6d; // microns
+            waveLength = waveLengths[i] * 1e6; // microns
             lambdaRatio = waveLength / lambdaV;
 
             // explication formule r0:
             // seeing=angular FWHM of seeing in V= 1.22 lambdaV/(r0) r0=fried coherence length.
             // to have seeing in arcsec and all wavelengths in microns, we have
-            // seeing * a = 1.22 * lambdaV * 1e-6 / r0 with a=1 arcsec in RD=PI/180*3600
+            // seeing * a = 1.22 * lambdaV * 1E-6 / r0 with a=1 arcsec in RD=PI/180*3600
             // thus r0 = 1.22*1E-6 / a * seeing = 0.251 * lambdaV / seeing
             // R0_FACTOR = 0.251...
-            r0 = r0_corr * (lambdaV / seeing) * FastMath.pow(lambdaRatio, 6d / 5d);
+            r0 = r0_corr * (lambdaV / seeing) * FastMath.pow(lambdaRatio, 6.0 / 5.0);
             d_over_r0 = diameter / r0;
 
             // 0.87 = AMD-REP 001 p32 (related to AO system)
-            sigmaphi2_alias = 0.87d * FastMath.pow(n_act, -5d / 6d) * FastMath.pow(d_over_r0, 5d / 3d);
+            sigmaphi2_alias = 0.87 * FastMath.pow(n_act, -5.0 / 6.0) * FastMath.pow(d_over_r0, 5.0 / 3.0);
 
-            sigmaphi2_phot = 1.59e-8d * (d_over_r0 * d_over_r0) * FastMath.pow(lambdaRatio, -2d)
-                    * n_act * FastMath.pow(10d, 0.4d * magnitude);
+            sigmaphi2_phot = 1.59e-8 * (d_over_r0 * d_over_r0) * FastMath.pow(lambdaRatio, -2.0)
+                    * n_act * FastMath.pow(10.0, 0.4 * magnitude);
 
             band = findBand(waveLength);
 
@@ -306,6 +306,8 @@ public enum Band {
     private final String name;
     /** central wave length in microns */
     private final double lambda;
+    /** wave length in microns corresponding to the given zero flux */
+    private final double lambdaFluxZero;
     /** band width in microns */
     private final double bandWidth;
     /** log10 zero magnitude flux at band in W/m^2/m */
@@ -322,12 +324,29 @@ public enum Band {
      * @param logFluxZero log10 zero magnitude flux at band in W/m^2/m
      * @param strehlMax maximum strehl ratio
      */
-    private Band(final String name, final double lambda, final double bandWidth, final double logFluxZero, final double strehlMax) {
+    private Band(final String name, final double lambda, final double bandWidth, final double logFluxZero,
+                 final double strehlMax) {
+        this(name, lambda, bandWidth, logFluxZero, strehlMax, lambda);
+    }
+
+    /**
+     * Custom constructor
+     *
+     * @param name band name
+     * @param lambda central wave length in microns
+     * @param bandWidth band width in microns
+     * @param logFluxZero log10 zero magnitude flux at band in W/m^2/m
+     * @param strehlMax maximum strehl ratio
+     * @param lambdaFluxZero wave length in microns corresponding to the given zero flux
+     */
+    private Band(final String name, final double lambda, final double bandWidth, final double logFluxZero,
+                 final double strehlMax, final double lambdaFluxZero) {
         this.name = name;
         this.lambda = lambda;
         this.bandWidth = bandWidth;
         this.logFluxZero = logFluxZero;
         this.strehlMax = strehlMax;
+        this.lambdaFluxZero = lambdaFluxZero;
     }
 
     /**
@@ -346,6 +365,15 @@ public enum Band {
      */
     public double getLambda() {
         return lambda;
+    }
+
+    /**
+     * Return the wave length in microns corresponding to the given zero flux
+     *
+     * @return wave length in microns corresponding to the given zero flux
+     */
+    public double getLambdaFluxZero() {
+        return lambdaFluxZero;
     }
 
     /**
@@ -377,17 +405,15 @@ public enum Band {
 
     /**
      * Return the number of photons in m^-2.s^-1.m^-1 for an object at magnitude 0
-     * @param wavelength wavelength in meters
      * @return nb of photons in m^-2.s^-1.m^-1 for an object at magnitude 0
      */
-    public double getNbPhotZero(final double wavelength) {
+    public double getNbPhotZero() {
         // nb of photons m^-2.s^-1.m^-1 for an object at magnitude 0:
         // note: fzero depends on the spectral band:
-        return FastMath.pow(10d, getLogFluxZero()) * wavelength / (H_PLANCK * C_LIGHT);
+        return FastMath.pow(10.0, getLogFluxZero()) * getLambdaFluxZero() * (1e-6 / (H_PLANCK * C_LIGHT));
     }
 
     public static void main(String[] args) {
-
         /*
             Fix MATISSE bands:
             L: 2.8 - 4.2    f0= 7e-11 W.m − 2.um-1 (3.5um)
@@ -399,41 +425,45 @@ public enum Band {
         System.out.println("log(f0) N: " + NumberUtils.trimTo3Digits(Math.log10(1e6 * 1e-12)));
 
         for (Band b : values()) {
-            double half = 0.5d * b.getBandWidth();
+            double half = 0.5 * b.getBandWidth();
             double mid = b.getLambda();
             double min = mid - half;
             double max = mid + half;
+            double lambda0 = b.getLambdaFluxZero();
 
-            final double nzero = b.getNbPhotZero(b.getLambda() * 1e-6);
+            final double nzero = b.getNbPhotZero();
 
             System.out.println("Band: " + b.getName()
                     + " min: " + NumberUtils.trimTo3Digits(min)
                     + " mid: " + NumberUtils.trimTo3Digits(mid)
                     + " max: " + NumberUtils.trimTo3Digits(max)
+                    + " l0: " + NumberUtils.trimTo3Digits(lambda0)
                     + " n0 : " + nzero
             );
         }
         /*
-            Band: U min: 0.301 mid: 0.334 max: 0.367 n0 : 6.6937549979784128E16
-            Band: B min: 0.421 mid: 0.461 max: 0.502 n0 : 1.46705974779427744E17
-            Band: V min: 0.5 mid: 0.556 max: 0.611 n0 : 1.01624433397212688E17
-            Band: R min: 0.609 mid: 0.662 max: 0.715 n0 : 7.466365193537544E16
-            Band: I min: 0.713 mid: 0.869 max: 1.025 n0 : 5.0263805017315112E16
-            Band: J min: 1.023 mid: 1.236 max: 1.449 n0 : 1.9684186281571248E16
-            Band: H min: 1.447 mid: 1.679 max: 1.911 n0 : 9.708132068674186E15
-            Band: K min: 1.909 mid: 2.365 max: 2.821 n0 : 4.74099226559661E15
-            Band: L min: 2.8 mid: 3.5 max: 4.2 n0 : 1.2359229306721938E15
-            Band: M min: 4.199 mid: 6.1 max: 8.0 n0 : 8.303346866438889E14
-            Band: N min: 8.0 mid: 10.5 max: 13.0 n0 : 5.285823345220047E13
-            Band: Q min: 14.549 mid: 16.575 max: 18.599 n0 : 5.64126995424172E12
+            Band: U min: 0.301 mid: 0.334 max: 0.367 l0: 0.334 n0 : 6.6937549979784128E16
+            Band: B min: 0.421 mid: 0.461 max: 0.502 l0: 0.461 n0 : 1.46705974779427744E17
+            Band: V min: 0.5 mid: 0.556 max: 0.611 l0: 0.556 n0 : 1.01624433397212688E17
+            Band: R min: 0.609 mid: 0.662 max: 0.715 l0: 0.662 n0 : 7.466365193537544E16
+            Band: I min: 0.713 mid: 0.869 max: 1.025 l0: 0.869 n0 : 5.0263805017315112E16
+            Band: J min: 1.023 mid: 1.236 max: 1.449 l0: 1.236 n0 : 1.9684186281571244E16
+            Band: H min: 1.447 mid: 1.679 max: 1.911 l0: 1.679 n0 : 9.708132068674184E15
+            Band: K min: 1.909 mid: 2.365 max: 2.821 l0: 2.365 n0 : 4.74099226559661E15
+            Band: L min: 2.8 mid: 3.5 max: 4.2 l0: 3.5 n0 : 1.2359229306721938E15
+            Band: M min: 4.2 mid: 6.0 max: 7.8 l0: 4.5 n0 : 6.125419819504099E14
+            Band: N min: 7.9 mid: 10.5 max: 13.1 l0: 10.5 n0 : 5.285823345220048E13
+            Band: Q min: 14.549 mid: 16.575 max: 18.599 l0: 16.575 n0 : 5.64126995424172E12
          */
 
-        double w = 0.1;
+        if (false) {
+            double w = 0.1;
 
-        while (w < 20.0) {
-            System.out.println("findBand(" + NumberUtils.trimTo3Digits(w) + "): " + findBand(w));
+            while (w < 20.0) {
+                System.out.println("findBand(" + NumberUtils.trimTo3Digits(w) + "): " + findBand(w));
 
-            w += (w < 1.0) ? 0.02 : 0.05;
+                w += (w < 1.0) ? 0.02 : 0.05;
+            }
         }
     }
 }
