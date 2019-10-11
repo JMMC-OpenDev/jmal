@@ -525,6 +525,18 @@ public final class MutableComplex implements Complex {
          */
     }
 
+    /**
+     * Fluent setter
+     *
+     * @param real the real part
+     * @param imaginary the imaginary part
+     * @return this instance
+     */
+    public MutableComplex set(final double real, final double imaginary) {
+        updateComplex(real, imaginary);
+        return this;
+    }
+
     // FastMath utils:
     /**
      * Absolute value.
