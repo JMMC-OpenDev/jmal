@@ -39,7 +39,9 @@ public enum Catalog {
     HIP2("I/311/hip2", "HIP2", "Hipparcos, the New Reduction (van Leeuwen, 2007)"),
     HIP1("I/239/hip_main", "HIP1", "Hipparcos and Tycho Catalogues (ESA 1997)"),
     SIMBAD("SIMBAD", "SIMBAD", "SIMBAD Astronomical Database"),
-    WISE("II/328/allwise", "WISE", "The AllWISE data Release (Cutri+ 2013)")
+    WISE("II/328/allwise", "WISE", "The AllWISE data Release (Cutri+ 2013)"),
+    GAIA("I/345/gaia2", "GAIA DR2", "Gaia data release 2 (Gaia DR2). (2018)"),
+    GAIA_DIST("I/347/gaia2dis", "GAIA Dist", "Estimating distances from parallaxes. IV. Distances to 1.33 billion stars in Gaia data release 2. (2018)")
     ;
     /* members */
     /** Store the catalog CDS 'cryptic' reference */
