@@ -41,7 +41,8 @@ public enum Catalog {
     SIMBAD("SIMBAD", "SIMBAD", "SIMBAD Astronomical Database"),
     WISE("II/328/allwise", "WISE", "The AllWISE data Release (Cutri+ 2013)"),
     GAIA("I/345/gaia2", "GAIA DR2", "Gaia data release 2 (Gaia DR2). (2018)"),
-    GAIA_DIST("I/347/gaia2dis", "GAIA Dist", "Estimating distances from parallaxes. IV. Distances to 1.33 billion stars in Gaia data release 2. (2018)")
+    GAIA_DIST("I/347/gaia2dis", "GAIA Dist", "Estimating distances from parallaxes. IV. Distances to 1.33 billion stars in Gaia data release 2. (2018)"),
+    MDFC("II/361", "MDFC", "Mid-infrared stellar Diameters and Fluxes compilation Catalogue (2019)"),
     ;
     /* members */
     /** Store the catalog CDS 'cryptic' reference */
