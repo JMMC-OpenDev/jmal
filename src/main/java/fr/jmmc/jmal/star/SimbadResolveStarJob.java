@@ -5,6 +5,7 @@ package fr.jmmc.jmal.star;
 
 import static fr.jmmc.jmal.star.Star.SEPARATOR_COMMA;
 import static fr.jmmc.jmal.star.StarResolver.SEPARATOR_SEMI_COLON;
+import static fr.jmmc.jmal.star.StarResolver.USE_CACHE_DEV;
 import fr.jmmc.jmal.util.StrictStringTokenizer;
 import fr.jmmc.jmcs.data.preference.SessionSettingsPreferences;
 import fr.jmmc.jmcs.network.http.Http;
@@ -31,14 +32,12 @@ import org.slf4j.LoggerFactory;
  * Star resolver job: launch and handle CDS SIMBAD query
  * note: this implementation is only usable from the jmal.star package (internal use)
  */
-final class SimbadResolveStarJob implements Callable<StarResolverResult> {
+public final class SimbadResolveStarJob implements Callable<StarResolverResult> {
 
     /** Logger */
     private static final Logger _logger = LoggerFactory.getLogger(SimbadResolveStarJob.class.getName());
     /** Simbad value for the read timeout in milliseconds (15 seconds) */
     public static final int SIMBAD_SOCKET_READ_TIMEOUT = 15 * 1000;
-    /** true to enable query caching (development mode) */
-    public static final boolean USE_CACHE_DEV = false;
 
     /** custom entry separator */
     public static final String MARKER_ENTRY = ":entry:";

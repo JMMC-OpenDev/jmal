@@ -29,6 +29,9 @@ import org.slf4j.LoggerFactory;
  */
 public final class StarResolver {
 
+    /** Use -DSimbad.resolver.cache=true (dev) to use local query/response caching */
+    public static final boolean USE_CACHE_DEV = Boolean.getBoolean("Simbad.resolver.cache"); 
+
     /** semicolon separator (multiple identifier separator) */
     public static final String SEPARATOR_SEMI_COLON = ";";
     /** special flag to skip fixing Star name */
