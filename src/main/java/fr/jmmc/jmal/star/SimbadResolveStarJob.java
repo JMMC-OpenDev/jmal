@@ -157,9 +157,12 @@ public final class SimbadResolveStarJob implements Callable<StarResolverResult> 
         if (USE_CACHE_DEV) {
             cachedFile = generateCacheFile(_result.getNames());
 
-            if (cachedFile.exists()) {
+            if (cachedFile.exists() && cachedFile.length() != 0L) {
                 try {
                     _response = FileUtils.readFile(cachedFile);
+                    
+                    // update last modified (consistent cache):
+                    cachedFile.setLastModified(System.currentTimeMillis());
 
                     _logger.info("using cached result: " + cachedFile.getAbsolutePath());
                     return;
