@@ -36,8 +36,12 @@ public final class SimbadResolveStarJob implements Callable<StarResolverResult> 
 
     /** Logger */
     private static final Logger _logger = LoggerFactory.getLogger(SimbadResolveStarJob.class.getName());
-    /** Simbad value for the read timeout in milliseconds (15 seconds) */
-    public static final int SIMBAD_SOCKET_READ_TIMEOUT = 15 * 1000;
+    /** Simbad value for the read timeout in milliseconds (10 seconds) */
+    public static final int SIMBAD_SOCKET_READ_TIMEOUT_SMALL = 10 * 1000;
+    /** Simbad value for the read timeout in milliseconds (100 seconds) */
+    public static final int SIMBAD_SOCKET_READ_TIMEOUT_LARGE = 10 * SIMBAD_SOCKET_READ_TIMEOUT_SMALL;
+    /** threshold to consider query is large (100 ids) */
+    public static final int SIMBAD_THREHOLD_LARGE = 100;
 
     /** custom entry separator */
     public static final String MARKER_ENTRY = ":entry:";
@@ -144,8 +148,10 @@ public final class SimbadResolveStarJob implements Callable<StarResolverResult> 
     private void querySimbad() throws IllegalArgumentException, IOException {
         _logger.trace("SimbadResolveStarJob.querySimbad");
 
+        final List<String> ids = _result.getNames();
+
         // Should never receive an empty scence object name
-        if (CollectionUtils.isEmpty(_result.getNames())) {
+        if (CollectionUtils.isEmpty(ids)) {
             throw new IllegalStateException("Could not resolve empty star name.");
         }
 
@@ -155,12 +161,12 @@ public final class SimbadResolveStarJob implements Callable<StarResolverResult> 
         // In development: load cached query results:
         final File cachedFile;
         if (USE_CACHE_DEV) {
-            cachedFile = generateCacheFile(_result.getNames());
+            cachedFile = generateCacheFile(ids);
 
             if (cachedFile.exists() && cachedFile.length() != 0L) {
                 try {
                     _response = FileUtils.readFile(cachedFile);
-                    
+
                     // update last modified (consistent cache):
                     cachedFile.setLastModified(System.currentTimeMillis());
 
@@ -193,7 +199,7 @@ public final class SimbadResolveStarJob implements Callable<StarResolverResult> 
 
         // loop on identifiers to build several 'query id <ID>' lines
         // Note: simbad supports ';' separated values but it produces strange error messages for invalid identifiers !
-        for (String id : _result.getNames()) {
+        for (String id : ids) {
             sb.append("query id ").append(id).append('\n'); // Add each object name we are looking for
         }
 
@@ -224,8 +230,12 @@ public final class SimbadResolveStarJob implements Callable<StarResolverResult> 
 
                 // create the HTTP Post method:
                 method = new PostMethod(simbadURL);
+
                 // customize timeouts:
-                method.getParams().setSoTimeout(SIMBAD_SOCKET_READ_TIMEOUT);
+                final int timeout = (ids.size() >= SIMBAD_THREHOLD_LARGE) ? SIMBAD_SOCKET_READ_TIMEOUT_LARGE : SIMBAD_SOCKET_READ_TIMEOUT_SMALL;
+                _logger.debug("Timeout for CDS Simbad: {}", timeout);
+
+                method.getParams().setSoTimeout(timeout);
                 // define query script:
                 method.addParameter("script", simbadScript);
 
