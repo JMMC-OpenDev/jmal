@@ -8,7 +8,7 @@ package fr.jmmc.jmal.model;
  * @author bourgesl
  */
 public interface VisNoiseService {
-/* TODO: remove */
+
     /** VisAmpErr to CplxVisErr(re/im) coefficient = 1 / SQRT(2) */
     public final static double VIS_AMP_TO_VIS_CPX_ERR = 1d / Math.sqrt(2d);
     /** CplxVisErr(re/im) to VisAmpErr coefficient = 1 / SQRT(2) */
