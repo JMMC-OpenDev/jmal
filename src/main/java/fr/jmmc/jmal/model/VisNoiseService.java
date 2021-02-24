@@ -9,11 +9,6 @@ package fr.jmmc.jmal.model;
  */
 public interface VisNoiseService {
 
-    /** VisAmpErr to CplxVisErr(re/im) coefficient = 1 / SQRT(2) */
-    public final static double VIS_AMP_TO_VIS_CPX_ERR = 1d / Math.sqrt(2d);
-    /** CplxVisErr(re/im) to VisAmpErr coefficient = 1 / SQRT(2) */
-    public final static double VIS_CPX_TO_VIS_AMP_ERR = Math.sqrt(2d);
-
     /**
      * Return true if this service is enabled
      * @return true if this service is enabled 
