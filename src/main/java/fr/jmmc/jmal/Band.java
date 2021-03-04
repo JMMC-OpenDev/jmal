@@ -4,6 +4,7 @@
 package fr.jmmc.jmal;
 
 import fr.jmmc.jmcs.util.NumberUtils;
+import java.util.Arrays;
 import net.jafama.FastMath;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,17 +32,15 @@ public enum Band {
     H("H", 1.679625, 0.46425, -2.94, 0.84),
     /** K (Near Infrared) */
     K("K", 2.365625, 0.912, -3.4, 0.93),
-    /** L (Near Infrared) (MATISSE) [2.8 - 4.2] */
-    L("L", 3.5, 1.4, -4.154, 0.972),
-    // was L("L", 3.45875, 1.2785, -4.15, 0.972),
-    /** M (Mid Infrared) (MATISSE) [4.2 - 7.8] */
-    M("M", 6.0, 3.6, -4.568, 0.985, 4.5),
-    // was M("M", 6.4035, 4.615, -4.69, 0.985),
-    /** N (Mid Infrared) (MATISSE) [7.9 - 13.1] */
-    N("N", 10.5, 5.2, -6.0, 0.996),
-    // was N("N", 11.63, 5.842, -5.91, 0.996),
+    /** L (Near Infrared) (MATISSE) [2.8 - 4.2] (Generic/Bessell_JHKLM.L) */
+    L("L", 3.5, 1.4, -4.154, 0.972, 283.94),
+    /** M (Mid Infrared) (MATISSE) [4.2 - 7.8] (Generic/Bessell_JHKLM.M) */
+    M("M", 6.0, 3.6, -4.568, 0.985, 158.92, 4.5),
+    /** N (Mid Infrared) (MATISSE) [7.9 - 13.1] (Generic/Johnson_UBVRIJHKL.N) */
+    N("N", 10.5, 5.2, -6.0, 0.996, 38.58),
     /** Q (Mid Infrared) */
     Q("Q", 16.575, 4.05, -7.17, 0.999);
+
     /** Class logger */
     private static final Logger logger = LoggerFactory.getLogger(Band.class.getName());
     /** Planck's constant in standard units (6.6262e-34) */
@@ -306,14 +305,16 @@ public enum Band {
     private final String name;
     /** central wave length in microns */
     private final double lambda;
-    /** wave length in microns corresponding to the given zero flux */
-    private final double lambdaFluxZero;
     /** band width in microns */
     private final double bandWidth;
     /** log10 zero magnitude flux at band in W/m^2/m */
     private final double logFluxZero;
     /** maximum strehl ratio */
     private final double strehlMax;
+    /** zero point for jansky conversion */
+    private final double zeroPoint;
+    /** wave length in microns corresponding to the given zero flux */
+    private final double lambdaFluxZero;
 
     /**
      * Custom constructor
@@ -326,7 +327,7 @@ public enum Band {
      */
     private Band(final String name, final double lambda, final double bandWidth, final double logFluxZero,
                  final double strehlMax) {
-        this(name, lambda, bandWidth, logFluxZero, strehlMax, lambda);
+        this(name, lambda, bandWidth, logFluxZero, strehlMax, Double.NaN);
     }
 
     /**
@@ -337,15 +338,32 @@ public enum Band {
      * @param bandWidth band width in microns
      * @param logFluxZero log10 zero magnitude flux at band in W/m^2/m
      * @param strehlMax maximum strehl ratio
+     * @param zeroPoint zero point for jansky conversion
+     */
+    private Band(final String name, final double lambda, final double bandWidth, final double logFluxZero,
+                 final double strehlMax, final double zeroPoint) {
+        this(name, lambda, bandWidth, logFluxZero, strehlMax, zeroPoint, lambda);
+    }
+
+    /**
+     * Custom constructor
+     *
+     * @param name band name
+     * @param lambda central wave length in microns
+     * @param bandWidth band width in microns
+     * @param logFluxZero log10 zero magnitude flux at band in W/m^2/m
+     * @param strehlMax maximum strehl ratio
+     * @param zeroPoint zero point for jansky conversion
      * @param lambdaFluxZero wave length in microns corresponding to the given zero flux
      */
     private Band(final String name, final double lambda, final double bandWidth, final double logFluxZero,
-                 final double strehlMax, final double lambdaFluxZero) {
+                 final double strehlMax, final double zeroPoint, final double lambdaFluxZero) {
         this.name = name;
         this.lambda = lambda;
         this.bandWidth = bandWidth;
         this.logFluxZero = logFluxZero;
         this.strehlMax = strehlMax;
+        this.zeroPoint = zeroPoint;
         this.lambdaFluxZero = lambdaFluxZero;
     }
 
@@ -365,15 +383,6 @@ public enum Band {
      */
     public double getLambda() {
         return lambda;
-    }
-
-    /**
-     * Return the wave length in microns corresponding to the given zero flux
-     *
-     * @return wave length in microns corresponding to the given zero flux
-     */
-    public double getLambdaFluxZero() {
-        return lambdaFluxZero;
     }
 
     /**
@@ -404,6 +413,24 @@ public enum Band {
     }
 
     /**
+     * Return the wave length in microns corresponding to the given zero flux
+     *
+     * @return wave length in microns corresponding to the given zero flux
+     */
+    public double getLambdaFluxZero() {
+        return lambdaFluxZero;
+    }
+
+    /**
+     * Return the zero point for jansky conversion
+     *
+     * @return zero point for jansky conversion
+     */
+    public double getZeroPoint() {
+        return zeroPoint;
+    }
+
+    /**
      * Return the number of photons in m^-2.s^-1.m^-1 for an object at magnitude 0
      * @return nb of photons in m^-2.s^-1.m^-1 for an object at magnitude 0
      */
@@ -413,16 +440,56 @@ public enum Band {
         return FastMath.pow(10.0, getLogFluxZero()) * getLambdaFluxZero() * (1e-6 / (H_PLANCK * C_LIGHT));
     }
 
-    public static void main(String[] args) {
+    /**
+     * Converts the given magnitude to jansky (if zero point is well defined)
+     * @param mag magnitude
+     * @return jansky value (flux density)
+     */
+    public double magToJy(final double mag) {
+        if (Double.isNaN(zeroPoint)) {
+            return Double.NaN;
+        }
         /*
+            From mag calculator:
+            Zeropoint = 290;  Eff. wavelength = 3.45 microns (L)
+            Zeropoint = 163;  Eff. wavelength =  4.8 microns (M)       
+            Zeropoint = 39.8; Eff. wavelength = 10.1 microns (N)
+         */
+ /* http://svo2.cab.inta-csic.es/theory/fps/index.php?mode=browse&gname=WISE&asttype= */
+
+ /*
+            Filter ID                       λref        λmean       λeff        λmin        λmax        Weff 	ZPν 	ZPλ 	Obs. Facility 	Instrument 	Description
+            WISE/WISE.W1                    33526.00	33526.00	33526.00	27540.97	38723.88	6626.42	309.54	8.18e-12	WISE	 	WISE W1 filter
+            Generic/Bessell_JHKLM.L         34716.72	34840.75	34517.64	30576.00	38312.00	4595.45	283.94	7.06e-12	 	 	Bessell & Brett 1988 L filter
+            Generic/Johnson_UBVRIJHKL.LI	35023.81	35395.39	34450.16	29071.43	42750.00	8799.98	281.38	7.11e-12	 	 	Johnson UBVRIJHKL system, LI filter
+            
+            Filter ID                       λref        λmean       λeff        λmin        λmax        Weff 	ZPν 	ZPλ 	Obs. Facility 	Instrument 	Description
+            WISE/WISE.W2                    46028.00	46028.00	46028.00	39633.26	53413.60	10422.66	171.79	2.42e-12	WISE	 	WISE W2 filter
+            Generic/Bessell_JHKLM.M         47272.98	47339.33	47171.11	44415.38	50733.33	3560.00     158.92	2.13e-12	 	 	Bessell & Brett 1988 M filter
+            
+            Filter ID                       λref        λmean       λeff        λmin        λmax        Weff 	ZPν 	ZPλ 	Obs. Facility 	Instrument 	Description
+            WISE/WISE.W3                    115608.00	115608.00	115608.00	74430.44	172613.43	55055.71	31.67	6.52e-14	WISE	 	WISE W3 filter
+            Generic/Johnson_UBVRIJHKL.N     98705.02	103240.68	92055.94	70196.00	136000.00	43744.44	38.58	1.36e-13	 	 	Johnson UBVRIJHKL system, N filter
+
+            final double zero_point_L = 283.94; // 284  (Generic/Bessell_JHKLM.L)
+            final double zero_point_M = 158.92; // 159  (Generic/Bessell_JHKLM.M)
+            final double zero_point_N = 38.58; // 38.6 (Generic/Johnson_UBVRIJHKL.N)
+         */
+        return zeroPoint * Math.pow(10.0, -0.4 * mag); // 1 Jy = 10-26 * W * m-2 * Hz -1
+    }
+
+    public static void main(String[] args) {
+        if (false) {
+            /*
             Fix MATISSE bands:
             L: 2.8 - 4.2    f0= 7e-11 W.m − 2.um-1 (3.5um)
             M: 4.2 - 8.0    f0= 2.7e-11 W.m − 2.um-1 (4.5um)
             N: 8.0 - 13.0   f0= 1e-12 W.m − 2.um-1 (10.5um)
-         */
-        System.out.println("log(f0) L: " + NumberUtils.trimTo3Digits(Math.log10(1e6 * 7e-11)));
-        System.out.println("log(f0) M: " + NumberUtils.trimTo3Digits(Math.log10(1e6 * 2.7e-11)));
-        System.out.println("log(f0) N: " + NumberUtils.trimTo3Digits(Math.log10(1e6 * 1e-12)));
+             */
+            System.out.println("log(f0) L: " + NumberUtils.trimTo3Digits(Math.log10(1e6 * 7e-11)));
+            System.out.println("log(f0) M: " + NumberUtils.trimTo3Digits(Math.log10(1e6 * 2.7e-11)));
+            System.out.println("log(f0) N: " + NumberUtils.trimTo3Digits(Math.log10(1e6 * 1e-12)));
+        }
 
         for (Band b : values()) {
             double half = 0.5 * b.getBandWidth();
@@ -456,6 +523,16 @@ public enum Band {
             Band: Q min: 14.549 mid: 16.575 max: 18.599 l0: 16.575 n0 : 5.64126995424172E12
          */
 
+        // mag to jansky:
+        for (Band b : Arrays.asList(Band.L, Band.M, Band.N)) {
+            System.out.println("Test Band (" + b + ", zero_point = " + b.getZeroPoint() + ")");
+
+            for (int mag = 0; mag <= 10; mag++) {
+                double flux_density = b.magToJy(mag); // Jy
+                System.out.println("mag: " + mag + " = " + flux_density + " Jy");
+            }
+        }
+
         if (false) {
             double w = 0.1;
 
@@ -466,4 +543,5 @@ public enum Band {
             }
         }
     }
+
 }
