@@ -440,16 +440,7 @@ public enum Band {
         return FastMath.pow(10.0, getLogFluxZero()) * getLambdaFluxZero() * (1e-6 / (H_PLANCK * C_LIGHT));
     }
 
-    /**
-     * Converts the given magnitude to jansky (if zero point is well defined)
-     * @param mag magnitude
-     * @return jansky value (flux density)
-     */
-    public double magToJy(final double mag) {
-        if (Double.isNaN(zeroPoint)) {
-            return Double.NaN;
-        }
-        /*
+    /*
             From mag calculator:
             Zeropoint = 290;  Eff. wavelength = 3.45 microns (L)
             Zeropoint = 163;  Eff. wavelength =  4.8 microns (M)       
@@ -469,8 +460,29 @@ public enum Band {
             lambda_phi0 = [3.5e-6,4.5e-6,10.5e-6]
             ;reference flux at zero magnitude in Jy
             phi0_Jy = [286.,182.,37.]
-         */
+     */
+    /**
+     * Converts the given magnitude to jansky (if band's zero point is well defined)
+     * @param mag magnitude
+     * @return jansky value (flux density)
+     */
+    public double magToJy(final double mag) {
+        if (Double.isNaN(zeroPoint)) {
+            return Double.NaN;
+        }
         return zeroPoint * Math.pow(10.0, -0.4 * mag); // 1 Jy = 10-26 * W * m-2 * Hz -1
+    }
+
+    /**
+     * Converts the given flux density (jansky) to magnitude (if band's zero point is well defined)
+     * @param flux_density jansky value
+     * @return magnitude
+     */
+    public double jyToMag(final double flux_density) {
+        if (Double.isNaN(zeroPoint)) {
+            return Double.NaN;
+        }
+        return -2.5 * (Math.log10(flux_density) - Math.log10(zeroPoint));
     }
 
     public static void main(String[] args) {
@@ -522,9 +534,13 @@ public enum Band {
         for (Band b : Arrays.asList(Band.L, Band.M, Band.N)) {
             System.out.println("Test Band (" + b + ", zero_point = " + b.getZeroPoint() + ")");
 
-            for (int mag = 0; mag <= 10; mag++) {
-                double flux_density = b.magToJy(mag); // Jy
-                System.out.println("mag: " + mag + " = " + flux_density + " Jy");
+            for (int m = 0; m <= 10; m++) {
+                final double mag = m;
+                final double flux_density = b.magToJy(mag); // Jy
+                final double mag_conv = b.jyToMag(flux_density); // mag
+                System.out.println("mag: " + mag
+                        + " <=> " + NumberUtils.trimTo3Digits(flux_density) + " Jy"
+                        + " <=> mag converted: " + NumberUtils.trimTo3Digits(mag_conv));
             }
         }
 
