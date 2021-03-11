@@ -482,6 +482,9 @@ public enum Band {
         if (Double.isNaN(zeroPoint)) {
             return Double.NaN;
         }
+        if (flux_density <= 0.0) {
+            return Double.NaN;
+        }
         return -2.5 * (Math.log10(flux_density) - Math.log10(zeroPoint));
     }
 
@@ -538,9 +541,16 @@ public enum Band {
                 final double mag = m;
                 final double flux_density = b.magToJy(mag); // Jy
                 final double mag_conv = b.jyToMag(flux_density); // mag
-                System.out.println("mag: " + mag
+                System.out.println("mag: " + NumberUtils.trimTo3Digits(mag)
                         + " <=> " + NumberUtils.trimTo3Digits(flux_density) + " Jy"
                         + " <=> mag converted: " + NumberUtils.trimTo3Digits(mag_conv));
+            }
+            for (double j = -1.0; j <= 2; j += 0.2) {
+                final double flux_density = (Math.abs(j) < 1e-3) ? 0.0 : j; // Jy
+                final double mag = b.jyToMag(flux_density);
+                System.out.println("jy: " + NumberUtils.trimTo3Digits(flux_density)
+                        + " <=> " + NumberUtils.trimTo3Digits(mag) + " mag"
+                );
             }
         }
 
