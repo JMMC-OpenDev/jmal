@@ -20,8 +20,9 @@ public interface VisNoiseService {
      * It returns Double.NaN if the error can not be computed
      *
      * @param visAmp visibility amplitude
+     * @param forAmplitude true to compute error for amplitudes (including the photometric error); false to compute error for phases
      * @return complex visiblity error or NaN if the error can not be computed
      */
-    public double computeVisComplexErrorValue(final double visAmp);
+    public double computeVisComplexErrorValue(final double visAmp, final boolean forAmplitude);
 
 }

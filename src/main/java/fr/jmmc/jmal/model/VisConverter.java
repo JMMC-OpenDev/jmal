@@ -84,7 +84,7 @@ public abstract class VisConverter {
         public float convert(double re, double im, final Random threadRandom) {
             if (this.doNoise) {
                 final double amp = ImmutableComplex.abs(re, im);
-                final double err = this.noiseService.computeVisComplexErrorValue(amp);
+                final double err = this.noiseService.computeVisComplexErrorValue(amp, false); // no photometry on phi
 
                 // Re/Im are two independent variables:
                 re += err * threadRandom.nextGaussian();
@@ -122,23 +122,21 @@ public abstract class VisConverter {
             if (this.doNoise) {
                 // use complex visibility error:
                 final double amp = ImmutableComplex.abs(re, im);
-                final double err = this.noiseService.computeVisComplexErrorValue(amp);
+                final double err = this.noiseService.computeVisComplexErrorValue(amp, true);
 
                 // Re/Im are two independent variables:
                 re += err * threadRandom.nextGaussian();
                 im += err * threadRandom.nextGaussian();
-
-                final double noisyAmp = ImmutableComplex.abs(re, im);
-
-                // Very noisy data when amp < err (ie SNR < 1):
-                if ((noisyAmp > amp) && (err > amp)) {
-                    // use 0 to ignore visually such pixels (use another blanking value ?)
-                    return 0f;
-                }
-                return (float) noisyAmp;
             }
-
-            return (float) ImmutableComplex.abs(re, im);
+            final double noisyAmp = ImmutableComplex.abs(re, im);
+            /*
+            // Very noisy data when amp < err (ie SNR < 1):
+            if ((noisyAmp > amp) && (err > amp)) {
+                // use 0 to ignore visually such pixels (use another blanking value ?)
+                return 0f;
+            }
+             */
+            return (float) noisyAmp; // sign ?
         }
     }
 
@@ -168,23 +166,27 @@ public abstract class VisConverter {
         public float convert(double re, double im, final Random threadRandom) {
             if (this.doNoise) {
                 final double amp = ImmutableComplex.abs(re, im);
-                final double err = this.noiseService.computeVisComplexErrorValue(amp);
+                final double err = this.noiseService.computeVisComplexErrorValue(amp, true);
 
                 // Re/Im are two independent variables:
                 re += err * threadRandom.nextGaussian();
                 im += err * threadRandom.nextGaussian();
-
-                final double noisyAmp = ImmutableComplex.abs(re, im);
-
-                // Very noisy data when amp < err (ie SNR < 1):
-                if ((noisyAmp > amp) && (err > amp)) {
-                    // use 0 to ignore visually such pixels (use another blanking value ?)
-                    return 0f;
-                }
-                return (float) (noisyAmp * noisyAmp);
             }
 
-            return (float) (re * re + im * im);
+            // compute C2=C*C
+            // (a + bi)(c + di) = (ac - bd) + (ad + bc)i
+            final double cRe = re * re - im * im;
+            final double cIm = 2.0 * re * im;
+
+            final double noisyV2 = ImmutableComplex.abs(cRe, cIm); // V^2
+            /*
+            // Very noisy data when amp < err (ie SNR < 1):
+            if ((noisyAmp > amp) && (err > amp)) {
+                // use 0 to ignore visually such pixels (use another blanking value ?)
+                return 0f;
+            }
+             */
+            return (float) noisyV2; // sign ?
         }
     }
 }
