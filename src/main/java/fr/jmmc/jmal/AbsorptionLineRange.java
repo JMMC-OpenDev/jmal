@@ -12,12 +12,33 @@ public enum AbsorptionLineRange {
     HeI_2_112("HeI 2.112", 2.0926, 2.1326),
     NIII_2_115("NIII 2.115", 2.1155 - 0.02, 2.1155 + 0.02), // http://adsabs.harvard.edu/abs/1996ApJS..107..281H
     MgII_2_140("MgII 2.140", 2.130, 2.150), // doublet
-    Brg_2_166("Brg 2.166", 2.136, 2.196),
+    Brg_2_166("Brγ 2.166", 2.136, 2.196),
     HeII_2_188("HeII 2.188", 2.1885 - 0.02, 2.1885 + 0.02), // http://adsabs.harvard.edu/abs/1996ApJS..107..281H
     NaI_2_206("NaI 2.206", 2.198, 2.218),
     NIII_2_249("NIII 2.249", 2.237, 2.261),
-    CO_bands("CO bands", 2.28, Double.NaN);
-    /*    
+    CO_bands("CO bands", 2.28, Double.NaN),
+    Bra_4_055("Brα 4.055", 4.055 - 0.02, 4.055 + 0.02);
+
+    /*
+    TODO: include other bands from:
+    MATISSE page (https://www.eso.org/sci/facilities/paranal/instruments/matisse/inst.html)
+    
+    Setup 	Central wavelength 	Spectral feature
+Medium and high L-band 	3.03 	Pfund 10-5
+  	3.05 	Water ice
+  	3.17 	C2H2, HCN, CN
+  	3.3 	PAH
+  	3.4 	CH
+  	3.52 	Nano-diamonds
+  	3.77 	C2H2
+  	3.88 	C2H2
+  	3.95 	C2H2
+  	4.0 	SiO
+  	4.05 	Bracket Alpha
+Medium M-band 	4.65 	Pfund 7-5
+  	4.78 	CO
+     */
+ /*    
     # -- spectral line database
     # -- see also https://arxiv.org/pdf/astro-ph/0008213.pdf, table 1
     lines = {#'HeI-II':[(2.058, 2.112, 2.1623, 2.166, 2.189), 'c'],
