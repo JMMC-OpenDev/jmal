@@ -4,6 +4,7 @@
 package fr.jmmc.jmal.image;
 
 import fr.jmmc.jmcs.util.FileUtils;
+import fr.jmmc.jmcs.util.StringUtils;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
@@ -101,7 +102,37 @@ public class ColorModels {
         "ramp.lut",
         "real.lut",
         "red.lut",
-        "smooth.lut"
+        "smooth.lut",
+        "scm7/acton.lut",
+        "scm7/bam.lut",
+        "scm7/bamako.lut",
+        "scm7/batlow.lut",
+        "scm7/batlowK.lut",
+        "scm7/batlowW.lut",
+        "scm7/berlin.lut",
+        "scm7/bilbao.lut",
+        "scm7/broc.lut",
+        "scm7/buda.lut",
+        "scm7/bukavu.lut",
+        "scm7/cork.lut",
+        "scm7/davos.lut",
+        "scm7/devon.lut",
+        "scm7/fes.lut",
+        "scm7/grayC.lut",
+        "scm7/hawaii.lut",
+        "scm7/imola.lut",
+        "scm7/lajolla.lut",
+        "scm7/lapaz.lut",
+        "scm7/lisbon.lut",
+        "scm7/nuuk.lut",
+        "scm7/oleron.lut",
+        "scm7/oslo.lut",
+        "scm7/roma.lut",
+        "scm7/tofino.lut",
+        "scm7/tokyo.lut",
+        "scm7/turku.lut",
+        "scm7/vanimo.lut",
+        "scm7/vik.lut"
     };
 
     /**
@@ -123,7 +154,11 @@ public class ColorModels {
         for (String name : LUT_FILES) {
             final IndexColorModel colorModel = loadFromFile(name);
             if (colorModel != null) {
-                addColorModel(name.substring(0, name.indexOf('.')), colorModel);
+                String label = StringUtils.replaceNonFileNameCharsByUnderscore(name.substring(0, name.indexOf('.')));
+                if (label.startsWith("scm")) {
+                    label = "xt_" + label;
+                }
+                addColorModel(label, colorModel);
             }
         }
 
@@ -1803,48 +1838,60 @@ public class ColorModels {
             StringTokenizer tok;
 
             // outputs :
-            final int LEN = 128;
-
             final float[] rf = new float[MAX_COLORS];
             final float[] gf = new float[MAX_COLORS];
             final float[] bf = new float[MAX_COLORS];
 
-            for (int i = 0, n = 0; (line = reader.readLine()) != null && n <= LEN; i += 2, n++) {
-                tok = new StringTokenizer(line, " ");
+            if (name.startsWith("scm")) {
+                final int LEN = 255;
+                for (int i = 0; (line = reader.readLine()) != null && i <= LEN; i++) {
+                    tok = new StringTokenizer(line, " ");
 
-                if (tok.countTokens() == 3) {
-                    rf[i] = 255f * Float.parseFloat(tok.nextToken());
-                    gf[i] = 255f * Float.parseFloat(tok.nextToken());
-                    bf[i] = 255f * Float.parseFloat(tok.nextToken());
+                    if (tok.countTokens() == 3) {
+                        rf[i] = 255f * Float.parseFloat(tok.nextToken());
+                        gf[i] = 255f * Float.parseFloat(tok.nextToken());
+                        bf[i] = 255f * Float.parseFloat(tok.nextToken());
+                    }
+                }
+            } else {
+                final int LEN = 128;
+
+                for (int i = 0, n = 0; (line = reader.readLine()) != null && n <= LEN; i += 2, n++) {
+                    tok = new StringTokenizer(line, " ");
+
+                    if (tok.countTokens() == 3) {
+                        rf[i] = 255f * Float.parseFloat(tok.nextToken());
+                        gf[i] = 255f * Float.parseFloat(tok.nextToken());
+                        bf[i] = 255f * Float.parseFloat(tok.nextToken());
+                    }
                 }
 
-            }
+                for (int i = 1, j, k, size = MAX_COLORS - 2; i < size; i += 2) {
+                    j = i - 1;
+                    k = i + 1;
+                    rf[i] = 0.5f * (rf[j] + rf[k]);
+                    gf[i] = 0.5f * (gf[j] + gf[k]);
+                    bf[i] = 0.5f * (bf[j] + bf[k]);
+                }
 
-            for (int i = 1, j, k, size = MAX_COLORS - 2; i < size; i += 2) {
-                j = i - 1;
-                k = i + 1;
-                rf[i] = 0.5f * (rf[j] + rf[k]);
-                gf[i] = 0.5f * (gf[j] + gf[k]);
-                bf[i] = 0.5f * (bf[j] + bf[k]);
-            }
+                // special case : color 255 :
+                rf[MAX_COLORS - 1] = rf[MAX_COLORS - 2];
+                gf[MAX_COLORS - 1] = gf[MAX_COLORS - 2];
+                bf[MAX_COLORS - 1] = bf[MAX_COLORS - 2];
 
-            // special case : color 255 :
-            rf[MAX_COLORS - 1] = rf[MAX_COLORS - 2];
-            gf[MAX_COLORS - 1] = gf[MAX_COLORS - 2];
-            bf[MAX_COLORS - 1] = bf[MAX_COLORS - 2];
+                if (FORCE_ZERO) {
+                    // force to have black color :
+                    final int REF_COLOR = 4;
 
-            if (FORCE_ZERO) {
-                // force to have black color :
-                final int REF_COLOR = 4;
+                    final float rfRef = rf[REF_COLOR];
+                    final float gfRef = gf[REF_COLOR];
+                    final float bfRef = bf[REF_COLOR];
 
-                final float rfRef = rf[REF_COLOR];
-                final float gfRef = gf[REF_COLOR];
-                final float bfRef = bf[REF_COLOR];
-
-                for (int i = REF_COLOR - 1; i >= 0; i--) {
-                    rf[i] = rfRef * i / REF_COLOR;
-                    gf[i] = gfRef * i / REF_COLOR;
-                    bf[i] = bfRef * i / REF_COLOR;
+                    for (int i = REF_COLOR - 1; i >= 0; i--) {
+                        rf[i] = rfRef * i / REF_COLOR;
+                        gf[i] = gfRef * i / REF_COLOR;
+                        bf[i] = bfRef * i / REF_COLOR;
+                    }
                 }
             }
 
@@ -1864,6 +1911,8 @@ public class ColorModels {
             throw new IllegalStateException("loadLutFromFile failure: ", uee);
         } catch (IOException ioe) {
             logger.info("loadLutFromFile failure: {}", name, ioe);
+        } catch (RuntimeException re) {
+            logger.info("loadLutFromFile failure: {}", name, re);
         } finally {
             FileUtils.closeFile(reader);
         }
@@ -1905,25 +1954,36 @@ public class ColorModels {
 
         // Prepare the lut file list :
         try {
-            final String[] lutFiles = getResourceListing(ColorModels.class, "fr/jmmc/jmal/image/lut/");
+            final StringBuilder sb = new StringBuilder(512);
+            sb.append("private final static String[] LUT_FILES = {\n");
 
+            final String[] lutFiles = getResourceListing(ColorModels.class, "fr/jmmc/jmal/image/lut/");
             if (lutFiles != null) {
                 Arrays.sort(lutFiles);
 
-                final StringBuilder sb = new StringBuilder(512);
-
-                sb.append("private final static String[] LUT_FILES = {\n");
                 for (String name : lutFiles) {
                     sb.append("\"").append(name).append("\"").append(", \n");
                 }
-                final int pos = sb.lastIndexOf(",");
-                if (pos != -1) {
-                    sb.deleteCharAt(pos);
-                }
-                sb.append("};");
-
-                logger.info("lut files :\n{}", sb.toString());
             }
+
+            final String[] lutFilesSCM7 = getResourceListing(ColorModels.class, "fr/jmmc/jmal/image/lut/scm7");
+            if (lutFilesSCM7 != null) {
+                Arrays.sort(lutFilesSCM7);
+
+                for (String name : lutFilesSCM7) {
+                    if (name.endsWith("lut")) {
+                        sb.append("\"scm7/").append(name).append("\"").append(", \n");
+                    }
+                }
+            }
+
+            final int pos = sb.lastIndexOf(",");
+            if (pos != -1) {
+                sb.deleteCharAt(pos);
+            }
+            sb.append("};");
+
+            logger.info("lut files :\n{}", sb.toString());
 
         } catch (Exception e) { // main (test)
             logger.info("resource listing failure: ", e);
