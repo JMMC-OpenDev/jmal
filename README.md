@@ -15,6 +15,9 @@ See [CI nightly builds](https://github.com/JMMC-OpenDev/jmmc-java-build/actions/
 
 The JMMC Astronomical Library provides lots of math functions (normal distribution, fft, model computation, image processing) and the Star resolver widget.
 
+See the `pom.xml` file to get all dependencies, including other JMMC OpenDev modules:
+- [jmcs](https://github.com/JMMC-OpenDev/jmcs)
+
 To be continued...
 
 
