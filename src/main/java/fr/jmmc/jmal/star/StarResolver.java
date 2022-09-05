@@ -30,7 +30,7 @@ import org.slf4j.LoggerFactory;
 public final class StarResolver {
 
     /** Use -DSimbad.resolver.cache=true (dev) to use local query/response caching */
-    public static final boolean USE_CACHE_DEV = Boolean.getBoolean("Simbad.resolver.cache"); 
+    public static final boolean USE_CACHE_DEV = Boolean.getBoolean("Simbad.resolver.cache");
 
     /** semicolon separator (multiple identifier separator) */
     public static final String SEPARATOR_SEMI_COLON = ";";
@@ -47,10 +47,12 @@ public final class StarResolver {
     private final static Pattern PATTERN_UNDERSCORE = Pattern.compile("_");
     /** RegExp expression to match white spaces arround semicolon separator */
     private final static Pattern PATTERN_WHITE_SPACE_ARROUND_SEMI_COLON = Pattern.compile("\\s*;\\s*");
+    /** Simbad base URL (main CDS host) */
+    public static final String SIMBAD_MAIN_URL = "http://simbad.u-strasbg.fr/simbad/";
 
     static {
         _simbadMirrors = new LinkedHashMap<String, String>(4);
-        _simbadMirrors.put("SIMBAD Strasbourg, FR", "http://simbad.u-strasbg.fr/simbad/sim-script");
+        _simbadMirrors.put("SIMBAD Strasbourg, FR", SIMBAD_MAIN_URL + "sim-script");
         _simbadMirrors.put("SIMBAD Harvard, US", "http://simbad.harvard.edu/simbad/sim-script");
         _simbadMirrors.put("SIMBAD Strasbourg, FR [IP]", "http://130.79.128.4/simbad/sim-script");
     }
