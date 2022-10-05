@@ -1,0 +1,22 @@
+---------------------------------------
+
+ColorCET
+
+Perceptually Uniform Colour Maps
+
+---------------------------------------
+
+Source: https://colorcet.com/index.html
+
+File:   https://colorcet.com/download/CETperceptual_csv_0_1.zip
+
+License: 
+Creative Commons BY License 
+See https://creativecommons.org/licenses/by/4.0/legalcode
+
+Citation: 
+Peter Kovesi. Good Colour Maps: How to Design Them.
+arXiv:1509.03700 [cs.GR] 2015 (https://arxiv.org/abs/1509.03700)
+
+---------------------------------------
+

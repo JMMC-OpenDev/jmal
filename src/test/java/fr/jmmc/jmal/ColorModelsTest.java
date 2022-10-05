@@ -27,7 +27,7 @@ public class ColorModelsTest {
         try {
             final File file = new File("ColorModelsTest-" + name + ".png");
 
-            System.out.println("Writing file: " + file.getAbsolutePath());;
+            System.out.println("Writing file: " + file.getAbsolutePath());
             ImageIO.write(image, "PNG", file);
         } catch (IOException ioe) {
             throw new RuntimeException(ioe);

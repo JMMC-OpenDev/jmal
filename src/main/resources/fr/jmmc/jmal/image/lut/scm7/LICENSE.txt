@@ -1,0 +1,29 @@
+---------------------------------------
+
+Scientific colour maps
+
+Version 7.0.1
+
+---------------------------------------
+
+Source: https://www.fabiocrameri.ch/colourmaps/
+
+File:	https://doi.org/10.5281/zenodo.1243862
+
+User-Guide: https://www.fabiocrameri.ch/colourmaps-userguide/
+
+Citation:
+”The Scientific colour map batlow (Crameri 2018) is used in
+this study to prevent visual distortion of the data and exclusion of
+readers with colourvision deficiencies (Crameri et al., 2020). ”
+
+- The software : 
+    Crameri, F. (2018a), Scientific colour maps. Zenodo. 
+        http://doi.org/10.5281/zenodo.1243862
+
+- The research : 
+    Crameri, F., G.E. Shephard, and P.J. Heron (2020), The mis-use of colour in science communication, Nature Communications, 11, 5444. 
+        doi: 10.1038/s41467-020-19160-7
+
+---------------------------------------
+
