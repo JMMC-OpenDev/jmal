@@ -3,6 +3,7 @@
  ***************************************************************************** */
 package fr.jmmc.jmal.image;
 
+import fr.jmmc.jmcs.gui.util.SwingUtils;
 import fr.jmmc.jmcs.util.FileUtils;
 import fr.jmmc.jmcs.util.StringUtils;
 import java.awt.Color;
@@ -622,8 +623,10 @@ public class ColorModels {
         final int mapSize = colorModel.getMapSize();
         final int iMaxColor = mapSize - 1;
 
-        final int width = 256; // always 256px to be consistent among color models
-        final int height = 16;
+        final int scaleInt = Math.max(1, SwingUtils.adjustUISizeCeil(1));
+
+        final int width = scaleInt * MAX_COLORS; // always 256px to be consistent among color models
+        final int height = scaleInt * 32;
 
         final BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
 
@@ -631,12 +634,19 @@ public class ColorModels {
         g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
 
         try {
+            final float ratio = MAX_COLORS / mapSize;
+
+            float x = 0f;
             for (int n = 0; n < mapSize; n++) {
                 final int rgb = ImageUtils.getRGB(colorModel, iMaxColor, n, 0);
 
                 // paint color:
                 g2d.setColor(new Color(rgb)); // ignore alpha
-                g2d.fillRect(n, 0, n + 1, height);
+
+                final float x2 = x + scaleInt * ratio;
+
+                g2d.fillRect(Math.round(x), 0, Math.round(x2), height);
+                x = x2;
             }
         } finally {
             g2d.dispose();
