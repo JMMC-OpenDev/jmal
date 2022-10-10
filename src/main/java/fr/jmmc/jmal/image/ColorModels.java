@@ -623,7 +623,7 @@ public class ColorModels {
         final int mapSize = colorModel.getMapSize();
         final int iMaxColor = mapSize - 1;
 
-        final int scaleInt = Math.max(1, SwingUtils.adjustUISizeCeil(1));
+        final int scaleInt = SwingUtils.adjustUISizeCeil(1);
 
         final int width = scaleInt * MAX_COLORS; // always 256px to be consistent among color models
         final int height = scaleInt * 32;
