@@ -14,14 +14,14 @@
         <!-- Java Mariotti Common Software -->
         <package name="jMCS"
             description="JMMC framework, enabling better user interface and platform integration across Mac, Linux and Windows through numerous third-party libraries and in-house code"
-            link="http://www.jmmc.fr/dev/jmcs/"
+            link="https://github.com/JMMC-OpenDev/jmcs/"
             jars="jmcs.jar"
             license="BSD"/>     
 
         <!-- Java Mariotti Astronomical library -->
         <package name="jMAL"
             description="JMMC library to provide common astronomical computations (coordinate conversion, SIMBAD star resolver and analytical object models in interferometry)"
-            link="http://www.jmmc.fr/dev/jmal/"
+            link="https://github.com/JMMC-OpenDev/jmal/"
             jars="jmal.jar"
             license="CECILL-B ???"/>     
 
