@@ -78,6 +78,8 @@ public class ColorModels {
     private final static String SEPARATOR_CSV = ",";
     /* ColorCET prefix */
     private final static String PREFIX_CET = "CET";
+    /* MyCarta prefix */
+    private final static String PREFIX_MYCARTA = "MyCarta";
     /* SCM prefix */
     private final static String PREFIX_SCM = "scm7";
 
@@ -174,6 +176,10 @@ public class ColorModels {
         "CET/CET-R2.csv",
         "CET/CET-R3.csv",
         "CET/CET-R4.csv",
+        /* MyCarta */
+        "MyCarta/Linear_L_0-1.csv", 
+        "MyCarta/cube1_0-1.csv", 
+        "MyCarta/cubeYF_0-1.csv",
         /* SCM7 */
         "scm7/acton.lut",
         "scm7/bam.lut",
@@ -446,7 +452,7 @@ public class ColorModels {
             final float[] gf = new float[MAX_COLORS];
             final float[] bf = new float[MAX_COLORS];
 
-            if (name.startsWith(PREFIX_CET)) {
+            if (name.startsWith(PREFIX_CET) || name.startsWith(PREFIX_MYCARTA)) {
                 final int LEN = 255;
                 for (int i = 0; (line = reader.readLine()) != null && i <= LEN; i++) {
                     tok = new StringTokenizer(line, SEPARATOR_CSV);
@@ -591,6 +597,17 @@ public class ColorModels {
                 }
             }
 
+            final String[] lutFilesMyCarta = getResourceListing(ColorModels.class, "fr/jmmc/jmal/image/lut/MyCarta");
+            if (lutFilesMyCarta != null) {
+                Arrays.sort(lutFilesMyCarta);
+
+                for (String name : lutFilesMyCarta) {
+                    if (name.endsWith("csv")) {
+                        sb.append('"').append(PREFIX_MYCARTA).append('/').append(name).append('"').append(", \n");
+                    }
+                }
+            }
+            
             final String[] lutFilesSCM7 = getResourceListing(ColorModels.class, "fr/jmmc/jmal/image/lut/scm7");
             if (lutFilesSCM7 != null) {
                 Arrays.sort(lutFilesSCM7);
