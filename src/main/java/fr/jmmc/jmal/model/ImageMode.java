@@ -9,11 +9,10 @@ package fr.jmmc.jmal.model;
  * @author bourgesl
  */
 public enum ImageMode {
-
+    /** Square amplitude */
+    SQUARE,
     /** Amplitude */
     AMP,
     /** Phase */
-    PHASE,
-    /** Square amplitude */
-    SQUARE
+    PHASE
 }
