@@ -7,17 +7,19 @@ package fr.jmmc.jmal;
  * Enumeration of standard ranges arround well-known absorption lines
  */
 public enum AbsorptionLineRange {
-    HeI_2_058("HeI 2.058", 2.038, 2.078),
+    HeI_2_058( "HeI 2.058", 2.038, 2.078),
     FeII_2_089("FeII 2.089", 2.074, 2.104), // Warm and dense CSE https://arxiv.org/pdf/1408.6658.pdf sec 3.2.1
-    HeI_2_112("HeI 2.112", 2.0926, 2.1326),
+    HeI_2_112( "HeI 2.112", 2.0926, 2.1326),
     NIII_2_115("NIII 2.115", 2.1155 - 0.02, 2.1155 + 0.02), // http://adsabs.harvard.edu/abs/1996ApJS..107..281H
     MgII_2_140("MgII 2.140", 2.130, 2.150), // doublet
-    Brg_2_166("Brγ 2.166", 2.136, 2.196),
+    Brg_2_166( "Brγ 2.166", 2.136, 2.196),
     HeII_2_188("HeII 2.188", 2.1885 - 0.02, 2.1885 + 0.02), // http://adsabs.harvard.edu/abs/1996ApJS..107..281H
-    NaI_2_206("NaI 2.206", 2.198, 2.218),
+    NaI_2_206( "NaI 2.206", 2.198, 2.218),
     NIII_2_249("NIII 2.249", 2.237, 2.261),
-    CO_bands("CO bands", 2.28, Double.NaN),
-    Bra_4_055("Brα 4.055", 4.055 - 0.02, 4.055 + 0.02);
+    CO_bands(  "CO bands", 2.28, Double.NaN),
+    PAHs_3_3(  "PAHs 3.30", 3.15, 3.45),
+    Bra_4_055( "Brα 4.055", 4.055 - 0.02, 4.055 + 0.02),
+    Pfb_4_65(  "Pfβ 4.65", 4.65 - 0.02, 4.65 + 0.02);
 
     /*
     TODO: include other bands from:
