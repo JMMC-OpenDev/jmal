@@ -49,6 +49,27 @@ public enum Band {
     public final static double C_LIGHT = 2.99792458e8;
 
     /**
+     * Find the band corresponding to the given band name
+     *
+     * @param bandName wave length in microns
+     * @return corresponding band or null if no match
+     */
+    public static Band findBand(final String bandName) throws IllegalStateException {
+        if (bandName != null && bandName.length() != 0) {
+            final Band[] bands = values();
+            final int len = bands.length;
+
+            for (int i = len - 1; i >= 0; i--) {
+                final Band b = bands[i];
+                if (b.getName().equals(bandName)) {
+                    return b;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
      * Find the band corresponding to the given wavelength
      *
      * @param waveLength wave length in microns
@@ -467,6 +488,9 @@ public enum Band {
      * @return jansky value (flux density)
      */
     public double magToJy(final double mag) {
+        if (Double.isNaN(mag) || Double.isNaN(zeroPoint)) {
+            return Double.NaN;
+        }
         if (Double.isNaN(zeroPoint)) {
             return Double.NaN;
         }
@@ -479,10 +503,7 @@ public enum Band {
      * @return magnitude
      */
     public double jyToMag(final double flux_density) {
-        if (Double.isNaN(zeroPoint)) {
-            return Double.NaN;
-        }
-        if (flux_density <= 0.0) {
+        if (Double.isNaN(flux_density) || Double.isNaN(zeroPoint) || (flux_density <= 0.0)) {
             return Double.NaN;
         }
         return -2.5 * (Math.log10(flux_density) - Math.log10(zeroPoint));
