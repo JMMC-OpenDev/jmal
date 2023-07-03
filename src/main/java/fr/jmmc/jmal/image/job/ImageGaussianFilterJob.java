@@ -3,7 +3,6 @@
  ******************************************************************************/
 package fr.jmmc.jmal.image.job;
 
-import java.util.Arrays;
 import java.util.List;
 import net.jafama.FastMath;
 
@@ -28,18 +27,18 @@ public final class ImageGaussianFilterJob extends AbstractImageJob<Void> {
      * @param height image height
      * @param colFreqs spatial coordinates (rad) (relative to the half width)
      * @param rowFreqs spatial coordinates (rad) (relative to the half height)
-     * @param fwhm gaussian sigma value (rad)
+     * @param sigma gaussian sigma value (rad)
      */
     public ImageGaussianFilterJob(final float[][] array, final int width, final int height,
-                                  final double[] colFreqs, final double[] rowFreqs, final double fwhm) {
+                                  final double[] colFreqs, final double[] rowFreqs, final double sigma) {
         super("ImageGaussianFilterJob", array, width, height);
 
         /*
-             * Gaussian 2D function:
-             * g(x,y) = exp(-( (x - x0)^2 + (y - y0)^2 ) / (2 x sigma^2) )
+         * Gaussian 2D function:
+         * g(x,y) = exp(-( (x - x0)^2 + (y - y0)^2 ) / (2 x sigma^2) )
          */
         // precompute normalization factor:
-        final double sigma_norm = -1.0 / (2.0 * fwhm * fwhm);
+        final double sigma_norm = -1.0 / (2.0 * sigma * sigma);
 
         final double[] colWeights = colFreqs; // X
         final double[] rowWeights = rowFreqs; // Y        
