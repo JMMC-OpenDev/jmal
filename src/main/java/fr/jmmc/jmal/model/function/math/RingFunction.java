@@ -21,6 +21,19 @@ public class RingFunction extends DiskFunction {
     }
 
     /**
+     * Check the function parameters against the given maximum distance.
+     *
+     * @param maxDist maximum distance in mas
+     * @return true if valid; false otherwise
+     */
+    @Override
+    public boolean check(final double maxDist) {
+        return super.check(maxDist)
+                && check("diameter + width", (diameter + width), maxDist)
+                && ((axisRatio <= 1d) || check("(diameter + width) * axisRatio", ((diameter + width) * axisRatio), maxDist));
+    }
+
+    /**
      * Define the width (mas)
      *
      * @param width width (mas)

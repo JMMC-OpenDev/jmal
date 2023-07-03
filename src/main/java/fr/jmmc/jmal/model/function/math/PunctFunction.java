@@ -3,12 +3,18 @@
  ***************************************************************************** */
 package fr.jmmc.jmal.model.function.math;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * This class is the base class of all functions computing the Fourier transform at frequencies (UFREQ,VFREQ) of an object.
  *
  * @author Laurent BOURGES.
  */
 public class PunctFunction {
+
+    /** Class logger */
+    private static final Logger logger = LoggerFactory.getLogger(PunctFunction.class.getName());
 
     /** x coordinate of the object (mas) */
     protected double x = 0d;
@@ -24,6 +30,34 @@ public class PunctFunction {
      */
     public PunctFunction() {
         super();
+    }
+
+    /**
+     * Check the function parameters against the given maximum distance.
+     *
+     * @param maxDist maximum distance in mas
+     * @return true if valid; false otherwise
+     */
+    public boolean check(final double maxDist) {
+        return true;
+    }
+
+    /**
+     * Check the given distance against the given maximum distance.
+     * @param name name of the parameter
+     * @param dist distance in mas to check
+     * @param maxDist maximum distance in mas
+     * @return true if valid; false otherwise
+     */
+    public static boolean check(final String name, final double dist, final double maxDist) {
+        if (dist < maxDist) {
+            if (logger.isDebugEnabled()) {
+                logger.debug("check: valid {} = {} < {}", name, dist, maxDist);
+            }
+            return true;
+        }
+        logger.info("check: Invalid {} = {} > {} !", name, dist, maxDist);
+        return false;
     }
 
     /**

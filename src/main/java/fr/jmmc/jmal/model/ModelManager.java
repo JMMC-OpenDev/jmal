@@ -13,6 +13,7 @@ import fr.jmmc.jmal.model.function.RingModelFunction;
 import fr.jmmc.jmal.model.function.math.PunctFunction;
 import fr.jmmc.jmal.model.targetmodel.Model;
 import fr.jmmc.jmal.model.targetmodel.Parameter;
+import fr.jmmc.jmal.util.MathUtils;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -157,14 +158,60 @@ public final class ModelManager {
      */
     public void validateModels(final List<Model> models) throws IllegalArgumentException {
         if (models != null && !models.isEmpty()) {
-            ModelFunction mf;
             for (Model model : models) {
-                mf = getModelFunction(model.getType());
+                final ModelFunction mf = getModelFunction(model.getType());
 
                 // check model parameters :
                 mf.validate(model);
             }
         }
+    }
+
+    /**
+     * Check the given models have dimensions below the max distance threshold in mas.
+     *
+     * @param models list of models to validate
+     * @param maxDist maximum angular separation (mas)
+     * @return true if valid; false otherwise
+     */
+    public boolean checkModels(final List<Model> models, final double maxDist) {
+        if (models != null && !models.isEmpty()) {
+            logger.debug("checkModels: maxDist = {} mas", maxDist);
+
+            final int len = models.size();
+            final List<PunctFunction> functions = new ArrayList<PunctFunction>(len);
+
+            // Parse models and prepare the model functions:
+            for (Model model : models) {
+                final ModelFunction mf = getModelFunction(model.getType());
+
+                // Get parameters to fill the function context :
+                final PunctFunction function = mf.prepareFunction(model);
+
+                // check function parameters:
+                if (!function.check(maxDist)) {
+                    return false;
+                }
+                functions.add(function);
+            }
+
+            if (len > 1) {
+                // check distance between components:
+                for (int i = 0; i < len; i++) {
+                    final PunctFunction f1 = functions.get(i);
+
+                    for (int j = i + 1; j < len; j++) {
+                        final PunctFunction f2 = functions.get(j);
+                        final double dist = MathUtils.carthesianNorm(f2.getX() - f1.getX(), f2.getY() - f1.getY());
+                        
+                        if (!PunctFunction.check("dist(" + i + "-" + j + ")", dist, maxDist)) {
+                            return false;
+                        }
+                    }
+                }
+            }
+        }
+        return true;
     }
 
     /**
@@ -193,9 +240,8 @@ public final class ModelManager {
         final List<PunctFunction> functions = new ArrayList<PunctFunction>(models.size());
 
         // Parse models and prepare the model functions:
-        ModelFunction mf;
         for (Model model : models) {
-            mf = getModelFunction(model.getType());
+            final ModelFunction mf = getModelFunction(model.getType());
 
             // check model parameters :
             mf.validate(model);

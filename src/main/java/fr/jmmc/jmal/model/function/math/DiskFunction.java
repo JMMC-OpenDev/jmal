@@ -43,6 +43,18 @@ public class DiskFunction extends CircleFunction {
     }
 
     /**
+     * Check the function parameters against the given maximum distance.
+     *
+     * @param maxDist maximum distance in mas
+     * @return true if valid; false otherwise
+     */
+    @Override
+    public boolean check(final double maxDist) {
+        return super.check(maxDist)
+                && ((axisRatio <= 1d) || check("diameter * axisRatio", (diameter * axisRatio), maxDist));
+    }
+
+    /**
      * Define the Axis ratio :
      * For the elongated model, the axis ratio = major axis / minor axis.
      * For the flattened model, the axis ratio = minor axis / major axis.

@@ -21,6 +21,17 @@ public class CircleFunction extends PunctFunction {
     }
 
     /**
+     * Check the function parameters against the given maximum distance.
+     *
+     * @param maxDist maximum distance in mas
+     * @return true if valid; false otherwise
+     */
+    @Override
+    public boolean check(final double maxDist) {
+        return check("diameter", diameter, maxDist);
+    }
+
+    /**
      * Define the diameter (mas)
      *
      * @param diameter diameter (mas)
