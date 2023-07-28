@@ -171,7 +171,8 @@ public final class MutableComplex implements Complex {
      * <code>rhs</code> is null
      */
     @Override
-    public Complex add(final double re, final double im) {
+    public synchronized Complex add(final double re, final double im) {
+        // note: use synchronized for thread safety (concurrent model computation)
 //        return updateOrCreateComplex(real + re, imaginary + im);
         this.real += re;
         this.imaginary += im;

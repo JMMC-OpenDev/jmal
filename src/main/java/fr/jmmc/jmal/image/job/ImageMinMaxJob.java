@@ -13,7 +13,6 @@ import java.util.List;
 public final class ImageMinMaxJob extends AbstractImageJob<MinMaxResult> {
 
     /* members */
-
     /** flag to ignore zero values */
     final boolean _excludeZero;
 
@@ -162,13 +161,13 @@ public final class ImageMinMaxJob extends AbstractImageJob<MinMaxResult> {
     protected static final class MinMaxResult {
 
         /** number of data */
-        protected int _nData = 0;
+        int _nData = 0;
         /** sum of values */
-        protected double _sum = 0d;
+        double _sum = 0d;
         /** minimum value */
-        protected float _min = Float.POSITIVE_INFINITY;
+        float _min = Float.POSITIVE_INFINITY;
         /** maximum value */
-        protected float _max = Float.NEGATIVE_INFINITY;
+        float _max = Float.NEGATIVE_INFINITY;
 
         /**
          * Protected Constructor
