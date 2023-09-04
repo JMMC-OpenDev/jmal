@@ -82,7 +82,7 @@ public enum Band {
 
         for (int i = len - 1; i >= 0; i--) {
             final Band b = bands[i];
-            if (Math.abs(waveLength - b.getLambda()) <= (0.5 * b.getBandWidth())) {
+            if (Math.abs(waveLength - b.getLambda()) <= b.getHalfBandWidth()) {
                 return b;
             }
         }
@@ -336,6 +336,8 @@ public enum Band {
     private final double zeroPoint;
     /** wave length in microns corresponding to the given zero flux */
     private final double lambdaFluxZero;
+    /** half band width in microns */
+    private final double halfBandWidth;
 
     /**
      * Custom constructor
@@ -386,6 +388,7 @@ public enum Band {
         this.strehlMax = strehlMax;
         this.zeroPoint = zeroPoint;
         this.lambdaFluxZero = lambdaFluxZero;
+        this.halfBandWidth = 0.5 * bandWidth;
     }
 
     /**
@@ -406,6 +409,14 @@ public enum Band {
         return lambda;
     }
 
+    public double getLambdaLower() {
+        return lambda - halfBandWidth;
+    }
+
+    public double getLambdaUpper() {
+        return lambda + halfBandWidth;
+    }
+
     /**
      * Return the band width in microns
      *
@@ -413,6 +424,10 @@ public enum Band {
      */
     public double getBandWidth() {
         return bandWidth;
+    }
+
+    double getHalfBandWidth() {
+        return halfBandWidth;
     }
 
     /**
@@ -523,10 +538,9 @@ public enum Band {
         }
 
         for (Band b : values()) {
-            double half = 0.5 * b.getBandWidth();
             double mid = b.getLambda();
-            double min = mid - half;
-            double max = mid + half;
+            double min = b.getLambdaLower();
+            double max = b.getLambdaUpper();
             double lambda0 = b.getLambdaFluxZero();
 
             final double nzero = b.getNbPhotZero();
@@ -538,6 +552,14 @@ public enum Band {
                     + " l0: " + NumberUtils.trimTo3Digits(lambda0)
                     + " n0 : " + nzero
             );
+        }
+
+        if (false) {
+            for (double wl = 2.0; wl < 14.0; wl += 0.02) {
+                Band b = Band.findBand(wl);
+                System.out.println("Band: " + b.getName()
+                        + " wl: " + NumberUtils.trimTo3Digits(wl));
+            }
         }
         /*
             Band: U min: 0.301 mid: 0.334 max: 0.367 l0: 0.334 n0 : 6.6937549979784128E16
