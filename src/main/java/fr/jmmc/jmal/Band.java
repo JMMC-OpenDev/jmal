@@ -134,12 +134,14 @@ public enum Band {
                                   final double quantumEfficiency, final double ron,
                                   final double elevation) {
 
+        // avoid cos(0) so use min elevation = 0.5 deg:
+        final double usedElevation = Math.max(elevation, 0.5);
+        
         final double lambdaV = 0.5; // seeing is given at 500 nm
-
         final double lambdaAO = (aoBand != Band.V) ? aoBand.getLambdaFluxZero() : lambdaV;
 
         // r0(e)=cos(90-e)^(3/5) * r0
-        final double r0_corr = R0_FACTOR * FastMath.pow(FastMath.cos(FastMath.toRadians(90.0 - elevation)), 3.0 / 5.0);
+        final double r0_corr = R0_FACTOR * FastMath.pow(FastMath.cos(FastMath.toRadians(90.0 - usedElevation)), 3.0 / 5.0);
 
         final double td_over_t0 = td / t0;
 
@@ -148,7 +150,7 @@ public enum Band {
         final double ds = Math.sqrt(ds2);
 
         if (logger.isDebugEnabled()) {
-            logger.debug("elevation     = {}", elevation);
+            logger.debug("elevation     = {}", usedElevation);
             logger.debug("lambdaAO      = {}", lambdaAO);
             logger.debug("magnitude     = {}", magnitude);
             logger.debug("diameter      = {}", diameter);
@@ -526,6 +528,14 @@ public enum Band {
 
     public static void main(String[] args) {
         if (true) {
+            System.out.println("r0(seeing = 0.5as) : " + getR0(90.0, 0.5, 0.5) + " cm");
+            System.out.println("r0(seeing = 1.0as) : " + getR0(90.0, 0.5, 1.0) + " cm");
+            System.out.println("r0(seeing = 1.5as) : " + getR0(90.0, 0.5, 1.5) + " cm");
+            
+            System.exit(1);
+        }
+        
+        if (true) {
             /*
             Fix MATISSE bands:
             L: 2.8 - 4.2    f0= 7e-11 W.m − 2.um-1 (3.5um)
@@ -608,4 +618,45 @@ public enum Band {
         }
     }
 
+    private static double getR0(final double usedElevation, final double lambdaObs, final double seeing) {
+        
+        final double lambdaV = 0.5; // seeing is given at 500 nm
+
+        // r0(e)=cos(90-e)^(3/5) * r0
+        final double r0_corr = R0_FACTOR * FastMath.pow(FastMath.cos(FastMath.toRadians(90.0 - usedElevation)), 3.0 / 5.0);
+
+        // explication formule r0:
+        // seeing=angular FWHM of seeing in V= 1.22 lambdaV/(r0) r0=fried coherence length.
+        // to have seeing in arcsec and all wavelengths in microns, we have
+        // seeing * a = 1.22 * lambdaV * 1E-6 / r0 with a=1 arcsec in RD=PI/180*3600
+        // thus r0 = 1.22*1E-6 / a * seeing = 0.251 * lambdaV / seeing
+        // R0_FACTOR = 0.251...
+        // use lambdaV as seeing is given for V:
+        final double lambdaRatio = (lambdaObs / lambdaV);
+
+        // r0 at lambda AO:
+        final double r0 = r0_corr * (lambdaV / seeing) * FastMath.pow(lambdaRatio, 6.0 / 5.0);
+        
+        final double r0_grav = 0.98e-6 * lambdaV / as2rad(seeing); // m
+        
+        System.out.println("as2rad(1): "+as2rad(1.0));
+        
+        System.out.println("r0:   "+r0);
+        System.out.println("r0_g: "+r0_grav);
+        
+        System.out.println("ratio: " + r0 / r0_grav + " ?= " + (1.22/0.98));
+        
+        System.out.println("ratio: " + (Math.PI / (180 * 3600)));
+        
+        return r0;
+    }
+    
+    private static double rad2as(double angRad) {
+        return Math.toDegrees(angRad) * ALX.DEG_IN_ARCSEC;
+    }
+    
+    private static double as2rad(double angAs) {
+        return Math.toRadians(angAs * ALX.ARCSEC_IN_DEGREES);
+    }
+    
 }
