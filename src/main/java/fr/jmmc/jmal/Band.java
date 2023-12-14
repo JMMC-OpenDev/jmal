@@ -121,6 +121,7 @@ public enum Band {
      * @param diameter telescope diameter in meters
      * @param seeing seeing in arc sec
      * @param nbSubPupils number of sub-pupils (interesting pixels on the camera)
+     * @param nbActuators number of actuators (or corrected AO modes)
      * @param td detector time (ms)
      * @param t0 coherence time (ms)
      * @param quantumEfficiency Detector quantum efficiency
@@ -129,14 +130,14 @@ public enum Band {
      * @return strehl ratio
      */
     public static double[] strehl(final Band aoBand, final double magnitude, final double[] waveLengths,
-                                  final double diameter, final double seeing, final int nbSubPupils,
+                                  final double diameter, final double seeing, final int nbSubPupils, final int nbActuators,
                                   final double td, final double t0,
                                   final double quantumEfficiency, final double ron,
                                   final double elevation) {
 
         // avoid cos(0) so use min elevation = 0.5 deg:
         final double usedElevation = Math.max(elevation, 0.5);
-        
+
         final double lambdaV = 0.5; // seeing is given at 500 nm
         final double lambdaAO = (aoBand != Band.V) ? aoBand.getLambdaFluxZero() : lambdaV;
 
@@ -147,7 +148,7 @@ public enum Band {
 
         // size of a square sub pupil:
         final double ds2 = Math.PI * FastMath.pow(0.5 * diameter, 2.0) / nbSubPupils;
-        final double ds = Math.sqrt(ds2);
+        final double ds = Math.sqrt(Math.PI * FastMath.pow(0.5 * diameter, 2.0) / nbActuators);
 
         if (logger.isDebugEnabled()) {
             logger.debug("elevation     = {}", usedElevation);
@@ -164,7 +165,7 @@ public enum Band {
         final double n0_per_subPupil = aoBand.getNbPhotZero() * aoBand.getBandWidth() * (1e-6 * 1e-3) * td;
 
         // flux_per_subap=0.25*f*10.^(-0.4*mag)*ds^2
-        // LBO: remove 0.25
+        // LBO: remove 0.25 => transmission
         final double nphot_per_subPupil = quantumEfficiency * n0_per_subPupil * FastMath.pow(10.0, -0.4 * magnitude) * ds2;
 
         final int nWLen = waveLengths.length;
@@ -531,10 +532,10 @@ public enum Band {
             System.out.println("r0(seeing = 0.5as) : " + getR0(90.0, 0.5, 0.5) + " cm");
             System.out.println("r0(seeing = 1.0as) : " + getR0(90.0, 0.5, 1.0) + " cm");
             System.out.println("r0(seeing = 1.5as) : " + getR0(90.0, 0.5, 1.5) + " cm");
-            
+
             System.exit(1);
         }
-        
+
         if (true) {
             /*
             Fix MATISSE bands:
@@ -619,7 +620,7 @@ public enum Band {
     }
 
     private static double getR0(final double usedElevation, final double lambdaObs, final double seeing) {
-        
+
         final double lambdaV = 0.5; // seeing is given at 500 nm
 
         // r0(e)=cos(90-e)^(3/5) * r0
@@ -636,27 +637,27 @@ public enum Band {
 
         // r0 at lambda AO:
         final double r0 = r0_corr * (lambdaV / seeing) * FastMath.pow(lambdaRatio, 6.0 / 5.0);
-        
+
         final double r0_grav = 0.98e-6 * lambdaV / as2rad(seeing); // m
-        
-        System.out.println("as2rad(1): "+as2rad(1.0));
-        
-        System.out.println("r0:   "+r0);
-        System.out.println("r0_g: "+r0_grav);
-        
-        System.out.println("ratio: " + r0 / r0_grav + " ?= " + (1.22/0.98));
-        
+
+        System.out.println("as2rad(1): " + as2rad(1.0));
+
+        System.out.println("r0:   " + r0);
+        System.out.println("r0_g: " + r0_grav);
+
+        System.out.println("ratio: " + r0 / r0_grav + " ?= " + (1.22 / 0.98));
+
         System.out.println("ratio: " + (Math.PI / (180 * 3600)));
-        
+
         return r0;
     }
-    
+
     private static double rad2as(double angRad) {
         return Math.toDegrees(angRad) * ALX.DEG_IN_ARCSEC;
     }
-    
+
     private static double as2rad(double angAs) {
         return Math.toRadians(angAs * ALX.ARCSEC_IN_DEGREES);
     }
-    
+
 }
