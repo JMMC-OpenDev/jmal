@@ -54,6 +54,8 @@ public final class ALX {
     public static final double HMS_ROUND_PRECISION = 1e5d;
     /** DMS precision for rounding millis (truncating) */
     public static final double DMS_ROUND_PRECISION = 1e4d;
+    /** airy disk FHWM factor ~ 1.029 */
+    public static final double AIRY_DISK_FWHM_FACTOR = 1.0289939700094716812373007996939122676849365234375;
 
     /**
      * Forbidden constructor : utility class
