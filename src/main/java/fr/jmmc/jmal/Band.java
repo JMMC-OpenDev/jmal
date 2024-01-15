@@ -109,8 +109,8 @@ public enum Band {
         return p;
     }
 
-    /** r0 factor = 1.22*1E-6/a and a = PI / ( 180 * 3600 ) */
-    private static final double R0_FACTOR = 1.22e-6 * (180 * 3600) / Math.PI;
+    /** r0 factor = 1.029 * 1E-6/a and a = PI / ( 180 * 3600 ) */
+    private static final double R0_FACTOR = ALX.AIRY_DISK_FWHM_FACTOR * 1e-6 * (180.0 * 3600.0) / Math.PI;
 
     /**
      * Compute the strehl ratio. see le louarn et al (1998, mnras 295, 756), and amb-igr-011 p.5
@@ -137,12 +137,17 @@ public enum Band {
 
         // avoid cos(0) so use min elevation = 0.5 deg:
         final double usedElevation = Math.max(elevation, 0.5);
+        final double zenithAngle = 90.0 - usedElevation;
+
+        // airmass: secant of the zenith angle (1/cos(zenith_angle))
+        final double airmass = 1.0 / FastMath.cos(FastMath.toRadians(zenithAngle));
 
         final double lambdaV = 0.5; // seeing is given at 500 nm
-        final double lambdaAO = (aoBand != Band.V) ? aoBand.getLambdaFluxZero() : lambdaV;
 
         // r0(e)=cos(90-e)^(3/5) * r0
-        final double r0_corr = R0_FACTOR * FastMath.pow(FastMath.cos(FastMath.toRadians(90.0 - usedElevation)), 3.0 / 5.0);
+        final double r0_corr = R0_FACTOR * (lambdaV / seeing) * FastMath.pow(airmass, -3.0 / 5.0);
+
+        final double lambdaAO = (aoBand != Band.V) ? aoBand.getLambdaFluxZero() : lambdaV;
 
         final double td_over_t0 = td / t0;
 
@@ -152,6 +157,8 @@ public enum Band {
 
         if (logger.isDebugEnabled()) {
             logger.debug("elevation     = {}", usedElevation);
+            logger.debug("zenithAngle   = {}", zenithAngle);
+            logger.debug("airmass       = {}", airmass);
             logger.debug("lambdaAO      = {}", lambdaAO);
             logger.debug("magnitude     = {}", magnitude);
             logger.debug("diameter      = {}", diameter);
@@ -164,7 +171,7 @@ public enum Band {
         // NbPhot(AO) per DIT per sub aperture:
         final double n0_per_subPupil = aoBand.getNbPhotZero() * aoBand.getBandWidth() * (1e-6 * 1e-3) * td;
 
-        // flux_per_subap=0.25*f*10.^(-0.4*mag)*ds^2
+        // flux_per_subap=0.25 * f * 10.^(-0.4 * mag) * ds^2
         // LBO: remove 0.25 => transmission
         final double nphot_per_subPupil = quantumEfficiency * n0_per_subPupil * FastMath.pow(10.0, -0.4 * magnitude) * ds2;
 
@@ -176,28 +183,27 @@ public enum Band {
 
         double sigmaphi2_alias_fit, sigmaphi2_phot, sigmaphi2_sensor, sigmaphi2_fixed, sigmaphi2, e_sigmaphi2;
 
-        final double sigmaphi2_bw = 0.962 * FastMath.pow(td_over_t0, 5.0 / 3.0);
+        final double sigmaphi2_bw = 0.962 * FastMath.pow(td_over_t0, (5.0 / 3.0));
 
         for (int i = 0; i < nWLen; i++) {
             lambdaObs = waveLengths[i] * 1e6; // microns
 
             // explication formule r0:
-            // seeing=angular FWHM of seeing in V= 1.22 lambdaV/(r0) r0=fried coherence length.
+            // seeing = angular FWHM of seeing in V = 1.029 lambdaV / r0 where r0 = fried coherence length.
             // to have seeing in arcsec and all wavelengths in microns, we have
-            // seeing * a = 1.22 * lambdaV * 1E-6 / r0 with a=1 arcsec in RD=PI/180*3600
-            // thus r0 = 1.22*1E-6 / a * seeing = 0.251 * lambdaV / seeing
-            // R0_FACTOR = 0.251...
+            // seeing * a = 1.029 * lambdaV * 1E-6 / r0 with a = 1 arcsec in radians = PI / 180 * 3600
+            // thus r0 = 1.029 * 1E-6 / a * seeing
             // use lambdaV as seeing is given for V:
             lambdaRatio = (lambdaObs / lambdaV);
 
-            // r0 at lambda AO:
-            r0 = r0_corr * (lambdaV / seeing) * FastMath.pow(lambdaRatio, 6.0 / 5.0);
+            // r0 at lambda obs:
+            r0 = r0_corr * FastMath.pow(lambdaRatio, (6.0 / 5.0));
             d_over_r0 = diameter / r0; // Math.max(1.0, diameter / r0);
             ds_over_r0 = ds / r0;
 
             // constant was 0.87 = AMD-REP 001 p32 (related to AO system)
             // MATISSE uses 0.54, adopted in 2018.11
-            sigmaphi2_alias_fit = 0.54 * FastMath.pow(ds_over_r0, 5.0 / 3.0);
+            sigmaphi2_alias_fit = 0.54 * FastMath.pow(ds_over_r0, (5.0 / 3.0));
 
             // use lambdaAO as magAO corresponds to this AO band:
             lambdaRatio = (lambdaObs / lambdaAO);
@@ -209,8 +215,8 @@ public enum Band {
             // sensor error:
             // (4.*(!DPI^2)/3.)*(lambda_ao/lambda_sc)^2/Nphot_ao_ds
             sigmaphi2_sensor = (8.0 / 9.0 * Math.PI * Math.PI) * FastMath.pow(lambdaRatio, -2.0) * FastMath.pow(ron / nphot_per_subPupil, 2.0);
-            sigmaphi2_sensor *= FastMath.pow(1.0 + FastMath.pow(lambdaRatio, 12.0 / 5.0) * FastMath.pow(ds_over_r0, 2.0), 2.0);
-            sigmaphi2_sensor *= FastMath.pow(lambdaRatio, -12.0 / 5.0);
+            sigmaphi2_sensor *= FastMath.pow(1.0 + FastMath.pow(lambdaRatio, (12.0 / 5.0)) * FastMath.pow(ds_over_r0, 2.0), 2.0);
+            sigmaphi2_sensor *= FastMath.pow(lambdaRatio, -(12.0 / 5.0));
             sigmaphi2_sensor *= FastMath.pow(ds_over_r0, -2.0);
 
             sigmaphi2_fixed = -Math.log(findBand(lambdaObs).getStrehlMax());
@@ -219,7 +225,7 @@ public enum Band {
 
             e_sigmaphi2 = FastMath.exp(-sigmaphi2);
 
-            strehlPerChannel[i] = e_sigmaphi2 + (1.0 - e_sigmaphi2) / (1.0 + d_over_r0 * d_over_r0);
+            strehlPerChannel[i] = e_sigmaphi2 + (1.0 - e_sigmaphi2) / (1.0 + FastMath.pow(d_over_r0, 2.0));
 
             if (logger.isDebugEnabled()) {
                 logger.debug("lambda          = {}", lambdaObs);
@@ -233,96 +239,67 @@ public enum Band {
                 logger.debug("strehl          = {}", strehlPerChannel[i]);
             }
         }
-
         return strehlPerChannel;
     }
 
-    /**
-     * Compute the strehl ratio. see le louarn et al (1998, mnras 295, 756), and amb-igr-011 p.5
-     *
-     * @param magnitude object magnitude in AO's band
-     * @param waveLengths wave lengths in meters
-     * @param diameter telescope diameter in meters
-     * @param seeing seeing in arc sec
-     * @param nbOfActuators number of actuators
-     * @param elevation target elevation in degrees [0; 90]
-     * @return strehl ratio
-     */
-    public static double[] strehlOLD(final double magnitude, final double[] waveLengths,
-                                     final double diameter, final double seeing, final int nbOfActuators,
-                                     final double elevation) {
+    public static final double[] COEFFS_ISO = new double[]{4.33657467, 1.86425362}; // GRAVITY NGS VIS
 
-        // r0(e)=cos(90-e)^(3/5) * r0
-        // r0_corr in [0; 0.251]
-        final double r0_corr = R0_FACTOR * FastMath.pow(FastMath.cos(FastMath.toRadians(90.0 - elevation)), 3.0 / 5.0);
+    public static double[] strehl_iso(final Band aoBand, final double[] waveLengths,
+                                      final double seeing, final double h0,
+                                      final double elevation, final double distAs) {
 
-        if (logger.isDebugEnabled()) {
-            logger.debug("elevation     = {}", elevation);
-            logger.debug("magnitude     = {}", magnitude);
-            logger.debug("waveLength    = {}", waveLengths);
-            logger.debug("diameter      = {}", diameter);
-            logger.debug("seeing        = {}", seeing);
-            logger.debug("nbOfActuators = {}", nbOfActuators);
-            logger.debug("r0_corr       = {}", r0_corr);
+        if (Double.isNaN(distAs) || (distAs <= 0.0)) {
+            return null;
         }
 
-        final double n_act = (double) nbOfActuators;
+        if (logger.isDebugEnabled()) {
+            logger.debug("aoBand          = {}", aoBand);
+            logger.debug("waveLengths     = [{} - {}]", waveLengths[0], waveLengths[waveLengths.length - 1]);
+            logger.debug("h0              = {}", h0);
+            logger.debug("elevation       = {}", elevation);
+            logger.debug("distAs          = {}", distAs);
+        }
 
-        final double lambdaV = 0.55;
+        // final double h0_corr = (np.sum(Cn2 * np.power(h_0, 5.0 / 3.0)) / np.sum(Cn2))**(3.0 / 5.0);
+        // avoid cos(0) so use min elevation = 0.5 deg:
+        final double usedElevation = Math.max(elevation, 0.5);
+        final double zenithAngle = 90.0 - usedElevation;
+
+        // airmass: secant of the zenith angle (1/cos(zenith_angle))
+        final double airmass = 1.0 / FastMath.cos(FastMath.toRadians(zenithAngle));
+
+        final double lambdaV = 0.5; // seeing is given at 500 nm
+
+        // r0(e)=cos(90-e)^(3/5) * r0
+        final double r0_corr = R0_FACTOR * (lambdaV / seeing) * FastMath.pow(airmass, -3.0 / 5.0);
 
         final int nWLen = waveLengths.length;
         final double[] strehlPerChannel = new double[nWLen];
 
-        double waveLength, lambdaRatio;
-        double r0, d_over_r0;
-
-        Band band;
-        double sigmaphi2_alias, sigmaphi2_phot, sigmaphi2_fixe, sigmaphi2, e_sigmaphi2;
+        double lambdaObs, lambdaRatio, r0;
 
         for (int i = 0; i < nWLen; i++) {
-            waveLength = waveLengths[i] * 1e6; // microns
-            lambdaRatio = waveLength / lambdaV;
+            lambdaObs = waveLengths[i] * 1e6; // microns
 
-            // explication formule r0:
-            // seeing=angular FWHM of seeing in V= 1.22 lambdaV/(r0) r0=fried coherence length.
-            // to have seeing in arcsec and all wavelengths in microns, we have
-            // seeing * a = 1.22 * lambdaV * 1E-6 / r0 with a=1 arcsec in RD=PI/180*3600
-            // thus r0 = 1.22*1E-6 / a * seeing = 0.251 * lambdaV / seeing
-            // R0_FACTOR = 0.251...
-            r0 = r0_corr * (lambdaV / seeing) * FastMath.pow(lambdaRatio, 6.0 / 5.0);
-            d_over_r0 = diameter / r0;
+            // use lambdaV as seeing is given for V:
+            lambdaRatio = (lambdaObs / lambdaV);
 
-            // 0.87 = AMD-REP 001 p32 (related to AO system)
-            sigmaphi2_alias = 0.87 * FastMath.pow(n_act, -5.0 / 6.0) * FastMath.pow(d_over_r0, 5.0 / 3.0);
+            // r0 at lambda AO:
+            r0 = r0_corr * FastMath.pow(lambdaRatio, (6.0 / 5.0));
 
-            sigmaphi2_phot = 1.59e-8 * (d_over_r0 * d_over_r0) * FastMath.pow(lambdaRatio, -2.0)
-                    * n_act * FastMath.pow(10.0, 0.4 * magnitude);
+            final double sigmaphi2 = COEFFS_ISO[0] * Math.pow(as2rad(distAs) * airmass * h0 / r0, COEFFS_ISO[1]);
 
-            band = findBand(waveLength);
+            double sr = FastMath.exp(-sigmaphi2);
 
-            sigmaphi2_fixe = -Math.log(band.getStrehlMax());
-
-            sigmaphi2 = sigmaphi2_alias + sigmaphi2_phot + sigmaphi2_fixe;
-
-            e_sigmaphi2 = FastMath.exp(-sigmaphi2);
-
-            strehlPerChannel[i] = e_sigmaphi2 + (1.0 - e_sigmaphi2) / (1.0 + d_over_r0 * d_over_r0);
-
-            if (logger.isDebugEnabled()) {
-                logger.debug("lambda          = {}", waveLength);
-                logger.debug("r0              = {}", r0);
-                logger.debug("doverr0         = {}", d_over_r0);
-                logger.debug("sigmaphi2_alias = {}", sigmaphi2_alias);
-                logger.debug("sigmaphi2_phot  = {}", sigmaphi2_phot);
-                logger.debug("sigmaphi2_fixe  = {}", sigmaphi2_fixe);
-                logger.debug("sigmaphi2       = {}", sigmaphi2);
-                logger.debug("strehl          = {}", strehlPerChannel[i]);
+            if (sr <= 0.0) {
+                sr = 0.0;
+            } else if (sr >= 1.0) {
+                sr = 1.0;
             }
+            strehlPerChannel[i] = sr;
         }
-
         return strehlPerChannel;
     }
-
 
     /* members */
     /** single char band name (upper case) */
@@ -529,9 +506,10 @@ public enum Band {
 
     public static void main(String[] args) {
         if (true) {
-            System.out.println("r0(seeing = 0.5as) : " + getR0(90.0, 0.5, 0.5) + " cm");
-            System.out.println("r0(seeing = 1.0as) : " + getR0(90.0, 0.5, 1.0) + " cm");
-            System.out.println("r0(seeing = 1.5as) : " + getR0(90.0, 0.5, 1.5) + " cm");
+            System.out.println("as2rad(1): " + as2rad(1.0));
+            System.out.println("r0(seeing = 0.5as) : " + getR0(0.5) + " cm");
+            System.out.println("r0(seeing = 1.0as) : " + getR0(1.0) + " cm");
+            System.out.println("r0(seeing = 1.5as) : " + getR0(1.5) + " cm");
 
             System.exit(1);
         }
@@ -619,44 +597,27 @@ public enum Band {
         }
     }
 
-    private static double getR0(final double usedElevation, final double lambdaObs, final double seeing) {
-
+    private static double getR0(final double seeing) {
         final double lambdaV = 0.5; // seeing is given at 500 nm
 
-        // r0(e)=cos(90-e)^(3/5) * r0
-        final double r0_corr = R0_FACTOR * FastMath.pow(FastMath.cos(FastMath.toRadians(90.0 - usedElevation)), 3.0 / 5.0);
-
-        // explication formule r0:
-        // seeing=angular FWHM of seeing in V= 1.22 lambdaV/(r0) r0=fried coherence length.
-        // to have seeing in arcsec and all wavelengths in microns, we have
-        // seeing * a = 1.22 * lambdaV * 1E-6 / r0 with a=1 arcsec in RD=PI/180*3600
-        // thus r0 = 1.22*1E-6 / a * seeing = 0.251 * lambdaV / seeing
-        // R0_FACTOR = 0.251...
-        // use lambdaV as seeing is given for V:
-        final double lambdaRatio = (lambdaObs / lambdaV);
-
         // r0 at lambda AO:
-        final double r0 = r0_corr * (lambdaV / seeing) * FastMath.pow(lambdaRatio, 6.0 / 5.0);
+        final double r0 = R0_FACTOR * (lambdaV / seeing);
 
         final double r0_grav = 0.98e-6 * lambdaV / as2rad(seeing); // m
-
-        System.out.println("as2rad(1): " + as2rad(1.0));
 
         System.out.println("r0:   " + r0);
         System.out.println("r0_g: " + r0_grav);
 
-        System.out.println("ratio: " + r0 / r0_grav + " ?= " + (1.22 / 0.98));
-
-        System.out.println("ratio: " + (Math.PI / (180 * 3600)));
+        System.out.println("ratio: " + (r0 / r0_grav) + " ?= " + (ALX.AIRY_DISK_FWHM_FACTOR / 0.98));
 
         return r0;
     }
 
-    private static double rad2as(double angRad) {
+    private static double rad2as(final double angRad) {
         return Math.toDegrees(angRad) * ALX.DEG_IN_ARCSEC;
     }
 
-    private static double as2rad(double angAs) {
+    private static double as2rad(final double angAs) {
         return Math.toRadians(angAs * ALX.ARCSEC_IN_DEGREES);
     }
 
