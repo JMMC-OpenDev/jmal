@@ -116,7 +116,7 @@ public final class Probability extends cern.jet.math.Constants {
      *
      * @param x the argument to the function.
      */
-    static public double errorFunction(final double x) throws ArithmeticException {
+    public static double errorFunction(final double x) throws ArithmeticException {
         if (Math.abs(x) > 1.0) {
             return (1.0 - errorFunctionComplemented(x));
         }
@@ -146,7 +146,7 @@ public final class Probability extends cern.jet.math.Constants {
      *
      * @param a the argument to the function.
      */
-    static public double errorFunctionComplemented(final double a) throws ArithmeticException {
+    public static double errorFunctionComplemented(final double a) throws ArithmeticException {
         double x;
 
         if (a < 0.0) {
@@ -219,7 +219,7 @@ public final class Probability extends cern.jet.math.Constants {
      * @return the area under the Normal (Gaussian) probability density
      * function, integrated from minus infinity to <tt>x</tt>.
      */
-    static public double normal(final double mean, final double variance, final double x) throws ArithmeticException {
+    public static double normal(final double mean, final double variance, final double x) throws ArithmeticException {
         return normalWeighted(mean, getNormalWeight(variance), x);
     }
 
@@ -248,7 +248,7 @@ public final class Probability extends cern.jet.math.Constants {
      * @return the area under the Normal (Gaussian) probability density
      * function, integrated from minus infinity to <tt>x</tt>.
      */
-    static public double normalWeighted(final double mean, final double weight, final double x) throws ArithmeticException {
+    public static double normalWeighted(final double mean, final double weight, final double x) throws ArithmeticException {
         if (x > 0.0) {
             return 0.5 + 0.5 * errorFunction((x - mean) * weight);
         } else {
@@ -261,7 +261,7 @@ public final class Probability extends cern.jet.math.Constants {
      * @param variance
      * @return 
      */
-    static public double getNormalWeight(final double variance) {
+    public static double getNormalWeight(final double variance) {
         return 1.0 / Math.sqrt(2.0 * variance);
     }
 }

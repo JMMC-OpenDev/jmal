@@ -32,7 +32,7 @@ public final class Bessel extends Constants {
      * Returns the Bessel function of the first kind of order 0 of the argument.
      * @param x the value to compute the bessel function of.
      */
-    static public double j0(final double x) throws ArithmeticException {
+    public static double j0(final double x) throws ArithmeticException {
         double ax;
 
         if ((ax = Math.abs(x)) < 8.0) {
@@ -62,7 +62,7 @@ public final class Bessel extends Constants {
      * Returns the Bessel function of the first kind of order 1 of the argument.
      * @param x the value to compute the bessel function of.
      */
-    static public double j1(final double x) throws ArithmeticException {
+    public static double j1(final double x) throws ArithmeticException {
         double ax;
         double y;
         double ans1, ans2;
@@ -99,7 +99,7 @@ public final class Bessel extends Constants {
      * @param n the order of the Bessel function.
      * @param x the value to compute the bessel function of.
      */
-    static public double jn(final int n, final double x) throws ArithmeticException {
+    public static double jn(final int n, final double x) throws ArithmeticException {
         int j, m;
         double ax, bj, bjm, bjp, sum, tox, ans;
         boolean jsum;
