@@ -18,6 +18,10 @@ public final class ALX {
 
     /** Logger */
     private static final Logger _logger = LoggerFactory.getLogger(ALX.class.getName());
+    /** separator char ':' in HMS/DMS format */
+    public static final char SEPARATOR = ':';
+    /** separator char ':' in HMS/DMS format */
+    public static final String STR_SEPARATOR = "" + SEPARATOR;
     /** Describe the micrometer (micron, or um) unit */
     public static final double MICRON = 1d;
     /** Describe the meter unit */
@@ -51,9 +55,9 @@ public final class ALX {
     /** Specify the value of one hour in minute */
     public static final double HOUR_IN_MIN = 60d;
     /** HMS precision for rounding millis (truncating) */
-    public static final double HMS_ROUND_PRECISION = 1e5d;
+    public static final double HMS_ROUND_PRECISION = 1e6d;
     /** DMS precision for rounding millis (truncating) */
-    public static final double DMS_ROUND_PRECISION = 1e4d;
+    public static final double DMS_ROUND_PRECISION = 1e5d;
     /** airy disk FHWM factor ~ 1.029 */
     public static final double AIRY_DISK_FWHM_FACTOR = 1.0289939700094716812373007996939122676849365234375;
 
@@ -75,7 +79,7 @@ public final class ALX {
 
         // RA can be given as HH:MM:SS.TT or HH MM SS.TT. 
         // Replace ':' by ' ', and remove trailing and leading space
-        final String input = raHms.replace(':', ' ').trim();
+        final String input = raHms.replace(SEPARATOR, ' ').trim();
 
         double hh = 0d;
         double hm = 0d;
@@ -149,7 +153,7 @@ public final class ALX {
 
         // DEC can be given as DD:MM:SS.TT or DD MM SS.TT. 
         // Replace ':' by ' ', and remove trailing and leading space
-        final String input = decDms.replace(':', ' ').trim();
+        final String input = decDms.replace(SEPARATOR, ' ').trim();
 
         double dd = 0d;
         double dm = 0d;
@@ -319,14 +323,14 @@ public final class ALX {
         remainder += 2.0 * Math.ulp(remainder);
 
         /* print min field */
-        sb.append(':');
+        sb.append(SEPARATOR);
         if (iMinute < 10) {
             sb.append('0');
         }
         sb.append(iMinute);
 
         /* print min field */
-        sb.append(':');
+        sb.append(SEPARATOR);
         if (iSecond < 10) {
             sb.append('0');
         }
