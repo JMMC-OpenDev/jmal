@@ -35,7 +35,7 @@ public final class ModelManager {
     /** Class logger */
     private static final Logger logger = LoggerFactory.getLogger(ModelManager.class.getName());
     /** enable black-body models */
-    private static final boolean ENABLE_BB = false;
+    private static final boolean ENABLE_BB = "true".equalsIgnoreCase(System.getProperty("jmal.bb", "false"));
     /** singleton pattern */
     private static final ModelManager instance = new ModelManager();
     // members :
