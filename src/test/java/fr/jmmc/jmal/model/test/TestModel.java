@@ -8,11 +8,12 @@ import fr.jmmc.jmal.image.ImageViewer;
 import fr.jmmc.jmal.model.ModelDefinition;
 import fr.jmmc.jmal.model.ModelFunctionComputeContext;
 import fr.jmmc.jmal.model.ModelManager;
+import fr.jmmc.jmal.model.function.math.Functions;
 import fr.jmmc.jmal.model.targetmodel.Model;
-import fr.jmmc.jmcs.App;
 import fr.jmmc.jmcs.Bootstrapper;
 import java.awt.Dimension;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
@@ -73,7 +74,7 @@ public class TestModel {
         // punct2 :
         model = mm.createModel(ModelDefinition.MODEL_PUNCT);
 
-        ModelManager.setParameterValue(model, ModelDefinition.PARAM_FLUX_WEIGHT, 1);
+        ModelManager.setParameterValue(model, ModelDefinition.PARAM_FLUX_WEIGHT, 1.0);
         ModelManager.setParameterValue(model, ModelDefinition.PARAM_X, 1);
         ModelManager.setParameterValue(model, ModelDefinition.PARAM_Y, 0);
 
@@ -111,24 +112,22 @@ public class TestModel {
         // disk1 :
         model = mm.createModel(ModelDefinition.MODEL_DISK);
 
-        ModelManager.setParameterValue(model, ModelDefinition.PARAM_FLUX_WEIGHT, 3.0);
+        ModelManager.setParameterValue(model, ModelDefinition.PARAM_FLUX_WEIGHT, 1.0);
         ModelManager.setParameterValue(model, ModelDefinition.PARAM_X, 0);
         ModelManager.setParameterValue(model, ModelDefinition.PARAM_Y, 0);
-        ModelManager.setParameterValue(model, ModelDefinition.PARAM_DIAMETER, 30);
+        ModelManager.setParameterValue(model, ModelDefinition.PARAM_DIAMETER, 20);
 
         models.add(model);
 
         // disk2 :
-    /*
-         * model = mm.createModel(ModelDefinition.MODEL_DISK);
-         *
-         * ModelManager.setParameterValue(model, ModelDefinition.PARAM_FLUX_WEIGHT, 1.0);
-         * ModelManager.setParameterValue(model, ModelDefinition.PARAM_X, 1);
-         * ModelManager.setParameterValue(model, ModelDefinition.PARAM_Y, 0);
-         * ModelManager.setParameterValue(model, ModelDefinition.PARAM_DIAMETER, 1);
-         *
-         * models.add(model);
-         */
+        model = mm.createModel(ModelDefinition.MODEL_DISK);
+
+        ModelManager.setParameterValue(model, ModelDefinition.PARAM_FLUX_WEIGHT, 1.0);
+        ModelManager.setParameterValue(model, ModelDefinition.PARAM_X, 2);
+        ModelManager.setParameterValue(model, ModelDefinition.PARAM_Y, 2);
+        ModelManager.setParameterValue(model, ModelDefinition.PARAM_DIAMETER, 5);
+
+        models.add(model);
 
         return models;
     }
@@ -146,6 +145,10 @@ public class TestModel {
 
         MutableComplex[] vis;
         final float[] img = new float[width * height];
+
+        final double[] wavelengths = new double[width * height];
+        Arrays.fill(wavelengths, 2e-6); // 2 microns
+
         float min = Float.POSITIVE_INFINITY;
         float max = Float.NEGATIVE_INFINITY;
 
@@ -153,12 +156,11 @@ public class TestModel {
         final long start = System.nanoTime();
 
         // prepare models once for all:
-        final ModelFunctionComputeContext context = ModelManager.getInstance().prepareModels(models, width * height);
+        final ModelFunctionComputeContext context = ModelManager.getInstance().prepareModels(models, width * height, wavelengths);
 
         // ASPRO = 200m :
-
         // LITpro = 10m
-        final double maxBL = 10D;
+        final double maxBL = 50D;
 
         final double[] freq = computeFrequencyRange(width, maxBL);
 
@@ -166,7 +168,7 @@ public class TestModel {
         vfreq = new double[width * height];
 
         for (int j = 0; j < height; j++) {
-            for (int i = 0, k = 0; i < width; i++) {
+            for (int i = 0, k; i < width; i++) {
                 k = width * j + i;
                 ufreq[k] = freq[i];
                 vfreq[k] = freq[j];
@@ -187,7 +189,6 @@ public class TestModel {
         if (doAmp) {
             stdRange = RANGE_AMPLITUDE;
 
-
             for (int j = 0; j < height; j++) {
                 for (int i = 0; i < width; i++) {
                     val = (float) vis[width * (height - 1 - j) + i].abs();
@@ -202,7 +203,6 @@ public class TestModel {
             }
         } else {
             stdRange = RANGE_PHASE;
-
 
             for (int j = 0; j < height; j++) {
                 for (int i = 0; i < width; i++) {
@@ -246,13 +246,15 @@ public class TestModel {
         // Set the default locale to en-US locale (for Numerical Fields "." ",")
         Locale.setDefault(Locale.US);
 
+        if (false) {
+            testPlanck();
+        }
+
         final ImageViewer iv = new ImageViewer();
         iv.getImageCanvas().setAntiAliasing(true);
         iv.getImageCanvas().setDrawTicks(false);
 
         List<Model> models;
-
-        // models = punctModels();
 
         models = diskModels();
 
@@ -261,5 +263,20 @@ public class TestModel {
         iv.setPreferredSize(new Dimension(500, 500));
         iv.pack();
         iv.setVisible(true);
+    }
+
+    private static void testPlanck() {
+        for (int T = 10; T < 500; T += 10) {
+
+            System.out.println("T = " + T);
+
+            for (int i = 0; i < 50; i++) {
+                double lambda = 5e-7 + i * 2e-7;
+
+                double f = Functions.computePlanck(lambda, T);
+
+                System.out.println("Planck(" + lambda + ") = " + f);
+            }
+        }
     }
 }

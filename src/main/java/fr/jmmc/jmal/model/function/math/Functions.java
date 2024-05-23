@@ -26,6 +26,9 @@ public final class Functions {
     private final static double TWO_PI_MAS2RAD = 2d * PI * MAS2RAD;
     /** PI x MAS2RAD */
     private final static double PI_MAS2RAD = PI * MAS2RAD;
+    private final static double C = 299792458.0;
+    private final static double H = 6.62606891e-34;
+    private final static double K = 1.380658e-23;
 
     /**
      * Forbidden constructor
@@ -216,11 +219,10 @@ public final class Functions {
     /**
      * Compute the punct model function for a single UV point
      *
-     * @param flux_weight intensity coefficient
      * @return Fourier transform value
      */
-    public static double computePunct(final double flux_weight) {
-        return flux_weight;
+    public static double computePunct() {
+        return 1.0;
     }
 
     /**
@@ -228,11 +230,10 @@ public final class Functions {
      *
      * @param ufreq U frequency in rad-1
      * @param vfreq V frequency in rad-1
-     * @param flux_weight intensity coefficient
      * @param diameter diameter of the circle model given in milliarcsecond
      * @return Fourier transform value
      */
-    public static double computeCircle(final double ufreq, final double vfreq, final double flux_weight,
+    public static double computeCircle(final double ufreq, final double vfreq,
                                        final double diameter) {
 
         final double d = PI_MAS2RAD * diameter * MathUtils.carthesianNorm(ufreq, vfreq);
@@ -243,8 +244,6 @@ public final class Functions {
         } else {
             g = Bessel.j0(d);
         }
-        g *= flux_weight;
-
         return g;
     }
 
@@ -287,7 +286,6 @@ public final class Functions {
         } else {
             e = 2D * Bessel.jn(2, d) * diameterError / diameter;
         }
-
         return e;
     }
 
@@ -296,14 +294,13 @@ public final class Functions {
      *
      * @param ufreq U frequency in rad-1
      * @param vfreq V frequency in rad-1
-     * @param flux_weight intensity coefficient
      * @param diameter diameter of the uniform disk object given in milliarcsecond
      * @return Fourier transform value
      */
-    public static double computeDisk(final double ufreq, final double vfreq, final double flux_weight,
+    public static double computeDisk(final double ufreq, final double vfreq, 
                                      final double diameter) {
 
-        return flux_weight * computeDisk(MathUtils.carthesianNorm(ufreq, vfreq), diameter);
+        return computeDisk(MathUtils.carthesianNorm(ufreq, vfreq), diameter);
     }
 
     /**
@@ -311,27 +308,24 @@ public final class Functions {
      *
      * @param ufreq U frequency in rad-1
      * @param vfreq V frequency in rad-1
-     * @param flux_weight intensity coefficient
      * @param diameter diameter of the uniform ring object given in milliarcsecond
      * @param width width of the uniform ring object given in milliarcsecond
      * @return Fourier transform value
      */
-    public static double computeRing(final double ufreq, final double vfreq, final double flux_weight,
+    public static double computeRing(final double ufreq, final double vfreq, 
                                      final double diameter, final double width) {
 
         if (width == 0d) {
             // infinitely thin ring, i.e. a circle.
-            return computeCircle(ufreq, vfreq, flux_weight, diameter);
+            return computeCircle(ufreq, vfreq, diameter);
         }
         if (diameter == 0d) {
             // disk of radius width.
-            return computeDisk(ufreq, vfreq, flux_weight, 2d * width);
+            return computeDisk(ufreq, vfreq, 2d * width);
         }
 
         final double radius = 0.5d * diameter;
-
         final double alpha = 1d + width / radius;
-
         final double r = PI_MAS2RAD * radius * MathUtils.carthesianNorm(ufreq, vfreq);
 
         double g;
@@ -340,8 +334,6 @@ public final class Functions {
         } else {
             g = ((alpha * Bessel.j1(2d * alpha * r) / r) - (Bessel.j1(2d * r) / r)) / (alpha * alpha - 1d);
         }
-        g *= flux_weight;
-
         return g;
     }
 
@@ -350,15 +342,13 @@ public final class Functions {
      *
      * @param ufreq U frequency in rad-1
      * @param vfreq V frequency in rad-1
-     * @param flux_weight intensity coefficient
      * @param fwhm full width at half maximum of the gaussian object given in milliarcsecond (diameter like)
      * @return Fourier transform value
      */
-    public static double computeGaussian(final double ufreq, final double vfreq, final double flux_weight,
+    public static double computeGaussian(final double ufreq, final double vfreq,
                                          final double fwhm) {
 
         final double f = PI_MAS2RAD * fwhm;
-
         final double d = -f * f * GAUSS_CST_INV * (ufreq * ufreq + vfreq * vfreq);
 
         double g;
@@ -367,8 +357,6 @@ public final class Functions {
         } else {
             g = FastMath.exp(d);
         }
-        g *= flux_weight;
-
         return g;
     }
 
@@ -378,13 +366,12 @@ public final class Functions {
      *
      * @param ufreq U frequency in rad-1
      * @param vfreq V frequency in rad-1
-     * @param flux_weight intensity coefficient
      * @param diameter diameter of the disk object given in milliarcsecond
      * @param a1 first coefficient of the quadratic law
      * @param a2 second coefficient of the quadratic law
      * @return Fourier transform value
      */
-    public static double computeLimbQuadratic(final double ufreq, final double vfreq, final double flux_weight,
+    public static double computeLimbQuadratic(final double ufreq, final double vfreq,
                                               final double diameter, final double a1, final double a2) {
         /*
          * 11- Limb darkened Disk
@@ -419,8 +406,27 @@ public final class Functions {
 
             g = (a * Bessel.j1(d) / d + b * term2 / FastMath.pow(d, 1.5d) + 2d * c * Bessel.jn(2, d) / (d * d)) / s;
         }
-        g *= flux_weight;
-
         return g;
+    }
+
+    /**
+     * Returns the emission curve (spectral radiance) of the black body in
+     * W/m^2/sr/m. WAVELENGTH is in meter, and TEMPERATURE is in Kelvin.
+     * 
+     * B(L,T) = 2 h c^2 / L^5 * 1/(exp(h*c/(k*L*T)-1) ,
+     * 
+     * where L is the wavelength, T its absolute temperature, k the Boltzmann
+     * constant, h the Planck constant, and c the speed of light in the medium.
+     * 
+     * The spectral radiance must be multiplied by pi to get the emittance
+     * (in W/m^2/m), and by 1e-6 to get units in W/m^2/micron.
+     * 
+     * @param wavelength wavelength to use (m)
+     * @param temperature black body temperature (K)
+     * @return spectral radiance of a black body (W/m^3/st)
+     */
+    public static double computePlanck(final double wavelength, final double temperature) {
+        final double x = (H * C / K) / (temperature * wavelength);
+        return (2.0 * H * C * C) / Math.pow(wavelength, 5.0) / Math.expm1(x);
     }
 }

@@ -4,6 +4,7 @@
 package fr.jmmc.jmal.model.function;
 
 import fr.jmmc.jmal.model.AbstractModelFunction;
+import fr.jmmc.jmal.model.WavelengthVariant;
 import fr.jmmc.jmal.model.function.math.LDDiskFunction;
 import fr.jmmc.jmal.model.targetmodel.Model;
 import fr.jmmc.jmal.model.targetmodel.Parameter;
@@ -36,7 +37,7 @@ public final class LDDiskModelFunction extends AbstractModelFunction<LDDiskFunct
      * Constructor
      */
     public LDDiskModelFunction() {
-        super();
+        super(WavelengthVariant.Const);
     }
 
     /**
@@ -102,7 +103,6 @@ public final class LDDiskModelFunction extends AbstractModelFunction<LDDiskFunct
         // Get parameters to fill the context :
         function.setX(getParameterValue(model, PARAM_X));
         function.setY(getParameterValue(model, PARAM_Y));
-        function.setFluxWeight(getParameterValue(model, PARAM_FLUX_WEIGHT));
 
         function.setDiameter(getParameterValue(model, PARAM_DIAMETER));
         function.setA1(getParameterValue(model, PARAM_A1));

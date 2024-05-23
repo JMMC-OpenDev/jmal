@@ -3,6 +3,7 @@
  ***************************************************************************** */
 package fr.jmmc.jmal.model;
 
+import fr.jmmc.jmal.model.function.math.FluxFunction;
 import fr.jmmc.jmal.model.function.math.PunctFunction;
 import fr.jmmc.jmal.model.targetmodel.Model;
 
@@ -41,6 +42,19 @@ public interface ModelFunction extends ModelDefinition {
      * @throws IllegalArgumentException
      */
     public void validate(final Model model);
+
+    /**
+     * @return true if the wavelength variant is Const (gray model) i.e. not dependent on wavelength
+     */
+    public boolean isGray();
+
+    /**
+     * Prepare the flux function for the given model
+     *
+     * @param model model instance
+     * @return flux function
+     */
+    public FluxFunction prepareFluxFunction(final Model model);
 
     /**
      * Prepare the computation function for the given model :

@@ -5,6 +5,7 @@ package fr.jmmc.jmal.model.function;
 
 import fr.jmmc.jmal.model.AbstractModelFunction;
 import fr.jmmc.jmal.model.ModelVariant;
+import fr.jmmc.jmal.model.WavelengthVariant;
 import fr.jmmc.jmal.model.function.math.RingFunction;
 import fr.jmmc.jmal.model.targetmodel.Model;
 
@@ -17,15 +18,23 @@ public final class RingModelFunction extends AbstractModelFunction<RingFunction>
 
     /* Model constants */
     /** ring model description */
-    private static final String MODEL_RING_DESC =
-                                "Returns the Fourier transform of a normalized uniform ring with internal diameter \n"
+    private static final String MODEL_RING_DESC
+                                = "Returns the Fourier transform of a normalized uniform ring with internal diameter \n"
             + "DIAMETER (milliarcsecond) and external diameter DIAMETER + WIDTH centered at coordinates \n"
             + "(X,Y) (milliarcsecond). \n\n"
             + "FLUX_WEIGHT is the intensity coefficient. FLUX_WEIGHT=1 means total energy is 1. \n\n"
             + "The function returns an error if DIAMETER or WIDTH are negative.";
+    /** ring_BB model description */
+    private static final String MODEL_RING_DESC_BB
+                                = "Returns the Fourier transform multiplied by the relative flux of a blackbody at TEMPERATURE \n"
+            + "(in Kelvin) centered at WAVELENGTH (in meters) of an uniform ring with internal diameter \n"
+            + "DIAMETER (milliarcsecond) and external diameter DIAMETER + WIDTH centered at coordinates \n"
+            + "(X,Y) (milliarcsecond). \n\n"
+            + "FLUX_WEIGHT is the intensity coefficient to define the relative extent of the blackbody component. \n\n"
+            + "The function returns an error if DIAMETER is negative.";
     /** elongated ring model description */
-    private static final String MODEL_ERING_DESC =
-                                "Returns the Fourier transform of a normalized uniform elongated ring centered at \n"
+    private static final String MODEL_ERING_DESC
+                                = "Returns the Fourier transform of a normalized uniform elongated ring centered at \n"
             + "coordinates (X,Y) (milliarcsecond). The sizes of the function in two orthogonal directions \n"
             + "are given by the narrowest internal diameter (MINOR_INTERNAL_DIAMETER) and by the ratio \n"
             + "ELONG_RATIO between the widest internal diameter and MINOR_INTERNAL_DIAMETER, \n"
@@ -42,9 +51,29 @@ public final class RingModelFunction extends AbstractModelFunction<RingFunction>
             + "FLUX_WEIGHT is the intensity coefficient. FLUX_WEIGHT=1 means total energy is 1. \n\n"
             + "The function returns an error if MINOR_INTERNAL_DIAMETER is negative or if ELONG_RATIO \n"
             + "is smaller than 1.";
+    /** elongated ring_BB model description */
+    private static final String MODEL_ERING_DESC_BB
+                                = "Returns the Fourier transform multiplied by the relative flux of a blackbody at TEMPERATURE \n"
+            + "(in Kelvin) centered at WAVELENGTH (in meters) of an uniform elongated ring centered at \n"
+            + "coordinates (X,Y) (milliarcsecond). The sizes of the function in two orthogonal directions \n"
+            + "are given by the narrowest internal diameter (MINOR_INTERNAL_DIAMETER) and by the ratio \n"
+            + "ELONG_RATIO between the widest internal diameter and MINOR_INTERNAL_DIAMETER, \n"
+            + "in the same way as for an ellipse (the elongation is along the major_axis) : \n\n"
+            + "ELONG_RATIO = MAJOR_INTERNAL_DIAMETER / MINOR_INTERNAL_DIAMETER. \n"
+            + "In the direction of MINOR_INTERNAL_DIAMETER, the external diameter is \n"
+            + "MINOR_INTERNAL_DIAMETER + WIDTH. In the direction of the widest internal diameter, \n"
+            + "the width is magnified by the ratio ELONG_RATIO, so that the external diameter is \n"
+            + "the elongated MAJOR_INTERNAL_DIAMETER + WIDTH * ELONG_RATIO. \n"
+            + "MAJOR_AXIS_POS_ANGLE is measured in degrees, from the positive vertical semi-axis \n"
+            + "(i.e. North direction) towards to the positive horizontal semi-axis (i.e. East direction). \n"
+            + "For avoiding degenerescence, the domain of variation of MAJOR_AXIS_POS_ANGLE is 180 \n"
+            + "degrees, for ex. from 0 to 180 degrees. \n\n"
+            + "FLUX_WEIGHT is the intensity coefficient to define the relative extent of the blackbody component. \n\n"
+            + "The function returns an error if MINOR_INTERNAL_DIAMETER is negative or if ELONG_RATIO \n"
+            + "is smaller than 1.";
     /** flattened ring model description */
-    private static final String MODEL_FRING_DESC =
-                                "Returns the Fourier transform of a normalized uniform flattened ring centered at \n"
+    private static final String MODEL_FRING_DESC
+                                = "Returns the Fourier transform of a normalized uniform flattened ring centered at \n"
             + "coordinates (X,Y) (milliarcsecond). The sizes of the function in two orthogonal directions \n"
             + "are given by the widest internal diameter (MAJOR_INTERNAL_DIAMETER) and by the ratio \n"
             + "FLATTEN_RATIO between MAJOR_INTERNAL_DIAMETER and the narrowest internal diameter, \n"
@@ -59,6 +88,26 @@ public final class RingModelFunction extends AbstractModelFunction<RingFunction>
             + "For avoiding degenerescence, the domain of variation of MINOR_AXIS_POS_ANGLE is 180 \n"
             + "degrees, for ex. from 0 to 180 degrees. \n\n"
             + "FLUX_WEIGHT is the intensity coefficient. FLUX_WEIGHT=1 means total energy is 1. \n\n"
+            + "The function returns an error if MAJOR_INTERNAL_DIAMETER is negative or if FLATTEN_RATIO \n"
+            + "is smaller than 1.";
+    /** flattened ring model description */
+    private static final String MODEL_FRING_DESC_BB
+                                = "Returns the Fourier transform multiplied by the relative flux of a blackbody at TEMPERATURE \n"
+            + "(in Kelvin) centered at WAVELENGTH (in meters) of an uniform flattened ring centered at \n"
+            + "coordinates (X,Y) (milliarcsecond). The sizes of the function in two orthogonal directions \n"
+            + "are given by the widest internal diameter (MAJOR_INTERNAL_DIAMETER) and by the ratio \n"
+            + "FLATTEN_RATIO between MAJOR_INTERNAL_DIAMETER and the narrowest internal diameter, \n"
+            + "in the same way as for an ellipse (the flattening is along the minor axis) : \n\n"
+            + "FLATTEN_RATIO = MAJOR_INTERNAL_DIAMETER / MINOR_INTERNAL_DIAMETER. \n"
+            + "In the direction of MAJOR_INTERNAL_DIAMETER, the external diameter is \n"
+            + "MAJOR_INTERNAL_DIAMETER + WIDTH. In the direction of the narrowest internal diameter, \n"
+            + "the width is decreased by the ratio FLATTEN_RATIO, so that the external diameter is \n"
+            + "the flattened MINOR_INTERNAL_DIAMETER + WIDTH / FLATTEN_RATIO. \n"
+            + "MINOR_AXIS_POS_ANGLE is measured in degrees, from the positive vertical semi-axis \n"
+            + "(i.e. North direction) towards to the positive horizontal semi-axis (i.e. East direction). \n"
+            + "For avoiding degenerescence, the domain of variation of MINOR_AXIS_POS_ANGLE is 180 \n"
+            + "degrees, for ex. from 0 to 180 degrees. \n\n"
+            + "FLUX_WEIGHT is the intensity coefficient to define the relative extent of the blackbody component. \n\n"
             + "The function returns an error if MAJOR_INTERNAL_DIAMETER is negative or if FLATTEN_RATIO \n"
             + "is smaller than 1.";
     /** Parameter type for the parameter width */
@@ -77,18 +126,35 @@ public final class RingModelFunction extends AbstractModelFunction<RingFunction>
     private final ModelVariant variant;
 
     /**
-     * Constructor
+     * Constructor for the standard variant
      */
     public RingModelFunction() {
-        this(ModelVariant.Standard);
+        this(WavelengthVariant.Const);
+    }
+
+    /**
+     * Constructor for the given wavelength variant
+     * @param wlVariant the wavelength variant
+     */
+    public RingModelFunction(final WavelengthVariant wlVariant) {
+        this(wlVariant, ModelVariant.Standard);
+    }
+
+    /**
+     * Constructor for the given wavelength variant
+     * @param variant the model variant
+     */
+    public RingModelFunction(final ModelVariant variant) {
+        this(WavelengthVariant.Const, variant);
     }
 
     /**
      * Constructor for the given variant
+     * @param wlVariant the wavelength variant
      * @param variant the model variant
      */
-    public RingModelFunction(final ModelVariant variant) {
-        super();
+    public RingModelFunction(final WavelengthVariant wlVariant, final ModelVariant variant) {
+        super(wlVariant);
         this.variant = variant;
     }
 
@@ -101,11 +167,11 @@ public final class RingModelFunction extends AbstractModelFunction<RingFunction>
         switch (this.variant) {
             default:
             case Standard:
-                return MODEL_RING;
+                return (isBlackBody()) ? MODEL_RING_BB : MODEL_RING;
             case Elongated:
-                return MODEL_ERING;
+                return (isBlackBody()) ? MODEL_ERING_BB : MODEL_ERING;
             case Flattened:
-                return MODEL_FRING;
+                return (isBlackBody()) ? MODEL_FRING_BB : MODEL_FRING;
         }
     }
 
@@ -118,11 +184,11 @@ public final class RingModelFunction extends AbstractModelFunction<RingFunction>
         switch (this.variant) {
             default:
             case Standard:
-                return MODEL_RING_DESC;
+                return (isBlackBody()) ? MODEL_RING_DESC_BB : MODEL_RING_DESC;
             case Elongated:
-                return MODEL_ERING_DESC;
+                return (isBlackBody()) ? MODEL_ERING_DESC_BB : MODEL_ERING_DESC;
             case Flattened:
-                return MODEL_FRING_DESC;
+                return (isBlackBody()) ? MODEL_FRING_DESC_BB : MODEL_FRING_DESC;
         }
     }
 
@@ -173,7 +239,6 @@ public final class RingModelFunction extends AbstractModelFunction<RingFunction>
         // Get parameters to fill the context :
         function.setX(getParameterValue(model, PARAM_X));
         function.setY(getParameterValue(model, PARAM_Y));
-        function.setFluxWeight(getParameterValue(model, PARAM_FLUX_WEIGHT));
 
         // Variant specific code :
         switch (this.variant) {

@@ -49,6 +49,6 @@ public class CircleFunction extends PunctFunction {
      */
     @Override
     public double computeWeight(final double ufreq, final double vfreq) {
-        return Functions.computeCircle(ufreq, vfreq, flux_weight, diameter);
+        return Functions.computeCircle(ufreq, vfreq, diameter);
     }
 }

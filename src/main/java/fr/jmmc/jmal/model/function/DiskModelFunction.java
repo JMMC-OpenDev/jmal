@@ -5,6 +5,7 @@ package fr.jmmc.jmal.model.function;
 
 import fr.jmmc.jmal.model.AbstractModelFunction;
 import fr.jmmc.jmal.model.ModelVariant;
+import fr.jmmc.jmal.model.WavelengthVariant;
 import fr.jmmc.jmal.model.function.math.DiskFunction;
 import fr.jmmc.jmal.model.targetmodel.Model;
 
@@ -17,14 +18,21 @@ public final class DiskModelFunction extends AbstractModelFunction<DiskFunction>
 
     /* Model constants */
     /** disk model description */
-    private static final String MODEL_DISK_DESC =
-                                "Returns the Fourier transform of a normalized uniform disk of diameter DIAMETER \n"
+    private static final String MODEL_DISK_DESC
+                                = "Returns the Fourier transform of a normalized uniform disk of diameter DIAMETER \n"
             + "(milliarcsecond) and centered at coordinates (X,Y) (milliarcsecond). \n\n"
             + "FLUX_WEIGHT is the intensity coefficient. FLUX_WEIGHT=1 means total energy is 1. \n\n"
             + "The function returns an error if DIAMETER is negative.";
+    /** disk_BB model description */
+    private static final String MODEL_DISK_DESC_BB
+                                = "Returns the Fourier transform multiplied by the relative flux of a blackbody at TEMPERATURE \n"
+            + "(in Kelvin) centered at WAVELENGTH (in meters) of an uniform disk of diameter DIAMETER \n"
+            + "(milliarcsecond) and centered at coordinates (X,Y) (milliarcsecond). \n\n"
+            + "FLUX_WEIGHT is the intensity coefficient to define the relative extent of the blackbody component. \n\n"
+            + "The function returns an error if DIAMETER is negative.";
     /** elongated disk model description */
-    private static final String MODEL_EDISK_DESC =
-                                "Returns the Fourier transform of a normalized ellipse centered at coordinates (X,Y) \n"
+    private static final String MODEL_EDISK_DESC
+                                = "Returns the Fourier transform of a normalized ellipse centered at coordinates (X,Y) \n"
             + "(milliarcsecond) with a ratio ELONG_RATIO between the major diameter and the minor one \n"
             + "MINOR_AXIS_DIAMETER, turned from the positive vertical semi-axis (i.e. North direction) \n"
             + "with angle MAJOR_AXIS_POS_ANGLE, in degrees, towards to the positive horizontal semi-axis \n"
@@ -35,9 +43,23 @@ public final class DiskModelFunction extends AbstractModelFunction<DiskFunction>
             + "FLUX_WEIGHT is the intensity coefficient. FLUX_WEIGHT=1 means total energy is 1. \n\n"
             + "The function returns an error if MINOR_AXIS_DIAMETER is negative or if ELONG_RATIO is \n"
             + "smaller than 1.";
+    /** elongated disk_BB model description */
+    private static final String MODEL_EDISK_DESC_BB
+                                = "Returns the Fourier transform multiplied by the relative flux of a blackbody at TEMPERATURE \n"
+            + "(in Kelvin) centered at WAVELENGTH (in meters) of an ellipse centered at coordinates (X,Y) \n"
+            + "(milliarcsecond) with a ratio ELONG_RATIO between the major diameter and the minor one \n"
+            + "MINOR_AXIS_DIAMETER, turned from the positive vertical semi-axis (i.e. North direction) \n"
+            + "with angle MAJOR_AXIS_POS_ANGLE, in degrees, towards to the positive horizontal semi-axis \n"
+            + "(i.e. East direction). (the elongation is along the major_axis) \n\n"
+            + "For avoiding degenerescence, the domain of variation of MAJOR_AXIS_POS_ANGLE is 180 \n"
+            + "degrees, for ex. from 0 to 180 degrees. \n\n"
+            + "ELONG_RATIO = major_axis / minor_axis \n"
+            + "FLUX_WEIGHT is the intensity coefficient to define the relative extent of the blackbody component. \n\n"
+            + "The function returns an error if MINOR_AXIS_DIAMETER is negative or if ELONG_RATIO is \n"
+            + "smaller than 1.";
     /** flattened disk model description */
-    private static final String MODEL_FDISK_DESC =
-                                "Returns the Fourier transform of a normalized ellipse centered at coordinates (X,Y) \n"
+    private static final String MODEL_FDISK_DESC
+                                = "Returns the Fourier transform of a normalized ellipse centered at coordinates (X,Y) \n"
             + "(milliarcsecond) with a ratio FLATTEN_RATIO between the major diameter \n"
             + "MAJOR_AXIS_DIAMETER and the minor one, turned from the positive vertical semi-axis \n"
             + "(i.e. North direction) with angle MINOR_AXIS_POS_ANGLE, in degrees, towards to the \n"
@@ -46,6 +68,20 @@ public final class DiskModelFunction extends AbstractModelFunction<DiskFunction>
             + "degrees, for ex. from 0 to 180 degrees. \n\n"
             + "FLATTEN_RATIO = major_axis / minor_axis \n"
             + "FLUX_WEIGHT is the intensity coefficient. FLUX_WEIGHT=1 means total energy is 1. \n\n"
+            + "The function returns an error if MAJOR_AXIS_DIAMETER is negative or if FLATTEN_RATIO \n"
+            + "is smaller than 1.";
+    /** flattened disk_BB model description */
+    private static final String MODEL_FDISK_DESC_BB
+                                = "Returns the Fourier transform multiplied by the relative flux of a blackbody at TEMPERATURE \n"
+            + "(in Kelvin) centered at WAVELENGTH (in meters) of an ellipse centered at coordinates (X,Y) \n"
+            + "(milliarcsecond) with a ratio FLATTEN_RATIO between the major diameter \n"
+            + "MAJOR_AXIS_DIAMETER and the minor one, turned from the positive vertical semi-axis \n"
+            + "(i.e. North direction) with angle MINOR_AXIS_POS_ANGLE, in degrees, towards to the \n"
+            + "positive horizontal semi-axis (i.e. East direction). (the flattening is along the minor_axis) \n\n"
+            + "For avoiding degenerescence, the domain of variation of MINOR_AXIS_POS_ANGLE is 180 \n"
+            + "degrees, for ex. from 0 to 180 degrees. \n\n"
+            + "FLATTEN_RATIO = major_axis / minor_axis \n"
+            + "FLUX_WEIGHT is the intensity coefficient to define the relative extent of the blackbody component. \n\n"
             + "The function returns an error if MAJOR_AXIS_DIAMETER is negative or if FLATTEN_RATIO \n"
             + "is smaller than 1.";
 
@@ -65,15 +101,32 @@ public final class DiskModelFunction extends AbstractModelFunction<DiskFunction>
      * Constructor for the standard variant
      */
     public DiskModelFunction() {
-        this(ModelVariant.Standard);
+        this(WavelengthVariant.Const);
+    }
+
+    /**
+     * Constructor for the given wavelength variant
+     * @param wlVariant the wavelength variant
+     */
+    public DiskModelFunction(final WavelengthVariant wlVariant) {
+        this(wlVariant, ModelVariant.Standard);
+    }
+
+    /**
+     * Constructor for the given wavelength variant
+     * @param variant the model variant
+     */
+    public DiskModelFunction(final ModelVariant variant) {
+        this(WavelengthVariant.Const, variant);
     }
 
     /**
      * Constructor for the given variant
+     * @param wlVariant the wavelength variant
      * @param variant the model variant
      */
-    public DiskModelFunction(final ModelVariant variant) {
-        super();
+    public DiskModelFunction(final WavelengthVariant wlVariant, final ModelVariant variant) {
+        super(wlVariant);
         this.variant = variant;
     }
 
@@ -86,11 +139,11 @@ public final class DiskModelFunction extends AbstractModelFunction<DiskFunction>
         switch (this.variant) {
             default:
             case Standard:
-                return MODEL_DISK;
+                return (isBlackBody()) ? MODEL_DISK_BB : MODEL_DISK;
             case Elongated:
-                return MODEL_EDISK;
+                return (isBlackBody()) ? MODEL_EDISK_BB : MODEL_EDISK;
             case Flattened:
-                return MODEL_FDISK;
+                return (isBlackBody()) ? MODEL_FDISK_BB : MODEL_FDISK;
         }
     }
 
@@ -103,11 +156,11 @@ public final class DiskModelFunction extends AbstractModelFunction<DiskFunction>
         switch (this.variant) {
             default:
             case Standard:
-                return MODEL_DISK_DESC;
+                return (isBlackBody()) ? MODEL_DISK_DESC_BB : MODEL_DISK_DESC;
             case Elongated:
-                return MODEL_EDISK_DESC;
+                return (isBlackBody()) ? MODEL_EDISK_DESC_BB : MODEL_EDISK_DESC;
             case Flattened:
-                return MODEL_FDISK_DESC;
+                return (isBlackBody()) ? MODEL_FDISK_DESC_BB : MODEL_FDISK_DESC;
         }
     }
 
@@ -155,7 +208,6 @@ public final class DiskModelFunction extends AbstractModelFunction<DiskFunction>
         // Get parameters to fill the context :
         function.setX(getParameterValue(model, PARAM_X));
         function.setY(getParameterValue(model, PARAM_Y));
-        function.setFluxWeight(getParameterValue(model, PARAM_FLUX_WEIGHT));
 
         // Variant specific code :
         switch (this.variant) {

@@ -28,6 +28,8 @@ public final class UVMapData {
     private final ColorScale colorScale;
     /** optional Complex visibility Noise Service ready to use to compute noise on model images */
     private final VisNoiseService noiseService;
+    /** true to revert u-axis orientation (East towards left); false (East towards right) */
+    private final boolean uAxisInverted;
     /** target name */
     private String targetName = null;
     /** target model version */
@@ -52,16 +54,16 @@ public final class UVMapData {
     private final int uvMapSize;
     /** concrete uv frequency area */
     private final Rectangle.Double uvMapRect;
+    /** image wavelength in meters (user or non-gray model only) */
+    private Double wavelength = null;
     /** image index used (user model only) */
     private int imageIndex = -1;
     /** image count (user model only) */
     private int imageCount = -1;
-    /** image wavelength in meters (user model only) */
-    private Double wavelength = null;
     /** user model (user model only) */
     private Object userModel = null;
     /** (optional) airy radius of the (first) user model data (apodization) */
-    private double airyRadius;
+    private double airyRadius = Double.NaN;
 
     /**
      * Constuctor
@@ -79,6 +81,7 @@ public final class UVMapData {
      * @param uvMapSize concrete number of pixels for both width and height of the generated image
      * @param uvMapRect concrete UV frequency area in rad-1
      * @param noiseService optional Complex visibility Noise Service ready to use to compute noise on model images
+     * @param uAxisInverted true to revert u-axis orientation (East towards left); false (East towards right)
      */
     public UVMapData(final Rectangle.Double uvRect,
                      final ImageMode mode, final int imageSize,
@@ -87,7 +90,8 @@ public final class UVMapData {
                      final Float dataMin, final Float dataMax,
                      final float[][] data, final BufferedImage uvMap,
                      final int uvMapSize, final Rectangle.Double uvMapRect,
-                     final VisNoiseService noiseService) {
+                     final VisNoiseService noiseService,
+                     final boolean uAxisInverted) {
         this.uvRect = uvRect;
         this.mode = mode;
         this.imageSize = imageSize;
@@ -102,6 +106,7 @@ public final class UVMapData {
         this.uvMapSize = uvMapSize;
         this.uvMapRect = uvMapRect;
         this.noiseService = noiseService;
+        this.uAxisInverted = uAxisInverted;
     }
 
     /**
@@ -241,6 +246,30 @@ public final class UVMapData {
     }
 
     /**
+     * Return the image wavelength in meters (user or non-gray model only) or 0.0 if undefined
+     * @return image wavelength in meters (user or non-gray model only) or null
+     */
+    public double getWaveLengthOrZero() {
+        return (this.wavelength != null) ? this.wavelength.doubleValue() : 0.0;
+    }
+
+    /**
+     * Return the image wavelength in meters (user or non-gray model only)
+     * @return image wavelength in meters (user or non-gray model only) or null
+     */
+    public Double getWaveLength() {
+        return this.wavelength;
+    }
+
+    /**
+     * Define the image wavelength in meters (user or non-gray model only)
+     * @param wavelength image wavelength in meters (user or non-gray model only) or null
+     */
+    public void setWaveLength(final Double wavelength) {
+        this.wavelength = wavelength;
+    }
+
+    /**
      * Return the image index used (user model only)
      * @return image index used (user model only)
      */
@@ -270,22 +299,6 @@ public final class UVMapData {
      */
     public void setImageCount(final int imageCount) {
         this.imageCount = imageCount;
-    }
-
-    /**
-     * Return the image wavelength in meters (user model only)
-     * @return image wavelength in meters (user model only) or null
-     */
-    public Double getWaveLength() {
-        return this.wavelength;
-    }
-
-    /**
-     * Define the image wavelength in meters (user model only)
-     * @param wavelength image wavelength in meters (user model only) or null
-     */
-    public void setWaveLength(final Double wavelength) {
-        this.wavelength = wavelength;
     }
 
     /**
@@ -329,6 +342,13 @@ public final class UVMapData {
     }
 
     /**
+    * @return true to revert u-axis orientation (East towards left); false (East towards right)
+    */
+    public boolean isUAxisInverted() {
+        return uAxisInverted;
+    }
+    
+    /**
      * Check if this UV Map Data has the same input parameters to reuse its computed model image :
      * @param targetName target name
      * @param targetVersion target version
@@ -340,6 +360,8 @@ public final class UVMapData {
      * @param imageIndex image index used (user model only)
      * @param noiseService optional Complex visibility Noise Service ready to use to compute noise on model images
      * @param airyRadius (optional) airy radius of the (first) user model data (apodization)
+     * @param wavelengthChroma (optional) wavelength to check if greater than 0.0 
+     * @param uAxisInverted true to revert u-axis orientation (East towards left); false (East towards right)
      * @return true only if input parameters are equals
      */
     public boolean isValid(final String targetName, final int targetVersion,
@@ -350,7 +372,9 @@ public final class UVMapData {
                            final ColorScale colorScale,
                            final int imageIndex,
                            final VisNoiseService noiseService,
-                           final double airyRadius) {
+                           final double airyRadius,
+                           final double wavelengthChroma,
+                           final boolean uAxisInverted) {
 
         if (!targetName.equals(getTargetName())) {
             return false;
@@ -380,6 +404,12 @@ public final class UVMapData {
         if (noiseService != getNoiseService()) {
             return false;
         }
+        if ((wavelengthChroma > 0.0) && (wavelengthChroma != getWaveLengthOrZero())) {
+            return false;
+        }
+        if (uAxisInverted != isUAxisInverted()) {
+            return false;
+        }
         if (Double.isNaN(airyRadius) != Double.isNaN(getAiryRadius())
                 || !Double.isNaN(airyRadius) && airyRadius != getAiryRadius()) {
             return false;
@@ -395,13 +425,17 @@ public final class UVMapData {
      * @param imageSize number of pixels for both width and height of the generated image
      * @param imageIndex image index used (user model only)
      * @param airyRadius (optional) airy radius of the (first) user model data (apodization)
+     * @param wavelengthChroma (optional) wavelength to check if greater than 0.0 
+     * @param uAxisInverted true to revert u-axis orientation (East towards left); false (East towards right)
      * @return true only if input parameters are equals
      */
     public boolean isDataValid(final String targetName, final int targetVersion,
                                final Rectangle.Double uvRect,
                                final int imageSize,
                                final int imageIndex,
-                               final double airyRadius) {
+                               final double airyRadius,
+                               final double wavelengthChroma,
+                               final boolean uAxisInverted) {
 
         if (!targetName.equals(getTargetName())) {
             return false;
@@ -418,8 +452,14 @@ public final class UVMapData {
         if (imageIndex != getImageIndex()) {
             return false;
         }
+        if ((wavelengthChroma > 0.0) && (wavelengthChroma != getWaveLengthOrZero())) {
+            return false;
+        }
+        if (uAxisInverted != isUAxisInverted()) {
+            return false;
+        }
         if (Double.isNaN(airyRadius) != Double.isNaN(getAiryRadius())
-                || !Double.isNaN(airyRadius) && airyRadius != getAiryRadius()) {
+                || !Double.isNaN(airyRadius) && (airyRadius != getAiryRadius())) {
             return false;
         }
         return true;

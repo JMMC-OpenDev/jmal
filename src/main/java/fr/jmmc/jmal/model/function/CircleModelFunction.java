@@ -4,6 +4,7 @@
 package fr.jmmc.jmal.model.function;
 
 import fr.jmmc.jmal.model.AbstractModelFunction;
+import fr.jmmc.jmal.model.WavelengthVariant;
 import fr.jmmc.jmal.model.function.math.CircleFunction;
 import fr.jmmc.jmal.model.targetmodel.Model;
 
@@ -26,7 +27,7 @@ public final class CircleModelFunction extends AbstractModelFunction<CircleFunct
      * Constructor
      */
     public CircleModelFunction() {
-        super();
+        super(WavelengthVariant.Const);
     }
 
     /**
@@ -76,7 +77,6 @@ public final class CircleModelFunction extends AbstractModelFunction<CircleFunct
         // Get parameters to fill the context :
         function.setX(getParameterValue(model, PARAM_X));
         function.setY(getParameterValue(model, PARAM_Y));
-        function.setFluxWeight(getParameterValue(model, PARAM_FLUX_WEIGHT));
 
         function.setDiameter(getParameterValue(model, PARAM_DIAMETER));
 

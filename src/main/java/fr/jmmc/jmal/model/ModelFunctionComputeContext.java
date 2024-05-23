@@ -3,7 +3,6 @@
  ***************************************************************************** */
 package fr.jmmc.jmal.model;
 
-import fr.jmmc.jmal.model.function.math.PunctFunction;
 import java.util.List;
 
 /**
@@ -14,26 +13,35 @@ import java.util.List;
 public final class ModelFunctionComputeContext extends ModelComputeContext {
 
     /* members */
-    /** list of model functions to compute */
-    private final List<PunctFunction> modelFunctions;
+    /** list of function contexts to compute */
+    private final List<FunctionComputeContext> modelFunctionContexts;
+
+    /**
+     * Copy constructor
+     *
+     * @param context model compute context
+     */
+    public ModelFunctionComputeContext(final ModelFunctionComputeContext context) {
+        this(context.getFreqCount(), context.getModelFunctionContexts());
+    }
 
     /**
      * Protected constructor
      *
      * @param freqCount uv frequency count used to preallocate arrays
-     * @param modelFunctions list of model functions to compute
+     * @param modelFunctionContexts list of function contexts to compute
      */
-    ModelFunctionComputeContext(final int freqCount, final List<PunctFunction> modelFunctions) {
+    ModelFunctionComputeContext(final int freqCount, final List<FunctionComputeContext> modelFunctionContexts) {
         super(freqCount);
-        this.modelFunctions = modelFunctions;
+        this.modelFunctionContexts = modelFunctionContexts;
     }
 
     /**
-     * Return the list of model functions to compute
+     * Return the list of function contexts to compute
      *
-     * @return list of model functions to compute
+     * @return list of function contexts to compute
      */
-    List<PunctFunction> getModelFunctions() {
-        return modelFunctions;
+    List<FunctionComputeContext> getModelFunctionContexts() {
+        return modelFunctionContexts;
     }
 }

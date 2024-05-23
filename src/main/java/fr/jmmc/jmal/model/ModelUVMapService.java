@@ -15,6 +15,7 @@ import java.awt.geom.AffineTransform;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.IndexColorModel;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 import org.slf4j.Logger;
@@ -70,7 +71,7 @@ public final class ModelUVMapService {
                                          final int imageSize,
                                          final IndexColorModel colorModel,
                                          final ColorScale colorScale) {
-        return computeUVMap(models, uvRect, null, null, null, mode, imageSize, colorModel, colorScale, null);
+        return computeUVMap(models, uvRect, null, null, null, mode, imageSize, colorModel, colorScale, null, 0.0, false);
     }
 
     /**
@@ -83,6 +84,8 @@ public final class ModelUVMapService {
      * @param colorModel color model to use
      * @param colorScale color scaling method
      * @param noiseService optional noise service to compute noisy complex visibilities before computing amplitude or phase
+     * @param wavelength wavelength to use for chromatic models or (0.0 for gray models)
+     * @param xInverted true to revert x-axis orientation (East towards left); false (East towards right)
      * @return UVMapData
      * 
      * @throws InterruptedJobException if the current thread is interrupted (cancelled)
@@ -95,8 +98,10 @@ public final class ModelUVMapService {
                                          final int imageSize,
                                          final IndexColorModel colorModel,
                                          final ColorScale colorScale,
-                                         final VisNoiseService noiseService) {
-        return computeUVMap(models, uvRect, null, null, null, mode, imageSize, colorModel, colorScale, noiseService);
+                                         final VisNoiseService noiseService,
+                                         final double wavelength,
+                                         final boolean xInverted) {
+        return computeUVMap(models, uvRect, null, null, null, mode, imageSize, colorModel, colorScale, noiseService, wavelength, xInverted);
     }
 
     /**
@@ -112,6 +117,8 @@ public final class ModelUVMapService {
      * @param colorModel color model to use
      * @param colorScale color scaling method
      * @param noiseService optional noise service to compute noisy complex visibilities before computing amplitude or phase
+     * @param wavelength wavelength to use for chromatic models or (0.0 for gray models)
+     * @param uAxisInverted true to revert u-axis orientation (East towards left); false (East towards right)
      * @return UVMapData
      * 
      * @throws InterruptedJobException if the current thread is interrupted (cancelled)
@@ -126,7 +133,9 @@ public final class ModelUVMapService {
                                          final int imageSize,
                                          final IndexColorModel colorModel,
                                          final ColorScale colorScale,
-                                         final VisNoiseService noiseService) {
+                                         final VisNoiseService noiseService,
+                                         final double wavelength,
+                                         final boolean uAxisInverted) {
 
         /** Get the current thread to check if the computation is interrupted */
         final Thread currentThread = Thread.currentThread();
@@ -143,13 +152,14 @@ public final class ModelUVMapService {
                 return null;
             }
 
-            // Clone models and normalize fluxes :
-            final List<Model> normModels = ModelManager.normalizeModels(models);
+            // use the given wavelength to use with chromatic model:
+            final double[] wavelengths = new double[imageSize];
+            Arrays.fill(wavelengths, wavelength);
 
             final ModelFunctionComputeContext context;
             try {
                 // prepare models once for all:
-                context = ModelManager.getInstance().prepareModels(normModels, imageSize);
+                context = ModelManager.getInstance().prepareModels(models, imageSize, wavelengths);
 
             } catch (IllegalArgumentException iae) {
                 // ModelManager.prepareModels throws an IllegalArgumentException if a parameter value is invalid :
@@ -171,14 +181,14 @@ public final class ModelUVMapService {
             visData = new float[imageSize][2 * imageSize];
 
             // Should split the computation in parts ?
-            final int nJobs = ((imageSize * imageSize * normModels.size()) >= JOB_THRESHOLD) ? jobExecutor.getMaxParallelJob() : 1;
+            final int nJobs = ((imageSize * imageSize * models.size()) >= JOB_THRESHOLD) ? jobExecutor.getMaxParallelJob() : 1;
 
             final ComputeModelPart[] jobs = new ComputeModelPart[nJobs];
 
             ModelFunctionComputeContext jobContext;
             for (int i = 0; i < nJobs; i++) {
                 // clone computation contexts except for first job:
-                jobContext = (i == 0) ? context : ModelManager.cloneContext(context);
+                jobContext = (i == 0) ? context : new ModelFunctionComputeContext(context);
 
                 // ensure last job goes until lineEnd:
                 jobs[i] = new ComputeModelPart(jobContext, u, v, imageSize, visData, i, nJobs);
@@ -203,8 +213,12 @@ public final class ModelUVMapService {
 
         // 4 - Get the image with the given color model and color scale :
         final UVMapData uvMapData = computeImage(uvRect, refMin, refMax, mode, imageSize, colorModel, colorScale,
-                imageSize, visData, data, uvRect, noiseService, 0.0, 0);
+                imageSize, visData, data, uvRect, noiseService, 0.0, 0, uAxisInverted);
 
+        if (wavelength > 0.0) {
+            // update wavelength:
+            uvMapData.setWaveLength(wavelength);
+        }
         if (logger.isInfoEnabled()) {
             logger.info("compute : duration = {} ms.", 1e-6d * (System.nanoTime() - start));
         }
@@ -228,6 +242,7 @@ public final class ModelUVMapService {
      * @param noiseService optional noise service to compute noisy complex visibilities before computing amplitude or phase
      * @param rotationAngle rotation angle in degrees (FT only)
      * @param rotImgSize rotated image size (FT only)
+     * @param uAxisInverted true to revert u-axis orientation (East towards left); false (East towards right)
      * @return UVMapData
      * 
      * @throws InterruptedJobException if the current thread is interrupted (cancelled)
@@ -246,7 +261,8 @@ public final class ModelUVMapService {
                                          final Rectangle2D.Double uvMapRect,
                                          final VisNoiseService noiseService,
                                          final double rotationAngle,
-                                         final int rotImgSize) {
+                                         final int rotImgSize,
+                                         final boolean uAxisInverted) {
 
         // ignore zero values if log color scale:
         final ImageMinMaxJob minMaxJob = new ImageMinMaxJob(imgData, dataSize, dataSize, (colorScale == ColorScale.LOGARITHMIC));
@@ -331,9 +347,17 @@ public final class ModelUVMapService {
             outputSize = dataSize;
         }
 
+        if (uAxisInverted) {
+            // Flip the image horizontally to have RA orientation = East is towards the left:
+            final AffineTransform at = AffineTransform.getScaleInstance(-1.0, 1.0);
+            at.translate(-outputSize, 0.0);
+
+            uvMap = ImageUtils.transformImage(uvMap, colorModel, at, outputSize, outputSize);
+        }
+
         // provide results :
         return new UVMapData(uvRect, mode, imageSize, colorModel, usedColorScale, min, max, Float.valueOf(dataMin), Float.valueOf(dataMax),
-                data, uvMap, outputSize, uvMapRect, noiseService);
+                data, uvMap, outputSize, uvMapRect, noiseService, uAxisInverted);
     }
 
     /**

@@ -56,8 +56,8 @@ public class RingFunction extends DiskFunction {
             return Functions.computeRing(
                     Functions.transformU(ufreq, vfreq, axisRatio, cosBeta, sinBeta),
                     Functions.transformV(ufreq, vfreq, cosBeta, sinBeta),
-                    flux_weight, diameter, width);
+                    diameter, width);
         }
-        return Functions.computeRing(ufreq, vfreq, flux_weight, diameter, width);
+        return Functions.computeRing(ufreq, vfreq, diameter, width);
     }
 }

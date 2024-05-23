@@ -95,9 +95,8 @@ public class DiskFunction extends CircleFunction {
             return Functions.computeDisk(
                     Functions.transformU(ufreq, vfreq, axisRatio, cosBeta, sinBeta),
                     Functions.transformV(ufreq, vfreq, cosBeta, sinBeta),
-                    flux_weight, diameter);
+                    diameter);
         }
-
-        return Functions.computeDisk(ufreq, vfreq, flux_weight, diameter);
+        return Functions.computeDisk(ufreq, vfreq, diameter);
     }
 }

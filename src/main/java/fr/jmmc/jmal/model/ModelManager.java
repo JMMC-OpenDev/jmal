@@ -3,6 +3,7 @@
  ***************************************************************************** */
 package fr.jmmc.jmal.model;
 
+import fr.jmmc.jmal.Band;
 import fr.jmmc.jmal.complex.MutableComplex;
 import fr.jmmc.jmal.model.function.CircleModelFunction;
 import fr.jmmc.jmal.model.function.DiskModelFunction;
@@ -10,11 +11,13 @@ import fr.jmmc.jmal.model.function.GaussianModelFunction;
 import fr.jmmc.jmal.model.function.LDDiskModelFunction;
 import fr.jmmc.jmal.model.function.PunctModelFunction;
 import fr.jmmc.jmal.model.function.RingModelFunction;
+import fr.jmmc.jmal.model.function.math.FluxFunction;
 import fr.jmmc.jmal.model.function.math.PunctFunction;
 import fr.jmmc.jmal.model.targetmodel.Model;
 import fr.jmmc.jmal.model.targetmodel.Parameter;
 import fr.jmmc.jmal.util.MathUtils;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,13 +34,15 @@ public final class ModelManager {
 
     /** Class logger */
     private static final Logger logger = LoggerFactory.getLogger(ModelManager.class.getName());
+    /** enable black-body models */
+    private static final boolean ENABLE_BB = false;
     /** singleton pattern */
     private static final ModelManager instance = new ModelManager();
     // members :
     /** List of model type */
     private final Vector<String> modelTypes = new Vector<String>(16);
     /** Map : model type, ModelFunction instance */
-    private final Map<String, ModelFunction> modelFunctions = new HashMap<String, ModelFunction>(16);
+    private final Map<String, ModelFunction> modelFunctions = new HashMap<String, ModelFunction>(32);
 
     /**
      * Return the ModelManager singleton
@@ -65,12 +70,17 @@ public final class ModelManager {
 
         // 1 - Punct Model :
         this.addFunction(new PunctModelFunction());
+        this.addFunction(new PunctModelFunction(WavelengthVariant.BlackBody));
         // 2 - Disk Models :
         this.addFunction(new DiskModelFunction());
         // 2.1 Elongated Disk Model :
         this.addFunction(new DiskModelFunction(ModelVariant.Elongated));
         // 2.2 Flattened Disk Model :
         this.addFunction(new DiskModelFunction(ModelVariant.Flattened));
+        // BB variants:
+        this.addFunction(new DiskModelFunction(WavelengthVariant.BlackBody));
+        this.addFunction(new DiskModelFunction(WavelengthVariant.BlackBody, ModelVariant.Elongated));
+        this.addFunction(new DiskModelFunction(WavelengthVariant.BlackBody, ModelVariant.Flattened));
         // 3 - Circle Model (unresolved ring) :
         this.addFunction(new CircleModelFunction());
         // 3.1 - Ring Models :
@@ -79,12 +89,20 @@ public final class ModelManager {
         this.addFunction(new RingModelFunction(ModelVariant.Elongated));
         // 3.3 Flattened Ring Model :
         this.addFunction(new RingModelFunction(ModelVariant.Flattened));
+        // BB variants:
+        this.addFunction(new RingModelFunction(WavelengthVariant.BlackBody));
+        this.addFunction(new RingModelFunction(WavelengthVariant.BlackBody, ModelVariant.Elongated));
+        this.addFunction(new RingModelFunction(WavelengthVariant.BlackBody, ModelVariant.Flattened));
         // 4 - Gaussian Models :
         this.addFunction(new GaussianModelFunction());
         // 4.1 Elongated Gaussian Model :
         this.addFunction(new GaussianModelFunction(ModelVariant.Elongated));
         // 4.2 Flattened Gaussian Model :
         this.addFunction(new GaussianModelFunction(ModelVariant.Flattened));
+        // BB variants:
+        this.addFunction(new GaussianModelFunction(WavelengthVariant.BlackBody));
+        this.addFunction(new GaussianModelFunction(WavelengthVariant.BlackBody, ModelVariant.Elongated));
+        this.addFunction(new GaussianModelFunction(WavelengthVariant.BlackBody, ModelVariant.Flattened));
         // 5 - Limb darkened disk Models :
         this.addFunction(new LDDiskModelFunction());
 
@@ -99,6 +117,9 @@ public final class ModelManager {
      * @param mf function to add
      */
     private void addFunction(final ModelFunction mf) {
+        if (!ENABLE_BB && !mf.isGray()) {
+            return;
+        }
         final String type = mf.getType();
         this.modelFunctions.put(type, mf);
         this.modelTypes.add(type);
@@ -111,6 +132,17 @@ public final class ModelManager {
      */
     public Vector<String> getSupportedModels() {
         return this.modelTypes;
+    }
+
+    /**
+     * Return true if the model of the given type is a gray model i.e. not dependent on wavelength
+     *
+     * @param type type of the model
+     * @return true if the wavelength variant is Const (gray model) i.e. not dependent on wavelength
+     * @throws IllegalStateException if the given type is unknown
+     */
+    private boolean isGray(final String type) {
+        return getModelFunction(type).isGray();
     }
 
     /**
@@ -151,6 +183,23 @@ public final class ModelManager {
     }
 
     /**
+     * Return true if all models are gray i.e. not dependent on wavelength
+     *
+     * @param models list of models to test
+     * @return true if all models are gray i.e. not dependent on wavelength
+     */
+    public boolean isGray(final List<Model> models) {
+        if (models != null && !models.isEmpty()) {
+            for (Model model : models) {
+                if (!isGray(model.getType())) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    /**
      * Validate the given models i.e. all parameter values are valid
      *
      * @param models list of models to validate
@@ -158,6 +207,26 @@ public final class ModelManager {
      */
     public void validateModels(final List<Model> models) throws IllegalArgumentException {
         if (models != null && !models.isEmpty()) {
+            // Reject mixed gray and chromatic models:
+            int nGray = 0;
+            int nChroma = 0;
+
+            for (Model model : models) {
+                if (isGray(model.getType())) {
+                    nGray++;
+                } else {
+                    nChroma++;
+                }
+            }
+
+            if (logger.isDebugEnabled()) {
+                logger.debug("nC: {} nBB: {}", nGray, nChroma);
+            }
+
+            if ((nGray != 0) && (nChroma != 0)) {
+                throw new IllegalArgumentException("Invalid model composition: normalized and black-body components cannot be mixed !");
+            }
+
             for (Model model : models) {
                 final ModelFunction mf = getModelFunction(model.getType());
 
@@ -203,7 +272,7 @@ public final class ModelManager {
                     for (int j = i + 1; j < len; j++) {
                         final PunctFunction f2 = functions.get(j);
                         final double dist = MathUtils.carthesianNorm(f2.getX() - f1.getX(), f2.getY() - f1.getY());
-                        
+
                         if (!PunctFunction.check("dist(" + i + "-" + j + ")", dist, maxDist)) {
                             return false;
                         }
@@ -215,31 +284,42 @@ public final class ModelManager {
     }
 
     /**
-     * Clone the given context
+     * Prepare the complex visiblity computation of given models
      *
-     * @param context compute context
-     *
+     * @param models list of models to compute
+     * @param freqCount uv frequency count used to preallocate arrays
+     * @param wavelengths wavelength array corresponding to uv frequency (freqCount)
      * @return new compute context
      */
-    public static ModelFunctionComputeContext cloneContext(final ModelFunctionComputeContext context) {
-        return new ModelFunctionComputeContext(context.getFreqCount(), context.getModelFunctions());
+    public ModelFunctionComputeContext prepareModels(final List<Model> models, final int freqCount,
+                                                     final double wavelengths[]) {
+        return prepareModels(models, freqCount, wavelengths, null, null);
     }
 
     /**
      * Prepare the complex visiblity computation of given models
      *
      * @param models list of models to compute
-     * @param freqCount uv frequencey count used to preallocate arrays
+     * @param freqCount uv frequency count used to preallocate arrays
+     * @param wavelengths wavelength array corresponding to uv frequency (freqCount)
+     * @param mFluxes computed flux array from model (optional)
+     * @param bandFluxes mean flux over used bands (optional)
      * @return new compute context
      */
-    public ModelFunctionComputeContext prepareModels(final List<Model> models, final int freqCount) {
-        if (models == null || models.isEmpty() || freqCount <= 0) {
+    public ModelFunctionComputeContext prepareModels(final List<Model> models, final int freqCount,
+                                                     final double wavelengths[],
+                                                     final double[] mFluxes,
+                                                     final Map<Band, Double> bandFluxes) {
+
+        if (models == null || models.isEmpty() || freqCount <= 0
+                || wavelengths == null || wavelengths.length != freqCount) {
             return null;
         }
 
-        final List<PunctFunction> functions = new ArrayList<PunctFunction>(models.size());
+        final int nModels = models.size();
+        final List<FunctionComputeContext> functionContexts = new ArrayList<>(nModels);
 
-        // Parse models and prepare the model functions:
+        // Parse models and prepare the function contexts:
         for (Model model : models) {
             final ModelFunction mf = getModelFunction(model.getType());
 
@@ -247,10 +327,54 @@ public final class ModelManager {
             mf.validate(model);
 
             // Get parameters to fill the function context :
-            functions.add(mf.prepareFunction(model));
+            functionContexts.add(new FunctionComputeContext(freqCount,
+                    mf.prepareFluxFunction(model),
+                    mf.prepareFunction(model))
+            );
+        }
+        logger.debug("functionContexts: {}", functionContexts);
+
+        // TODO BB: compute solid angle (area) from PunctFunction (min or 0.0?) and children ?
+        // Compute fluxes (wavelength BB) and total flux:
+        final double[] totalFlux = (mFluxes != null) ? mFluxes : new double[freqCount];
+
+        for (final FunctionComputeContext functionContext : functionContexts) {
+            AbstractModelFunction.computeFlux(
+                    functionContext.getFluxFunction(), wavelengths,
+                    functionContext.getFlux(), totalFlux
+            );
+            if (logger.isDebugEnabled()) {
+                logger.debug("functionContext: {} flux: {}", functionContext, Arrays.toString(functionContext.getFlux()));
+            }
+        }
+        if (logger.isDebugEnabled()) {
+            logger.debug("wavelengths: {}", Arrays.toString(wavelengths));
+            logger.debug("totalFlux:   {}", Arrays.toString(totalFlux));
         }
 
-        return new ModelFunctionComputeContext(freqCount, functions);
+        // normalize flux:
+        for (final FunctionComputeContext functionContext : functionContexts) {
+            AbstractModelFunction.normalizeFlux(functionContext.getFlux(), totalFlux);
+            if (logger.isDebugEnabled()) {
+                logger.debug("functionContext: {} normalized flux: {}", functionContext, Arrays.toString(functionContext.getFlux()));
+            }
+        }
+
+        if (bandFluxes != null) {
+            // compute mean flux per used band:
+            if (logger.isDebugEnabled()) {
+                logger.debug("used insBands: {}", bandFluxes.keySet());
+            }
+
+            for (Map.Entry<Band, Double> e : bandFluxes.entrySet()) {
+                final Band b = e.getKey();
+                e.setValue(computeMeanFlux(b.getLambdaLower() * 1e-6, b.getLambdaUpper() * 1e-6, functionContexts));
+            }
+            if (logger.isDebugEnabled()) {
+                logger.debug("bandFluxes: {}", bandFluxes);
+            }
+        }
+        return new ModelFunctionComputeContext(freqCount, functionContexts);
     }
 
     /**
@@ -266,7 +390,6 @@ public final class ModelManager {
         MutableComplex[] vis = null;
 
         if (ufreq != null && vfreq != null && context != null) {
-
             final int nVis = ufreq.length;
 
             if (nVis != vfreq.length || nVis != context.getFreqCount()) {
@@ -278,41 +401,36 @@ public final class ModelManager {
             final MutableComplex modelVis = context.getModelVis();
 
             // For now : no composite model supported (hierarchy) !
-            for (PunctFunction function : context.getModelFunctions()) {
+            for (FunctionComputeContext functionContext : context.getModelFunctionContexts()) {
+                // get normalized flux contribution from context:
+                final double[] flux_weights = functionContext.getFlux();
 
                 // add the model contribution to the current visibility array :
-                AbstractModelFunction.compute(function, ufreq, vfreq, nVis, vis, modelVis);
+                AbstractModelFunction.compute(functionContext.getModelFunction(), flux_weights,
+                        ufreq, vfreq, nVis, vis, modelVis
+                );
             }
         }
-
         return vis;
     }
 
     /**
-     * Clone the given model list and normalize fluxes
-     *
-     * @param models model list to process
-     * @return cloned and normalized model list
-     */
-    public static List<Model> normalizeModels(final List<Model> models) {
-        // Clone models and normalize fluxes :
-        final List<Model> normModels = CloneableObject.deepCopyList(models);
-
-        normalizeFluxes(normModels);
-
-        return normModels;
-    }
-
-    /**
-     * Normalize the fluxes and update the model parameters
+     * Normalize the fluxes and update the model parameters (only for gray models)
      *
      * @param models list of models to update
      */
-    public static void normalizeFluxes(final List<Model> models) {
+    public void normalizeFluxes(final List<Model> models) {
         double totalFlux = 0d;
 
         Parameter parameter;
         for (Model model : models) {
+
+            // check if model is gray:
+            if (!isGray(model.getType())) {
+                // invalid normalization:
+                return;
+            }
+
             parameter = model.getParameter(ModelDefinition.PARAM_FLUX_WEIGHT);
 
             if (parameter == null) {
@@ -589,4 +707,44 @@ public final class ModelManager {
 
         return index;
     }
+
+    private static double computeMeanFlux(final double wlA, final double wlB,
+                                          final List<FunctionComputeContext> functionContexts) {
+
+        if (logger.isDebugEnabled()) {
+            logger.debug("computeMeanFlux[{} - {}]", wlA, wlB);
+        }
+
+        final double deltaWl = wlB - wlA;
+
+        // more samples in LMN (large bands):
+        final int nSamples = (deltaWl < 1e-6) ? 100 : 1000;
+
+        final double step = deltaWl / nSamples;
+
+        // Compute total flux:
+        double totalFlux = 0.0;
+
+        for (final FunctionComputeContext functionContext : functionContexts) {
+            final FluxFunction function = functionContext.getFluxFunction();
+
+            for (int i = 0; i < nSamples; i++) {
+                final double wl = wlA + step * i;
+                final double fluxValue = function.computeFlux(wl);
+
+                if (logger.isDebugEnabled()) {
+                    logger.debug("flux({}) = {}", wl, fluxValue);
+                }
+                totalFlux += fluxValue;
+            }
+        }
+
+        final double meanFlux = totalFlux / nSamples;
+
+        if (logger.isDebugEnabled()) {
+            logger.debug("totalFlux: {} - meanFlux: {}", totalFlux, meanFlux);
+        }
+        return meanFlux;
+    }
+
 }

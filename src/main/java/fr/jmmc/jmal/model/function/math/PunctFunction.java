@@ -20,8 +20,6 @@ public class PunctFunction {
     protected double x = 0d;
     /** y coordinate of the object (mas) */
     protected double y = 0d;
-    /** intensity coefficient of the object */
-    protected double flux_weight;
     /** flag to indicate that x = 0 and y = 0 */
     protected boolean zero;
 
@@ -115,15 +113,6 @@ public class PunctFunction {
     }
 
     /**
-     * Define the intensity coefficient of the object
-     *
-     * @param fluxWeight intensity coefficient of the object
-     */
-    public final void setFluxWeight(final double fluxWeight) {
-        this.flux_weight = fluxWeight;
-    }
-
-    /**
      * Compute the Fourier transform at frequencies (UFREQ,VFREQ) of this object
      *
      * @param ufreq U frequency in rad-1
@@ -131,6 +120,6 @@ public class PunctFunction {
      * @return Fourier transform value
      */
     public double computeWeight(final double ufreq, final double vfreq) {
-        return Functions.computePunct(flux_weight);
+        return Functions.computePunct();
     }
 }

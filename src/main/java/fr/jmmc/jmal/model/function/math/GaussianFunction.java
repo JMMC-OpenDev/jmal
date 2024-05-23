@@ -31,8 +31,8 @@ public class GaussianFunction extends DiskFunction {
             return Functions.computeGaussian(
                     Functions.transformU(ufreq, vfreq, axisRatio, cosBeta, sinBeta),
                     Functions.transformV(ufreq, vfreq, cosBeta, sinBeta),
-                    flux_weight, diameter);
+                    diameter);
         }
-        return Functions.computeGaussian(ufreq, vfreq, flux_weight, diameter);
+        return Functions.computeGaussian(ufreq, vfreq, diameter);
     }
 }

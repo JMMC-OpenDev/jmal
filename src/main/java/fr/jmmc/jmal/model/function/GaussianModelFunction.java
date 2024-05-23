@@ -5,6 +5,7 @@ package fr.jmmc.jmal.model.function;
 
 import fr.jmmc.jmal.model.AbstractModelFunction;
 import fr.jmmc.jmal.model.ModelVariant;
+import fr.jmmc.jmal.model.WavelengthVariant;
 import fr.jmmc.jmal.model.function.math.GaussianFunction;
 import fr.jmmc.jmal.model.targetmodel.Model;
 
@@ -17,14 +18,21 @@ public final class GaussianModelFunction extends AbstractModelFunction<GaussianF
 
     /* Model constants */
     /** gaussian model description */
-    private static final String MODEL_GAUSS_DESC =
-                                "Returns the Fourier transform of a normalized gaussian with given FWHM (milliarcsecond) \n"
+    private static final String MODEL_GAUSS_DESC
+                                = "Returns the Fourier transform of a normalized gaussian with given FWHM (milliarcsecond) \n"
             + "centered at coordinates (X,Y) (milliarcsecond). \n\n"
             + "FLUX_WEIGHT is the intensity coefficient. FLUX_WEIGHT=1 means total energy is 1. \n\n"
             + "The function returns an error if FWHM is negative.";
+    /** gaussian_BB model description */
+    private static final String MODEL_GAUSS_DESC_BB
+                                = "Returns the Fourier transform multiplied by the relative flux of a blackbody at TEMPERATURE \n"
+            + "(in Kelvin) centered at WAVELENGTH (in meters) of a gaussian with given FWHM (milliarcsecond) \n"
+            + "centered at coordinates (X,Y) (milliarcsecond). \n\n"
+            + "FLUX_WEIGHT is the intensity coefficient to define the relative extent of the blackbody component. \n\n"
+            + "The function returns an error if FWHM is negative.";
     /** elongated gaussian model description */
-    private static final String MODEL_EGAUSS_DESC =
-                                "Returns the Fourier transform of a normalized elongated gaussian centered at coordinates \n"
+    private static final String MODEL_EGAUSS_DESC
+                                = "Returns the Fourier transform of a normalized elongated gaussian centered at coordinates \n"
             + "(X,Y) (milliarcsecond). The sizes of the function in two orthogonal directions are given by \n"
             + "the narrowest FWHM (MINOR_AXIS_FWHM) and by the ratio ELONG_RATIO between the largest \n"
             + "FWHM (MAJOR_AXIS_FWHM) and the MINOR_AXIS_FWHM, in the same way as for an ellipse \n"
@@ -37,9 +45,25 @@ public final class GaussianModelFunction extends AbstractModelFunction<GaussianF
             + "FLUX_WEIGHT is the intensity coefficient. FLUX_WEIGHT=1 means total energy is 1. \n\n"
             + "The function returns an error if MINOR_AXIS_FWHM is negative or if ELONG_RATIO \n"
             + "is smaller than 1.";
+    /** elongated gaussian_BB model description */
+    private static final String MODEL_EGAUSS_DESC_BB
+                                = "Returns the Fourier transform multiplied by the relative flux of a blackbody at TEMPERATURE \n"
+            + "(in Kelvin) centered at WAVELENGTH (in meters) of an elongated gaussian centered at coordinates \n"
+            + "(X,Y) (milliarcsecond). The sizes of the function in two orthogonal directions are given by \n"
+            + "the narrowest FWHM (MINOR_AXIS_FWHM) and by the ratio ELONG_RATIO between the largest \n"
+            + "FWHM (MAJOR_AXIS_FWHM) and the MINOR_AXIS_FWHM, in the same way as for an ellipse \n"
+            + "(the elongation is along the major_axis) : \n\n"
+            + "ELONG_RATIO = MAJOR_AXIS_FWHM / MINOR_AXIS_FWHM. \n"
+            + "MAJOR_AXIS_POS_ANGLE is measured in degrees, from the positive vertical semi-axis \n"
+            + "(i.e. North direction) towards to the positive horizontal semi-axis (i.e. East direction). \n"
+            + "For avoiding degenerescence, the domain of variation of MAJOR_AXIS_POS_ANGLE is 180 \n"
+            + "degrees, for ex. from 0 to 180 degrees. \n\n"
+            + "FLUX_WEIGHT is the intensity coefficient to define the relative extent of the blackbody component. \n\n"
+            + "The function returns an error if MINOR_AXIS_FWHM is negative or if ELONG_RATIO \n"
+            + "is smaller than 1.";
     /** flattened gaussian model description */
-    private static final String MODEL_FGAUSS_DESC =
-                                "Returns the Fourier transform of a normalized flattened gaussian centered at coordinates \n"
+    private static final String MODEL_FGAUSS_DESC
+                                = "Returns the Fourier transform of a normalized flattened gaussian centered at coordinates \n"
             + "(X,Y) (milliarcsecond). The sizes of the function in two orthogonal directions are given by \n"
             + "the largest FWHM (MAJOR_AXIS_FWHM) and by the ratio FLATTEN_RATIO between the largest \n"
             + "FWHM (MAJOR_AXIS_FWHM) and the MINOR_AXIS_FWHM, in the same way as for an ellipse \n"
@@ -50,6 +74,22 @@ public final class GaussianModelFunction extends AbstractModelFunction<GaussianF
             + "For avoiding degenerescence, the domain of variation of MINOR_AXIS_POS_ANGLE is 180 \n"
             + "degrees, for ex. from 0 to 180 degrees. \n\n"
             + "FLUX_WEIGHT is the intensity coefficient. FLUX_WEIGHT=1 means total energy is 1. \n\n"
+            + "The function returns an error if MAJOR_AXIS_FWHM is negative or if FLATTEN_RATIO \n"
+            + "is smaller than 1.";
+    /** flattened gaussian model description */
+    private static final String MODEL_FGAUSS_DESC_BB
+                                = "Returns the Fourier transform multiplied by the relative flux of a blackbody at TEMPERATURE \n"
+            + "(in Kelvin) centered at WAVELENGTH (in meters) of a flattened gaussian centered at coordinates \n"
+            + "(X,Y) (milliarcsecond). The sizes of the function in two orthogonal directions are given by \n"
+            + "the largest FWHM (MAJOR_AXIS_FWHM) and by the ratio FLATTEN_RATIO between the largest \n"
+            + "FWHM (MAJOR_AXIS_FWHM) and the MINOR_AXIS_FWHM, in the same way as for an ellipse \n"
+            + "(the flattening is along the minor_axis) : \n\n"
+            + "FLATTEN_RATIO = MAJOR_AXIS_FWHM / MINOR_AXIS_FWHM. \n"
+            + "MINOR_AXIS_POS_ANGLE is measured in degrees, from the positive vertical semi-axis \n"
+            + "(i.e. North direction) towards to the positive horizontal semi-axis (i.e. East direction). \n"
+            + "For avoiding degenerescence, the domain of variation of MINOR_AXIS_POS_ANGLE is 180 \n"
+            + "degrees, for ex. from 0 to 180 degrees. \n\n"
+            + "FLUX_WEIGHT is the intensity coefficient to define the relative extent of the blackbody component. \n\n"
             + "The function returns an error if MAJOR_AXIS_FWHM is negative or if FLATTEN_RATIO \n"
             + "is smaller than 1.";
 
@@ -73,15 +113,32 @@ public final class GaussianModelFunction extends AbstractModelFunction<GaussianF
      * Constructor for the standard variant
      */
     public GaussianModelFunction() {
-        this(ModelVariant.Standard);
+        this(WavelengthVariant.Const);
+    }
+
+    /**
+     * Constructor for the given wavelength variant
+     * @param wlVariant the wavelength variant
+     */
+    public GaussianModelFunction(final WavelengthVariant wlVariant) {
+        this(wlVariant, ModelVariant.Standard);
+    }
+
+    /**
+     * Constructor for the given wavelength variant
+     * @param variant the model variant
+     */
+    public GaussianModelFunction(final ModelVariant variant) {
+        this(WavelengthVariant.Const, variant);
     }
 
     /**
      * Constructor for the given variant
+     * @param wlVariant the wavelength variant
      * @param variant the model variant
      */
-    public GaussianModelFunction(final ModelVariant variant) {
-        super();
+    public GaussianModelFunction(final WavelengthVariant wlVariant, final ModelVariant variant) {
+        super(wlVariant);
         this.variant = variant;
     }
 
@@ -94,11 +151,11 @@ public final class GaussianModelFunction extends AbstractModelFunction<GaussianF
         switch (this.variant) {
             default:
             case Standard:
-                return MODEL_GAUSS;
+                return (isBlackBody()) ? MODEL_GAUSS_BB : MODEL_GAUSS;
             case Elongated:
-                return MODEL_EGAUSS;
+                return (isBlackBody()) ? MODEL_EGAUSS_BB : MODEL_EGAUSS;
             case Flattened:
-                return MODEL_FGAUSS;
+                return (isBlackBody()) ? MODEL_FGAUSS_BB : MODEL_FGAUSS;
         }
     }
 
@@ -111,11 +168,11 @@ public final class GaussianModelFunction extends AbstractModelFunction<GaussianF
         switch (this.variant) {
             default:
             case Standard:
-                return MODEL_GAUSS_DESC;
+                return (isBlackBody()) ? MODEL_GAUSS_DESC_BB : MODEL_GAUSS_DESC;
             case Elongated:
-                return MODEL_EGAUSS_DESC;
+                return (isBlackBody()) ? MODEL_EGAUSS_DESC_BB : MODEL_EGAUSS_DESC;
             case Flattened:
-                return MODEL_FGAUSS_DESC;
+                return (isBlackBody()) ? MODEL_FGAUSS_DESC_BB : MODEL_FGAUSS_DESC;
         }
     }
 
@@ -163,7 +220,6 @@ public final class GaussianModelFunction extends AbstractModelFunction<GaussianF
         // Get parameters to fill the context :
         function.setX(getParameterValue(model, PARAM_X));
         function.setY(getParameterValue(model, PARAM_Y));
-        function.setFluxWeight(getParameterValue(model, PARAM_FLUX_WEIGHT));
 
         // Variant specific code :
         switch (this.variant) {
