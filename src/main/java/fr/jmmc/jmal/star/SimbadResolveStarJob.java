@@ -189,7 +189,7 @@ public final class SimbadResolveStarJob implements Callable<StarResolverResult> 
         sb.append("%MAIN_ID\\n"); // Main identifier (display)
         sb.append("%COO(d;A);%COO(d;D);%COO(A);%COO(D);\\n"); // RA and DEC coordinates as sexagesimal and decimal degree values
         sb.append("%OTYPELIST\\n"); // Object types enumeration
-        sb.append("%FLUXLIST(B,V,G,R,I,J,H,K;N=F,)\\n"); // Magnitudes among [B,V,G,R,I,J,H,K], 'Band=Value' format
+        sb.append("%FLUXLIST(B,V,R,I,G,J,H,K,g,r;n=F E,)\\n"); // Magnitudes among [U, B, V, R, I, G, J, H, K, u, g, r, i, z], 'Band=Value Error' format
         sb.append("%PM(A;D)\\n"); // Proper motion with error
         sb.append("%PLX(V;E)\\n"); // Parallax with error
         sb.append("%SP(S)\\n"); // Spectral types enumeration
@@ -283,7 +283,7 @@ public final class SimbadResolveStarJob implements Callable<StarResolverResult> 
                     try {
                         FileUtils.writeFile(cachedFile, _response);
 
-                        _logger.info("saving cached result: " + cachedFile.getAbsolutePath());
+                        _logger.info("saving cached result: {}", cachedFile.getAbsolutePath());
                     } catch (IOException ioe) {
                         _logger.info("unable to write cached result: " + cachedFile.getAbsolutePath(), ioe);
                     }
@@ -495,13 +495,31 @@ public final class SimbadResolveStarJob implements Callable<StarResolverResult> 
         while (fluxesTokenizer.hasMoreTokens()) {
             final String token = fluxesTokenizer.nextToken();
             // The first character is the magnitude band letter:
-            final String magnitudeBand = "FLUX_" + token.substring(0, 1).toUpperCase();
+            final String magnitudeBand = "FLUX_" + token.substring(0, 1);
+            final String errorBand = "FLUX_ERR_" + token.substring(0, 1);
+
             // The second character is "=", followed by the magnitude value in double:
-            final String value = token.substring(2);
+            final String values = token.substring(2);
+
+            final int pos = values.indexOf(' ');
+            final String value;
+            final String err;
+            if (pos != -1) {
+                value = values.substring(0, pos);
+                err = (pos + 1 < values.length()) ? values.substring(pos + 1) : null;
+            } else {
+                value = values;
+                err = null;
+            }
             if (_logger.isTraceEnabled()) {
                 _logger.trace("{} = '{}'.", magnitudeBand, value);
+                _logger.trace("{} = '{}'.", errorBand, err);
             }
-            _parsedStar.setPropertyAsDouble(Star.Property.fromString(magnitudeBand), Double.parseDouble(value));
+
+            _parsedStar.setPropertyAsDouble(Star.Property.fromString(magnitudeBand), Double.valueOf(value));
+            if (err != null) {
+                _parsedStar.setPropertyAsDouble(Star.Property.fromString(errorBand), Double.valueOf(err));
+            }
         }
     }
 

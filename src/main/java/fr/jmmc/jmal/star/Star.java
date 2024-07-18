@@ -7,6 +7,8 @@ import fr.jmmc.jmcs.util.StringUtils;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.Observable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Store data relative to a star.
@@ -15,6 +17,9 @@ import java.util.Observable;
  * @author Sylvain LAFRASSE, Laurent BOURGES, Guillaume MELLA.
  */
 public class Star extends Observable {
+
+    /** Logger - register on the current class to collect local logs */
+    private static final Logger _logger = LoggerFactory.getLogger(Star.class.getName());
 
     /** comma separator */
     public static final String SEPARATOR_COMMA = ",";
@@ -208,6 +213,9 @@ public class Star extends Observable {
 
         RA, DEC, RA_d, DEC_d,
         FLUX_B, FLUX_V, FLUX_G, FLUX_R, FLUX_I, FLUX_J, FLUX_H, FLUX_K,
+        FLUX_ERR_B, FLUX_ERR_V, FLUX_ERR_G, FLUX_ERR_R, FLUX_ERR_I, FLUX_ERR_J, FLUX_ERR_H, FLUX_ERR_K,
+        FLUX_L, FLUX_M, FLUX_N, FLUX_ERR_L, FLUX_ERR_M, FLUX_ERR_N,
+        FLUX_g, FLUX_r, FLUX_ERR_g, FLUX_ERR_r,
         UD_U, UD_B, UD_V, UD_R, UD_I, UD_J, UD_H, UD_K, UD_L, UD_N, TEFF, LOGG,
         OTYPELIST,
         PROPERMOTION_RA, PROPERMOTION_DEC,
@@ -232,6 +240,7 @@ public class Star extends Observable {
             try {
                 return valueOf(propertyName);
             } catch (IllegalArgumentException iae) {
+                _logger.warn("Invalid Property ('{}')", propertyName);
                 return NOPROPERTY;
             }
         }
