@@ -137,7 +137,7 @@ public final class EditableSepPosAngleParameter implements Editable {
 
     /* Parameter methods */
 
-    /* --- read-only parameter attributes ------------------------------------- */
+ /* --- read-only parameter attributes ------------------------------------- */
     /**
      * Gets the value of the name property.
      *
@@ -167,8 +167,8 @@ public final class EditableSepPosAngleParameter implements Editable {
     public String getUnits() {
         return this.type.getUnits();
     }
-    /* --- writable parameter attributes -------------------------------------- */
 
+    /* --- writable parameter attributes -------------------------------------- */
     /**
      * Gets the value of the value property.
      *
@@ -340,7 +340,7 @@ public final class EditableSepPosAngleParameter implements Editable {
      * @return position angle in [-180;180]
      */
     public static double getPosAngle(final double x, final double y) {
-        return FastMath.toDegrees(FastMath.atan2(x, y));
+        return NumberUtils.getArgumentInDegrees(y, x);
     }
 
     /**
@@ -378,7 +378,7 @@ public final class EditableSepPosAngleParameter implements Editable {
         sb.append(NumberUtils.format(NumberUtils.trimTo3Digits(getX(sep, posAngle))));
         sb.append(SepPosAngleType.SEPARATION.getUnits());
         sb.append("' y='");
-        sb.append(NumberUtils.format(NumberUtils.trimTo3Digits(getY(sep, posAngle))));        
+        sb.append(NumberUtils.format(NumberUtils.trimTo3Digits(getY(sep, posAngle))));
         sb.append(SepPosAngleType.SEPARATION.getUnits());
         return sb.toString();
     }

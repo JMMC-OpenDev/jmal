@@ -23,7 +23,6 @@
 package fr.jmmc.jmal.complex;
 
 import fr.jmmc.jmal.util.MathUtils;
-import net.jafama.FastMath;
 
 /**
  * Representation of an immutable Complex number - a number which has both a real and imaginary part. <p> Implementations of
@@ -123,7 +122,7 @@ public final class ImmutableComplex implements Complex {
      * @return the argument of the complex number given its real and imaginary part
      */
     public static double getArgument(final double re, final double im) {
-        return FastMath.atan2(im, re);
+        return MathUtils.getArgument(re, im);
     }
 
     /**
@@ -277,7 +276,6 @@ public final class ImmutableComplex implements Complex {
          }
          }
          */
-
         if (abs(c) < abs(d)) {
             final double q = c / d;
             final double denominator = c * q + d;

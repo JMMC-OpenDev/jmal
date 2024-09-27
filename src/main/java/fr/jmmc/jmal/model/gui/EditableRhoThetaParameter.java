@@ -8,6 +8,7 @@ import fr.jmmc.jmal.model.ModelManager;
 import fr.jmmc.jmal.model.targetmodel.Model;
 import fr.jmmc.jmal.model.targetmodel.Parameter;
 import fr.jmmc.jmal.util.MathUtils;
+import fr.jmmc.jmcs.util.NumberUtils;
 import net.jafama.FastMath;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -136,7 +137,7 @@ public final class EditableRhoThetaParameter implements Editable {
 
     /* Parameter methods */
 
-    /* --- read-only parameter attributes ------------------------------------- */
+ /* --- read-only parameter attributes ------------------------------------- */
     /**
      * Gets the value of the name property.
      *
@@ -166,8 +167,8 @@ public final class EditableRhoThetaParameter implements Editable {
     public String getUnits() {
         return this.type.getUnits();
     }
-    /* --- writable parameter attributes -------------------------------------- */
 
+    /* --- writable parameter attributes -------------------------------------- */
     /**
      * Gets the value of the value property.
      *
@@ -338,7 +339,7 @@ public final class EditableRhoThetaParameter implements Editable {
      * @return theta angle in [-180;180]
      */
     public static double getTheta(final double x, final double y) {
-        return FastMath.toDegrees(FastMath.atan2(y, x));
+        return NumberUtils.getArgumentInDegrees(x, y);
     }
 
     /**
