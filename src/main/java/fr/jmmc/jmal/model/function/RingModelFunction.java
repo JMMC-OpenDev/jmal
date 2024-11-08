@@ -235,6 +235,7 @@ public final class RingModelFunction extends AbstractModelFunction<RingFunction>
     @Override
     protected RingFunction createFunction(final Model model) {
         final RingFunction function = new RingFunction();
+        function.setGray(isGray());
 
         // Get parameters to fill the context :
         function.setX(getParameterValue(model, PARAM_X));
@@ -253,7 +254,7 @@ public final class RingModelFunction extends AbstractModelFunction<RingFunction>
                 break;
             case Flattened:
                 function.setDiameter(getParameterValue(model, PARAM_MAJOR_INTERNAL_DIAMETER));
-                function.setAxisRatio(1d / getParameterValue(model, PARAM_FLATTEN_RATIO));
+                function.setAxisRatio(1.0 / getParameterValue(model, PARAM_FLATTEN_RATIO));
                 function.setPositionAngle(getParameterValue(model, PARAM_MINOR_AXIS_ANGLE));
                 break;
         }

@@ -73,6 +73,7 @@ public final class CircleModelFunction extends AbstractModelFunction<CircleFunct
     @Override
     protected CircleFunction createFunction(final Model model) {
         final CircleFunction function = new CircleFunction();
+        function.setGray(isGray());
 
         // Get parameters to fill the context :
         function.setX(getParameterValue(model, PARAM_X));

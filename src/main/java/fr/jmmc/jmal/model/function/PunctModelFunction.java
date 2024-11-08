@@ -21,26 +21,12 @@ public final class PunctModelFunction extends AbstractModelFunction<PunctFunctio
                                 = "Returns the Fourier transform of a punctual object (Dirac function) at coordinates (X,Y) \n"
             + "(milliarcsecond). \n\n"
             + "FLUX_WEIGHT is the intensity coefficient. FLUX_WEIGHT=1 means total energy is 1.";
-    /** punct_BB model description */
-    private final static String MODEL_DESC_BB
-                                = "Returns the Fourier transform multiplied by the relative flux of a blackbody at TEMPERATURE \n"
-            + "(in Kelvin) centered at WAVELENGTH (in meters) of a punctual object (Dirac function) \n"
-            + "at coordinates (X,Y) (milliarcsecond). \n\n"
-            + "FLUX_WEIGHT is the intensity coefficient to define the relative extent of the blackbody component.";
 
     /**
      * Constructor
      */
     public PunctModelFunction() {
-        this(WavelengthVariant.Const);
-    }
-
-    /**
-     * Constructor for the given wavelength variant
-     * @param wlVariant the wavelength variant
-     */
-    public PunctModelFunction(final WavelengthVariant wlVariant) {
-        super(wlVariant);
+        super(WavelengthVariant.Const);
     }
 
     /**
@@ -49,9 +35,6 @@ public final class PunctModelFunction extends AbstractModelFunction<PunctFunctio
      */
     @Override
     public String getType() {
-        if (isBlackBody()) {
-            return MODEL_PUNCT_BB;
-        }
         return MODEL_PUNCT;
     }
 
@@ -61,9 +44,6 @@ public final class PunctModelFunction extends AbstractModelFunction<PunctFunctio
      */
     @Override
     public String getDescription() {
-        if (isBlackBody()) {
-            return MODEL_DESC_BB;
-        }
         return MODEL_DESC;
     }
 
@@ -90,6 +70,7 @@ public final class PunctModelFunction extends AbstractModelFunction<PunctFunctio
     @Override
     protected PunctFunction createFunction(final Model model) {
         final PunctFunction function = new PunctFunction();
+        function.setGray(isGray());
 
         // Get parameters to fill the context :
         function.setX(getParameterValue(model, PARAM_X));

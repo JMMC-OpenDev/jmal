@@ -28,11 +28,24 @@ public class GaussianFunction extends DiskFunction {
     public double computeWeight(final double ufreq, final double vfreq) {
         if (isStreched) {
             // transform UV coordinates :
-            return Functions.computeGaussian(
+            return FourierFunctions.computeGaussian(
                     Functions.transformU(ufreq, vfreq, axisRatio, cosBeta, sinBeta),
                     Functions.transformV(ufreq, vfreq, cosBeta, sinBeta),
                     diameter);
         }
-        return Functions.computeGaussian(ufreq, vfreq, diameter);
+        return FourierFunctions.computeGaussian(ufreq, vfreq, diameter);
+    }
+
+    /**
+     * Compute the solid angle of this object for black-body variants only.
+     * No unit ~ area as unscaled by distance.
+     * Solid angle ~ ellipse surface.
+     *
+     * @return solid angle value ~ ellipse surface
+     */
+    @Override
+    public double computeSolidAngle() {
+        // diameter is fwhm:
+        return Functions.computeEllipseSurface(diameter, axisRatio);
     }
 }

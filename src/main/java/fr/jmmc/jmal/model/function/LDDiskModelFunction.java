@@ -99,6 +99,7 @@ public final class LDDiskModelFunction extends AbstractModelFunction<LDDiskFunct
     @Override
     protected LDDiskFunction createFunction(final Model model) {
         final LDDiskFunction function = new LDDiskFunction();
+        function.setGray(isGray());
 
         // Get parameters to fill the context :
         function.setX(getParameterValue(model, PARAM_X));

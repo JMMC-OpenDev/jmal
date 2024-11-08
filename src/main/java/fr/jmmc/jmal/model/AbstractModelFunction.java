@@ -6,8 +6,8 @@ package fr.jmmc.jmal.model;
 import fr.jmmc.jmal.complex.MutableComplex;
 import fr.jmmc.jmal.model.function.math.BlackBodyFunction;
 import fr.jmmc.jmal.model.function.math.FluxFunction;
+import fr.jmmc.jmal.model.function.math.FourierFunctions;
 import fr.jmmc.jmal.model.function.math.PunctFunction;
-import fr.jmmc.jmal.model.function.math.Functions;
 import fr.jmmc.jmal.model.targetmodel.Model;
 import fr.jmmc.jmal.model.targetmodel.Parameter;
 import org.slf4j.Logger;
@@ -202,7 +202,7 @@ public abstract class AbstractModelFunction<T extends PunctFunction> implements 
             v = vfreq[i];
             flux_weight = flux_weights[i];
 
-            Functions.shift(u, v, zero, x, y, flux_weight * function.computeWeight(u, v), modelVis);
+            FourierFunctions.shift(u, v, zero, x, y, flux_weight * function.computeWeight(u, v), modelVis);
 
             // mutable complex:
             vis[i].add(modelVis);
@@ -232,18 +232,20 @@ public abstract class AbstractModelFunction<T extends PunctFunction> implements 
     /**
      * Compute the flux function for the given wavelengths
      *
+     * @param solidAngle solid angle to determine the emitting surface
      * @param function flux function to compute
      * @param wavelengths wavelengths to use (m)
      * @param flux array to store function's flux
      * @param totalFlux array to store total flux
      */
-    public static void computeFlux(final FluxFunction function,
+    public static void computeFlux(final double solidAngle,
+                                   final FluxFunction function,
                                    final double wavelengths[],
                                    final double[] flux,
                                    final double[] totalFlux) {
         // Compute :
         for (int l = 0; l < wavelengths.length; l++) {
-            final double fluxValue = function.computeFlux(wavelengths[l]);
+            final double fluxValue = solidAngle * function.computeFlux(wavelengths[l]);
             if (flux != null) {
                 flux[l] = fluxValue;
             }

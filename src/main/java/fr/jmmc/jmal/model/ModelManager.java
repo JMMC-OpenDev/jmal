@@ -35,7 +35,7 @@ public final class ModelManager {
     /** Class logger */
     private static final Logger logger = LoggerFactory.getLogger(ModelManager.class.getName());
     /** enable black-body models */
-    private static final boolean ENABLE_BB = "true".equalsIgnoreCase(System.getProperty("jmal.bb", "false"));
+    private static final boolean ENABLE_BB = "true".equalsIgnoreCase(System.getProperty("jmal.bb", "true"));
     /** singleton pattern */
     private static final ModelManager instance = new ModelManager();
     // members :
@@ -70,7 +70,6 @@ public final class ModelManager {
 
         // 1 - Punct Model :
         this.addFunction(new PunctModelFunction());
-        this.addFunction(new PunctModelFunction(WavelengthVariant.BlackBody));
         // 2 - Disk Models :
         this.addFunction(new DiskModelFunction());
         // 2.1 Elongated Disk Model :
@@ -334,12 +333,12 @@ public final class ModelManager {
         }
         logger.debug("functionContexts: {}", functionContexts);
 
-        // TODO BB: compute solid angle (area) from PunctFunction (min or 0.0?) and children ?
         // Compute fluxes (wavelength BB) and total flux:
         final double[] totalFlux = (mFluxes != null) ? mFluxes : new double[freqCount];
 
         for (final FunctionComputeContext functionContext : functionContexts) {
             AbstractModelFunction.computeFlux(
+                    functionContext.getModelFunction().computeSolidAngle(),
                     functionContext.getFluxFunction(), wavelengths,
                     functionContext.getFlux(), totalFlux
             );

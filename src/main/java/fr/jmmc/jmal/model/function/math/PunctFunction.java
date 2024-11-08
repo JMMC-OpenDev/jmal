@@ -22,6 +22,8 @@ public class PunctFunction {
     protected double y = 0d;
     /** flag to indicate that x = 0 and y = 0 */
     protected boolean zero;
+    /** flag to indicate gray model */
+    protected boolean isGray;
 
     /**
      * Public constructor
@@ -56,6 +58,14 @@ public class PunctFunction {
         }
         logger.info("check: Invalid {} = {} > {} !", name, dist, maxDist);
         return false;
+    }
+
+    public boolean isGray() {
+        return isGray;
+    }
+
+    public void setGray(boolean isGray) {
+        this.isGray = isGray;
     }
 
     /**
@@ -120,6 +130,17 @@ public class PunctFunction {
      * @return Fourier transform value
      */
     public double computeWeight(final double ufreq, final double vfreq) {
-        return Functions.computePunct();
+        return FourierFunctions.computePunct();
+    }
+
+    /**
+     * Compute the solid angle of this object for black-body variants only.
+     * No unit ~ area as unscaled by distance.
+     * (NaN by default for BB; 1.0 otherwise)
+     *
+     * @return solid angle value (NaN by default for BB; 1.0 otherwise)
+     */
+    public double computeSolidAngle() {
+        return isGray() ? 1.0 : Double.NaN;
     }
 }

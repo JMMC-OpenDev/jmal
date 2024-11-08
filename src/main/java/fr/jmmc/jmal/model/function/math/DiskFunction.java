@@ -92,11 +92,23 @@ public class DiskFunction extends CircleFunction {
     public double computeWeight(final double ufreq, final double vfreq) {
         if (isStreched) {
             // transform UV coordinates :
-            return Functions.computeDisk(
+            return FourierFunctions.computeDisk(
                     Functions.transformU(ufreq, vfreq, axisRatio, cosBeta, sinBeta),
                     Functions.transformV(ufreq, vfreq, cosBeta, sinBeta),
                     diameter);
         }
-        return Functions.computeDisk(ufreq, vfreq, diameter);
+        return FourierFunctions.computeDisk(ufreq, vfreq, diameter);
+    }
+
+    /**
+     * Compute the solid angle of this object for black-body variants only.
+     * No unit ~ area as unscaled by distance.
+     * Solid angle ~ ellipse surface.
+     *
+     * @return solid angle value ~ ellipse surface
+     */
+    @Override
+    public double computeSolidAngle() {
+        return Functions.computeEllipseSurface(diameter, axisRatio);
     }
 }

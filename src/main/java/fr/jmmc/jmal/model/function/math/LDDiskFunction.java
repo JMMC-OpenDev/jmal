@@ -49,6 +49,6 @@ public class LDDiskFunction extends CircleFunction {
      */
     @Override
     public double computeWeight(final double ufreq, final double vfreq) {
-        return Functions.computeLimbQuadratic(ufreq, vfreq, diameter, a1, a2);
+        return FourierFunctions.computeLimbQuadratic(ufreq, vfreq, diameter, a1, a2);
     }
 }

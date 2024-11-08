@@ -29,8 +29,9 @@ public class RingFunction extends DiskFunction {
     @Override
     public boolean check(final double maxDist) {
         return super.check(maxDist)
-                && check("diameter + width", (diameter + width), maxDist)
-                && ((axisRatio <= 1d) || check("(diameter + width) * axisRatio", ((diameter + width) * axisRatio), maxDist));
+                && check("diameter + 2.0 * width", (diameter + 2.0 * width), maxDist)
+                && ((axisRatio <= 1d) || check("(diameter + 2.0 * width) * axisRatio",
+                        ((diameter + 2.0 * width) * axisRatio), maxDist));
     }
 
     /**
@@ -53,11 +54,24 @@ public class RingFunction extends DiskFunction {
     public double computeWeight(final double ufreq, final double vfreq) {
         if (isStreched) {
             // transform UV coordinates :
-            return Functions.computeRing(
+            return FourierFunctions.computeRing(
                     Functions.transformU(ufreq, vfreq, axisRatio, cosBeta, sinBeta),
                     Functions.transformV(ufreq, vfreq, cosBeta, sinBeta),
                     diameter, width);
         }
-        return Functions.computeRing(ufreq, vfreq, diameter, width);
+        return FourierFunctions.computeRing(ufreq, vfreq, diameter, width);
+    }
+
+    /**
+     * Compute the solid angle of this object for black-body variants only.
+     * No unit ~ area as unscaled by distance.
+     * Solid angle ~ difference of ellipse surfaces (larger - minor ones).
+     *
+     * @return solid angle value ~ (larger - smaller) ellipse surface
+     */
+    @Override
+    public double computeSolidAngle() {
+        return Functions.computeEllipseSurface(diameter + 2.0 * width, axisRatio)
+                - Functions.computeEllipseSurface(diameter, axisRatio);
     }
 }
