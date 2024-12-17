@@ -46,6 +46,6 @@ public class GaussianFunction extends DiskFunction {
     @Override
     public double computeSolidAngle() {
         // diameter is fwhm:
-        return Functions.computeEllipseSurface(diameter, axisRatio);
+        return isGray() ? 1.0 : Functions.computeEllipseSurface(diameter, axisRatio);
     }
 }

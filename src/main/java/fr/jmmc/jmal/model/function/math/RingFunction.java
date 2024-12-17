@@ -71,7 +71,7 @@ public class RingFunction extends DiskFunction {
      */
     @Override
     public double computeSolidAngle() {
-        return Functions.computeEllipseSurface(diameter + 2.0 * width, axisRatio)
-                - Functions.computeEllipseSurface(diameter, axisRatio);
+        return isGray() ? 1.0 : Functions.computeEllipseSurface(diameter + 2.0 * width, axisRatio)
+                                - Functions.computeEllipseSurface(diameter, axisRatio);
     }
 }

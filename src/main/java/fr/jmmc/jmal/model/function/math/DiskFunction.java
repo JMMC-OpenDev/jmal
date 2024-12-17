@@ -109,6 +109,6 @@ public class DiskFunction extends CircleFunction {
      */
     @Override
     public double computeSolidAngle() {
-        return Functions.computeEllipseSurface(diameter, axisRatio);
+        return isGray() ? 1.0 : Functions.computeEllipseSurface(diameter, axisRatio);
     }
 }
