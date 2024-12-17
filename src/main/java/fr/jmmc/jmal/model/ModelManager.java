@@ -710,7 +710,9 @@ public final class ModelManager {
     private static double computeMeanFlux(final double wlA, final double wlB,
                                           final List<FunctionComputeContext> functionContexts) {
 
-        if (logger.isDebugEnabled()) {
+        final boolean isLogDebug = logger.isDebugEnabled();
+
+        if (isLogDebug) {
             logger.debug("computeMeanFlux[{} - {}]", wlA, wlB);
         }
 
@@ -725,13 +727,14 @@ public final class ModelManager {
         double totalFlux = 0.0;
 
         for (final FunctionComputeContext functionContext : functionContexts) {
+            final double solidAngle = functionContext.getModelFunction().computeSolidAngle();
             final FluxFunction function = functionContext.getFluxFunction();
 
             for (int i = 0; i < nSamples; i++) {
                 final double wl = wlA + step * i;
-                final double fluxValue = function.computeFlux(wl);
+                final double fluxValue = solidAngle * function.computeFlux(wl);
 
-                if (logger.isDebugEnabled()) {
+                if (isLogDebug) {
                     logger.debug("flux({}) = {}", wl, fluxValue);
                 }
                 totalFlux += fluxValue;
@@ -740,7 +743,7 @@ public final class ModelManager {
 
         final double meanFlux = totalFlux / nSamples;
 
-        if (logger.isDebugEnabled()) {
+        if (isLogDebug) {
             logger.debug("totalFlux: {} - meanFlux: {}", totalFlux, meanFlux);
         }
         return meanFlux;
