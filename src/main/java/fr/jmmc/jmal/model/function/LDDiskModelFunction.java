@@ -66,9 +66,6 @@ public final class LDDiskModelFunction extends AbstractModelFunction<LDDiskFunct
     public Model newModel() {
         final Model model = super.newModel();
 
-        model.setNameAndType(getType());
-        model.setDesc(getDescription());
-
         addPositiveParameter(model, PARAM_DIAMETER);
 
         Parameter param;

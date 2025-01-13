@@ -23,6 +23,8 @@ public abstract class AbstractModelFunction<T extends PunctFunction> implements 
 
     /** Class logger */
     protected final static Logger logger = LoggerFactory.getLogger(AbstractModelFunction.class.getName());
+    /** enable description in Model elements */
+    private static final boolean ENABLE_DESC = "true".equalsIgnoreCase(System.getProperty("jmal.model.desc", "false"));
 
     /* specific parameters for elongated models */
     /** Parameter type for the parameter elong_ratio */
@@ -73,6 +75,9 @@ public abstract class AbstractModelFunction<T extends PunctFunction> implements 
     @Override
     public Model newModel() {
         final Model model = new Model();
+
+        model.setNameAndType(getType());
+        updateModelDescription(model);
 
         // common parameters :
         Parameter param;
@@ -152,6 +157,24 @@ public abstract class AbstractModelFunction<T extends PunctFunction> implements 
     }
 
     /**
+     * Update the model description (from code)
+     * @param model model to update
+     */
+    @Override
+    public final void updateModelDescription(final Model model) {
+        if (ENABLE_DESC) {
+            if (model.getDesc() == null) {
+                model.setDesc(getDescription());
+            }
+        } else {
+            if (model.getDesc() != null) {
+                // trim description anyway:
+                model.setDesc(null);
+            }
+        }
+    }
+
+    /**
      * Check the model parameters against their min/max bounds.
      * For now, it uses the parameter user min/max (LITpro) instead using anything else
      *
@@ -160,8 +183,9 @@ public abstract class AbstractModelFunction<T extends PunctFunction> implements 
      */
     @Override
     public final void validate(final Model model) {
-        for (Parameter param : model.getParameters()) {
+        updateModelDescription(model);
 
+        for (Parameter param : model.getParameters()) {
             final double value = param.getValue();
 
             if (param.getMinValue() != null && value < param.getMinValue().doubleValue()) {

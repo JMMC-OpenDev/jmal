@@ -29,6 +29,12 @@ public interface ModelFunction extends ModelDefinition {
     public String getDescription();
 
     /**
+     * Update the model description (from code)
+     * @param model model to update
+     */
+    public void updateModelDescription(final Model model);
+
+    /**
      * Return a new Model instance with its parameters and default values
      *
      * @return new Model instance

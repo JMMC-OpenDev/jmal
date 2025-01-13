@@ -236,6 +236,28 @@ public final class ModelManager {
     }
 
     /**
+     * Check the given model values.
+     *
+     * @param models list of models to check
+     */
+    public void checkModelValues(final List<Model> models) {
+        if (models != null && !models.isEmpty()) {
+
+            // Clean models (description):
+            for (Model model : models) {
+                getModelFunction(model.getType()).updateModelDescription(model);
+
+                final List<Model> children = model.getModels();
+                if (!children.isEmpty()) {
+                    for (Model child : children) {
+                        getModelFunction(child.getType()).updateModelDescription(child);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
      * Check the given models have dimensions below the max distance threshold in mas.
      *
      * @param models list of models to validate

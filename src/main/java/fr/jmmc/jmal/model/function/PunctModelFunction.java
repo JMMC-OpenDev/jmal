@@ -53,12 +53,7 @@ public final class PunctModelFunction extends AbstractModelFunction<PunctFunctio
      */
     @Override
     public Model newModel() {
-        final Model model = super.newModel();
-
-        model.setNameAndType(getType());
-        model.setDesc(getDescription());
-
-        return model;
+        return super.newModel();
     }
 
     /**

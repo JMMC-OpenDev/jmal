@@ -200,9 +200,6 @@ public final class RingModelFunction extends AbstractModelFunction<RingFunction>
     public Model newModel() {
         final Model model = super.newModel();
 
-        model.setNameAndType(getType());
-        model.setDesc(getDescription());
-
         switch (this.variant) {
             default:
             case Standard:
@@ -222,7 +219,6 @@ public final class RingModelFunction extends AbstractModelFunction<RingFunction>
                 addAngleParameter(model, PARAM_MINOR_AXIS_ANGLE);
                 break;
         }
-
         return model;
     }
 

@@ -172,9 +172,6 @@ public final class DiskModelFunction extends AbstractModelFunction<DiskFunction>
     public Model newModel() {
         final Model model = super.newModel();
 
-        model.setNameAndType(getType());
-        model.setDesc(getDescription());
-
         switch (this.variant) {
             default:
             case Standard:
@@ -191,7 +188,6 @@ public final class DiskModelFunction extends AbstractModelFunction<DiskFunction>
                 addAngleParameter(model, PARAM_MINOR_AXIS_ANGLE);
                 break;
         }
-
         return model;
     }
 
