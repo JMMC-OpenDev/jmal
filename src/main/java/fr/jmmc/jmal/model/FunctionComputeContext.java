@@ -14,6 +14,8 @@ import fr.jmmc.jmal.model.function.math.PunctFunction;
 public final class FunctionComputeContext {
 
     /* members */
+    /** name of the model component (debugging) */
+    private final String modelName;
     /** uv frequency count used to preallocate arrays */
     private final int freqCount;
     /** flux function to compute */
@@ -27,17 +29,28 @@ public final class FunctionComputeContext {
     /**
      * Protected constructor
      *
+     * @param modelName model name
      * @param freqCount uv frequency count used to preallocate arrays
      * @param fluxFunction flux function to compute
      * @param modelFunction model function to compute
      */
-    FunctionComputeContext(final int freqCount, final FluxFunction fluxFunction, final PunctFunction modelFunction) {
+    FunctionComputeContext(final String modelName, final int freqCount, final FluxFunction fluxFunction, final PunctFunction modelFunction) {
+        this.modelName = modelName;
         this.freqCount = freqCount;
 
         this.modelFunction = modelFunction;
         this.fluxFunction = fluxFunction;
 
         flux = new double[freqCount];
+    }
+
+    /**
+     * Return the name of the model component
+     *
+     * @return name of the model component
+     */
+    public String getModelName() {
+        return modelName;
     }
 
     /**
@@ -78,7 +91,7 @@ public final class FunctionComputeContext {
 
     @Override
     public String toString() {
-        return "FunctionComputeContext{" + "fluxFunction=" + fluxFunction + ", modelFunction=" + modelFunction + '}';
+        return "FunctionComputeContext[" + modelName + "] fluxFunction=" + fluxFunction + ", modelFunction=" + modelFunction + '}';
     }
 
 }

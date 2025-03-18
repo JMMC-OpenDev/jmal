@@ -16,9 +16,11 @@ import fr.jmmc.jmal.model.function.math.PunctFunction;
 import fr.jmmc.jmal.model.targetmodel.Model;
 import fr.jmmc.jmal.model.targetmodel.Parameter;
 import fr.jmmc.jmal.util.MathUtils;
+import fr.jmmc.jmcs.util.WelfordVariance;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Vector;
@@ -348,7 +350,7 @@ public final class ModelManager {
             mf.validate(model);
 
             // Get parameters to fill the function context :
-            functionContexts.add(new FunctionComputeContext(freqCount,
+            functionContexts.add(new FunctionComputeContext(model.getName(), freqCount,
                     mf.prepareFluxFunction(model),
                     mf.prepareFunction(model))
             );
@@ -396,6 +398,38 @@ public final class ModelManager {
             }
         }
         return new ModelFunctionComputeContext(freqCount, functionContexts);
+    }
+
+    /**
+     * Compute statistics on each model component (computed flux weights)
+     *
+     * @param context compute context
+     * @return stats per component or null if thread interrupted
+     * @throws IllegalArgumentException if a parameter value is invalid !
+     */
+    public HashMap<String, WelfordVariance> getStatsOnFluxWeights(final ModelFunctionComputeContext context) throws IllegalArgumentException {
+        if (context != null) {
+            // For now : no composite model supported (hierarchy) !
+            final List<FunctionComputeContext> functionContexts = context.getModelFunctionContexts();
+
+            final int len = functionContexts.size();
+            final LinkedHashMap<String, WelfordVariance> map = new LinkedHashMap<String, WelfordVariance>(len * 2);
+
+            for (final FunctionComputeContext functionContext : functionContexts) {
+                // get normalized flux contribution from context:
+                final double[] flux_weights = functionContext.getFlux();
+                final WelfordVariance statFluxWeight = new WelfordVariance();
+
+                for (int j = 0; j < flux_weights.length; j++) {
+                    statFluxWeight.add(flux_weights[j]);
+                }
+                if (statFluxWeight.isSet()) {
+                    map.put(functionContext.getModelName(), statFluxWeight);
+                }
+            }
+            return map;
+        }
+        return null;
     }
 
     /**
