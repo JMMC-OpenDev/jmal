@@ -43,7 +43,8 @@ public enum Catalog {
     WISE("II/328/allwise", "WISE", "The AllWISE data Release (Cutri+ 2013)"),
     GAIA("I/355/gaiadr3", "GAIA DR3", "Gaia DR3: Main source (Gaia Collaboration, 2022)"),
     GAIA_AP("I/355/paramp", "GAIA DR3 A.P", "Gaia DR3: 1D astrophysical parameters produced by the Apsis processing chain developed in Gaia DPAC CU8 (Gaia Collaboration, 2022)"),
-    MDFC("II/361", "MDFC", "Mid-infrared stellar Diameters and Fluxes compilation Catalogue (2019)");
+    MDFC("II/361", "MDFC", "Mid-infrared stellar Diameters and Fluxes compilation Catalogue (2019)"),
+    BADCAL("BADCAL", "BADCAL", "Bad Calibrators Catalogue for optical interferometry");
 
     /* members */
     /** Store the catalog CDS 'cryptic' reference */
@@ -200,6 +201,8 @@ public enum Catalog {
             sb.append("</td><td>");
             if ("SIMBAD".equals(ref)) {
                 sb.append("<a href='http://simbad.u-strasbg.fr/simbad/");
+            } else if ("BADCAL".equals(ref)) {
+                sb.append("<a href='http://www.jmmc.fr/badcal");
             } else {
                 sb.append("<a href='http://cdsarc.u-strasbg.fr/cgi-bin/VizieR?-source=");
                 sb.append(ref);
