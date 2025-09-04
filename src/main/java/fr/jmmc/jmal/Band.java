@@ -20,12 +20,16 @@ public enum Band {
     U("U", 0.334, 0.066, -1.4, 0.3),
     /** B (Visible) */
     B("B", 0.461875, 0.08175, -1.2, 0.48),
+    /** GAIA G_BP (from vosa) */
+    G_BP("G_bp", 0.503575, 0.21575, -1.38945, 0.5),
     /** V (Visible) */
     V("V", 0.556, 0.1105, -1.44, 0.5),
+    /** GAIA G (from vosa) */
+    G("G", 0.582239, 0.405297, -1.60134, 0.6),
     /** R (Visible) */
     R("R", 0.6625, 0.10651, -1.65, 0.65),
-    /** GAIA G_RP (from vosa eff values) */
-    G_RP("G_rp", 0.7849, 0.3083, -1.8965, 0),
+    /** GAIA G_RP (from vosa) */
+    G_RP("G_rp", 0.761996, 0.292444, -1.8965, 0.7),
     /** I (Near Infrared) */
     I("I", 0.869625, 0.31176, -1.94, 0.75),
     /** J (Near Infrared) */
@@ -43,6 +47,16 @@ public enum Band {
     /** Q (Mid Infrared) */
     Q("Q", 16.575, 4.05, -7.17, 0.999);
 
+    /*
+    λeff and Weff are used, then logFluxZero = math.log10(zero point * 1e7)
+    
+Filter ID 	λref 	λmean 	λeff 	λmin 	λmax 	Weff 	ZPν 	ZPλ 	Obs. Facility 	Instrument 	Description
+GAIA/GAIA3.Gbp	5109.71	5319.87	5035.75	3301.83	6739.34	2157.50	3552.01	4.08e-9	GAIA	GAIA	GAIA Gbp filter, DR3
+GAIA/GAIA3.G	6217.59	6719.55	5822.39	3309.13	10381.71	4052.97	3228.75	2.5e-9	GAIA	GAIA	GAIA G filter, DR3
+GAIA/GAIA3.Grp	7769.02	7939.10	7619.96	6200.46	10465.57	2924.44	2554.95	1.27e-9	GAIA	GAIA	GAIA Grp filter, DR3
+
+    From https://svo2.cab.inta-csic.es/theory/fps/index.php?mode=browse&gname=GAIA&gname2=GAIA3&asttype=
+     */
     /** Class logger */
     private static final Logger logger = LoggerFactory.getLogger(Band.class.getName());
     /** Planck's constant in standard units (6.6262e-34) */
@@ -82,11 +96,22 @@ public enum Band {
         final Band[] bands = values();
         final int len = bands.length;
 
+        Band match = null;
+        double minDist = Double.MAX_VALUE;
+
         for (int i = len - 1; i >= 0; i--) {
             final Band b = bands[i];
-            if (Math.abs(waveLength - b.getLambda()) <= b.getHalfBandWidth()) {
-                return b;
+            final double dist = Math.abs(waveLength - b.getLambda());
+            if (dist <= b.getHalfBandWidth()) {
+                if (dist < minDist) {
+                    minDist = dist;
+                    match = b;
+                }
             }
+        }
+        if (match != null) {
+            return match;
+
         }
         // Return the nearest band:
         if (waveLength <= bands[0].getLambda()) {
@@ -555,7 +580,7 @@ public enum Band {
     }
 
     public static void main(String[] args) {
-        if (true) {
+        if (false) {
             System.out.println("as2rad(1): " + as2rad(1.0));
             System.out.println("r0(seeing = 0.5as) : " + getR0(0.5) + " cm");
             System.out.println("r0(seeing = 1.0as) : " + getR0(1.0) + " cm");
@@ -593,8 +618,8 @@ public enum Band {
             );
         }
 
-        if (false) {
-            for (double wl = 2.0; wl < 14.0; wl += 0.02) {
+        if (true) {
+            for (double wl = 0.4; wl < 14.0; wl += 0.02) {
                 Band b = Band.findBand(wl);
                 System.out.println("Band: " + b.getName()
                         + " wl: " + NumberUtils.trimTo3Digits(wl));
