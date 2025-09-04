@@ -24,6 +24,8 @@ public enum Band {
     V("V", 0.556, 0.1105, -1.44, 0.5),
     /** R (Visible) */
     R("R", 0.6625, 0.10651, -1.65, 0.65),
+    /** GAIA G_RP (from vosa eff values) */
+    G_RP("G_rp", 0.7849, 0.3083, -1.8965, 0),
     /** I (Near Infrared) */
     I("I", 0.869625, 0.31176, -1.94, 0.75),
     /** J (Near Infrared) */
@@ -127,17 +129,19 @@ public enum Band {
      * @param quantumEfficiency Detector quantum efficiency
      * @param ron Detector readout noise
      * @param elevation target elevation in degrees [0; 90]
+     * @param strehlMax optional max strehl for this AO in this band (0 to use band's default)
      * @return strehl ratio
      */
     public static double[] strehl(final Band aoBand, final double magnitude, final double[] waveLengths,
                                   final double diameter, final double seeing, final int nbSubPupils, final int nbActuators,
                                   final double td, final double t0,
                                   final double quantumEfficiency, final double ron,
-                                  final double elevation) {
+                                  final double elevation, final double strehlMax) {
+
+        final double logStrehlMax = (strehlMax > 0.0) ? -Math.log(strehlMax) : 0.0;
 
         // avoid cos(0) so use min elevation = 0.5 deg:
-        final double usedElevation = Math.max(elevation, 0.5);
-        final double zenithAngle = 90.0 - usedElevation;
+        final double zenithAngle = 90.0 - Math.max(elevation, 0.5);
 
         // airmass: secant of the zenith angle (1/cos(zenith_angle))
         final double airmass = 1.0 / FastMath.cos(FastMath.toRadians(zenithAngle));
@@ -145,7 +149,9 @@ public enum Band {
         final double lambdaV = 0.5; // seeing is given at 500 nm
 
         // r0(e)=cos(90-e)^(3/5) * r0
-        final double r0_corr = R0_FACTOR * (lambdaV / seeing) * FastMath.pow(airmass, -3.0 / 5.0);
+        final double r0_V = R0_FACTOR * (lambdaV / seeing);
+
+        final double r0_corr = r0_V * FastMath.pow(airmass, -3.0 / 5.0);
 
         final double lambdaAO = (aoBand != Band.V) ? aoBand.getLambdaFluxZero() : lambdaV;
 
@@ -156,16 +162,19 @@ public enum Band {
         final double ds = Math.sqrt(Math.PI * FastMath.pow(0.5 * diameter, 2.0) / nbActuators);
 
         if (logger.isDebugEnabled()) {
-            logger.debug("elevation     = {}", usedElevation);
             logger.debug("zenithAngle   = {}", zenithAngle);
             logger.debug("airmass       = {}", airmass);
             logger.debug("lambdaAO      = {}", lambdaAO);
             logger.debug("magnitude     = {}", magnitude);
             logger.debug("diameter      = {}", diameter);
             logger.debug("seeing        = {}", seeing);
-            logger.debug("nbSubPupils   = {}", nbSubPupils);
+            logger.debug("r0_V          = {}", r0_V);
             logger.debug("(td/t0)       = {}", td_over_t0);
+            logger.debug("nbSubPupils   = {}", nbSubPupils);
+            logger.debug("ds2           = {}", ds2);
+            logger.debug("nbActuators   = {}", nbActuators);
             logger.debug("ds            = {}", ds);
+            logger.debug("strehlMax     = {}", strehlMax);
         }
 
         // NbPhot(AO) per DIT per sub aperture:
@@ -219,7 +228,7 @@ public enum Band {
             sigmaphi2_sensor *= FastMath.pow(lambdaRatio, -(12.0 / 5.0));
             sigmaphi2_sensor *= FastMath.pow(ds_over_r0, -2.0);
 
-            sigmaphi2_fixed = -Math.log(findBand(lambdaObs).getStrehlMax());
+            sigmaphi2_fixed = (logStrehlMax > 0.0) ? logStrehlMax : -Math.log(findBand(lambdaObs).getStrehlMax());
 
             sigmaphi2 = sigmaphi2_alias_fit + sigmaphi2_bw + sigmaphi2_phot + sigmaphi2_sensor + sigmaphi2_fixed;
 
@@ -242,13 +251,55 @@ public enum Band {
         return strehlPerChannel;
     }
 
-    public static final double[] COEFFS_ISO = new double[]{4.33657467, 1.86425362}; // GRAVITY NGS VIS
+    // GRAVITY NGS_VIS: [4.337, 1.864]
+    public static final double[] COEFFS_ISO_NGS_VIS = new double[]{4.337, 1.864};
+    // GRAVITY NGS_IR: [1.75 , 1.973]
+    public static final double[] COEFFS_ISO_NGS_IR = new double[]{1.75, 1.973};
 
-    public static double[] strehl_iso(final Band aoBand, final double[] waveLengths,
-                                      final double seeing, final double h0,
-                                      final double elevation, final double distAs) {
+    // GRAVITY LGS VIS: [4.326, 0.39, 1.985]
+    public static final double[] COEFFS_ISO_LGS_VIS_LGS = new double[]{4.326, 1.985};
+    public static final double[] COEFFS_ISO_LGS_VIS_NGS = new double[]{0.390, 1.985};
+
+    // GRAVITY LGS IR: [4.169, 0.35 , 1.958]
+    public static final double[] COEFFS_ISO_LGS_IR__LGS = new double[]{4.169, 1.958};
+    public static final double[] COEFFS_ISO_LGS_IR__NGS = new double[]{0.350, 1.958};
+
+    public static double[] strehl_iso_NGS(final Band aoBand, final boolean visWFS, final double[] waveLengths,
+                                          final double seeing, final double h0,
+                                          final double elevation, final double distAs) {
+
+        return strehl_iso(aoBand, waveLengths, seeing, h0, elevation, distAs,
+                (visWFS) ? COEFFS_ISO_NGS_VIS : COEFFS_ISO_NGS_IR);
+    }
+
+    public static double[] strehl_iso_LGS(final Band aoBand, final boolean visWFS, final double[] waveLengths,
+                                          final double seeing, final double h0,
+                                          final double elevation, final double distAs_LGS, final double distAs_NGS) {
+
+        final double[] strehlPerChannel_LGS = strehl_iso(aoBand, waveLengths, seeing, h0, elevation, distAs_LGS,
+                (visWFS) ? COEFFS_ISO_LGS_VIS_LGS : COEFFS_ISO_LGS_IR__LGS);
+
+        if (strehlPerChannel_LGS != null) {
+            final double[] strehlPerChannel_NGS = strehl_iso(aoBand, waveLengths, seeing, h0, elevation, distAs_NGS,
+                    (visWFS) ? COEFFS_ISO_LGS_VIS_NGS : COEFFS_ISO_LGS_IR__NGS);
+
+            if (strehlPerChannel_NGS != null) {
+                final int nWLen = waveLengths.length;
+                for (int i = 0; i < nWLen; i++) {
+                    strehlPerChannel_LGS[i] *= strehlPerChannel_NGS[i];
+                }
+            }
+        }
+        return strehlPerChannel_LGS;
+    }
+
+    private static double[] strehl_iso(final Band aoBand, final double[] waveLengths,
+                                       final double seeing, final double h0,
+                                       final double elevation, final double distAs,
+                                       final double[] coeffs) {
 
         if (Double.isNaN(distAs) || (distAs <= 0.0)) {
+            // multiply by 1.0 so skip:
             return null;
         }
 
@@ -258,12 +309,11 @@ public enum Band {
             logger.debug("h0              = {}", h0);
             logger.debug("elevation       = {}", elevation);
             logger.debug("distAs          = {}", distAs);
+            logger.debug("coeffs          = {}", Arrays.toString(coeffs));
         }
 
-        // final double h0_corr = (np.sum(Cn2 * np.power(h_0, 5.0 / 3.0)) / np.sum(Cn2))**(3.0 / 5.0);
         // avoid cos(0) so use min elevation = 0.5 deg:
-        final double usedElevation = Math.max(elevation, 0.5);
-        final double zenithAngle = 90.0 - usedElevation;
+        final double zenithAngle = 90.0 - Math.max(elevation, 0.5);
 
         // airmass: secant of the zenith angle (1/cos(zenith_angle))
         final double airmass = 1.0 / FastMath.cos(FastMath.toRadians(zenithAngle));
@@ -287,7 +337,7 @@ public enum Band {
             // r0 at lambda AO:
             r0 = r0_corr * FastMath.pow(lambdaRatio, (6.0 / 5.0));
 
-            final double sigmaphi2 = COEFFS_ISO[0] * Math.pow(as2rad(distAs) * airmass * h0 / r0, COEFFS_ISO[1]);
+            final double sigmaphi2 = coeffs[0] * Math.pow(as2rad(distAs) * airmass * h0 / r0, coeffs[1]);
 
             double sr = FastMath.exp(-sigmaphi2);
 
