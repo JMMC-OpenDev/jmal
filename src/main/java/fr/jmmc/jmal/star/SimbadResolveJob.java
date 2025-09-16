@@ -5,43 +5,21 @@ package fr.jmmc.jmal.star;
 
 import static fr.jmmc.jmal.star.Star.SEPARATOR_COMMA;
 import static fr.jmmc.jmal.star.StarResolver.SEPARATOR_SEMI_COLON;
-import static fr.jmmc.jmal.star.StarResolver.USE_CACHE_DEV;
 import fr.jmmc.jmal.util.StrictStringTokenizer;
-import fr.jmmc.jmcs.data.preference.SessionSettingsPreferences;
-import fr.jmmc.jmcs.network.http.Http;
-import fr.jmmc.jmcs.util.CollectionUtils;
-import fr.jmmc.jmcs.util.FileUtils;
 import fr.jmmc.jmcs.util.StringUtils;
-import java.io.File;
-import java.io.IOException;
-import java.net.UnknownHostException;
 import java.text.ParseException;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.StringTokenizer;
-import java.util.concurrent.Callable;
-import org.apache.commons.httpclient.HttpClient;
+import org.apache.commons.httpclient.HttpMethodBase;
 import org.apache.commons.httpclient.methods.PostMethod;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Star resolver job: launch and handle CDS SIMBAD query
  * note: this implementation is only usable from the jmal.star package (internal use)
  */
-public final class SimbadResolveStarJob implements Callable<StarResolverResult> {
-
-    /** Logger */
-    private static final Logger _logger = LoggerFactory.getLogger(SimbadResolveStarJob.class.getName());
-    /** Simbad value for the read timeout in milliseconds (10 seconds) */
-    public static final int SIMBAD_SOCKET_READ_TIMEOUT_SMALL = 10 * 1000;
-    /** Simbad value for the read timeout in milliseconds (100 seconds) */
-    public static final int SIMBAD_SOCKET_READ_TIMEOUT_LARGE = 10 * SIMBAD_SOCKET_READ_TIMEOUT_SMALL;
-    /** threshold to consider query is large (100 ids) */
-    public static final int SIMBAD_THREHOLD_LARGE = 100;
+public final class SimbadResolveJob extends ResolverJob {
 
     /** custom entry separator */
     public static final String MARKER_ENTRY = ":entry:";
@@ -51,134 +29,39 @@ public final class SimbadResolveStarJob implements Callable<StarResolverResult> 
     public static final String MARKER_DATA = "::data";
 
     /* members */
-    /** optional flags associated with the query */
-    private final Set<String> _flags;
-    /** callback listener with results */
-    private final StarResolverProgressListener _listener;
     /** result */
     private final StarResolverResult _result;
-    /** running thread name (only defined during the background execution; null otherwise) */
-    private String threadName = null;
     /** current star name during parsing */
     private String _currentName = null;
-    /** SIMBAD query response */
-    private String _response = null;
     /** temporary parsing result */
     private Star _parsedStar = null;
 
     /**
      * @param flags optional flags associated with the query
      * @param names list of queried identifiers
+     * @param progressListener callback listener with progress
      * @param listener callback listener with results
      */
-    SimbadResolveStarJob(final Set<String> flags, final List<String> names, final StarResolverProgressListener listener) {
-        _flags = flags;
-        _listener = listener;
+    SimbadResolveJob(final Set<String> flags, final List<String> names,
+                     final StarResolverProgressListener progressListener,
+                     final StarResolverListener<Object> listener) {
+        super(flags, names, progressListener, listener);
         _result = new StarResolverResult(names);
     }
 
-    /**
-     * Cancel any http request in progress (close socket)
-     * Called by another thread
-     */
-    void cancel() {
-        _logger.debug("SimbadResolveStarJob.cancel");
-        if (this.threadName != null) {
-            Http.abort(this.threadName);
-        }
+    @Override
+    public String getResolverName() {
+        return "Simbad";
     }
 
     @Override
-    public StarResolverResult call() {
-        _logger.debug("SimbadResolveStarJob.run");
-
-        if (_listener != null) {
-            _listener.handleProgressMessage("searching CDS Simbad data for star(s) "
-                    + _result.getNames() + " ... (please wait, this may take a while)");
-        }
-        // define the thread name:
-        this.threadName = Thread.currentThread().getName();
-        try {
-            querySimbad();
-
-            if (Thread.currentThread().isInterrupted()) {
-                handleError(StarResolverStatus.ERROR_IO, "CDS Simbad star resolution cancelled.");
-            } else {
-                parseResult();
-
-                // If everything went fine, set status to OK
-                if (!_result.isErrorStatus()) {
-                    _result.setStatus(StarResolverStatus.OK);
-                    if (_listener != null) {
-                        _listener.handleProgressMessage("CDS Simbad star resolution done.");
-                    }
-                }
-            }
-
-        } catch (IOException ioe) {
-            handleError(StarResolverStatus.ERROR_IO, ioe.getMessage());
-        } catch (IllegalStateException ise) {
-            _logger.info("Parsing error on the CDS Simbad response:\n{}", _response);
-            handleError(StarResolverStatus.ERROR_PARSING, ise.getMessage());
-        } finally {
-            // anyway: process result
-            if (_listener != null) {
-                _listener.handleResult(_result);
-            }
-        }
+    public Object getResolverResult() {
         return _result;
     }
 
-    private void handleError(final StarResolverStatus status, final String errorMessage) {
-        if (status == StarResolverStatus.ERROR_SERVER) {
-            _result.setServerErrorMessage(errorMessage);
-        } else {
-            _result.setErrorMessage(status, errorMessage);
-        }
-        if (_listener != null) {
-            _listener.handleProgressMessage("CDS Simbad star resolution failed.");
-        }
-    }
-
-    /**
-     * Query SIMBAD using script
-     * @throws IllegalStateException if the star name is empty
-     * @throws IOException if no Simbad mirror is responding
-     */
-    private void querySimbad() throws IllegalArgumentException, IOException {
-        _logger.trace("SimbadResolveStarJob.querySimbad");
-
+    @Override
+    protected String buildQuery() {
         final List<String> ids = _result.getNames();
-
-        // Should never receive an empty scence object name
-        if (CollectionUtils.isEmpty(ids)) {
-            throw new IllegalStateException("Could not resolve empty star name.");
-        }
-
-        // Reset result before proceeding
-        _response = "";
-
-        // In development: load cached query results:
-        final File cachedFile;
-        if (USE_CACHE_DEV) {
-            cachedFile = generateCacheFile(ids);
-
-            if (cachedFile.exists() && cachedFile.length() != 0L) {
-                try {
-                    _response = FileUtils.readFile(cachedFile);
-
-                    // update last modified (consistent cache):
-                    cachedFile.setLastModified(System.currentTimeMillis());
-
-                    _logger.info("using cached result: " + cachedFile.getAbsolutePath());
-                    return;
-                } catch (IOException ioe) {
-                    _logger.info("unable to read cached result: " + cachedFile.getAbsolutePath(), ioe);
-                }
-            }
-        } else {
-            cachedFile = null;
-        }
 
         // buffer used for both script and result:
         final StringBuilder sb = new StringBuilder(2048);
@@ -206,108 +89,48 @@ public final class SimbadResolveStarJob implements Callable<StarResolverResult> 
         final String simbadScript = sb.toString();
         _logger.trace("CDS Simbad script:\n{}", simbadScript);
 
-        // Get the shared HTTP client to send queries to Simbad (multithread support)
-        final HttpClient client = Http.getHttpClient();
-
-        /** Get the current thread to check if the query is cancelled */
-        final Thread currentThread = Thread.currentThread();
-
-        // Use prefered Simbad mirror
-        String simbadMirror = StarResolver.getSimbadMirror();
-        String simbadURL;
-        final Set<String> failedUrl = new HashSet<String>(4);
-        List<String> ioMessages = null;
-
-        // Retry other mirrors if needed
-        while ((simbadMirror != null) && (!currentThread.isInterrupted())) {
-            // Try to get star data from CDS
-            simbadURL = StarResolver.getSimbadUrl();
-
-            _logger.debug("Querying CDS Simbad: {}", simbadURL);
-            PostMethod method = null;
-            try {
-                final long start = System.nanoTime();
-
-                // create the HTTP Post method:
-                method = new PostMethod(simbadURL);
-
-                // customize timeouts:
-                final int timeout = (ids.size() >= SIMBAD_THREHOLD_LARGE) ? SIMBAD_SOCKET_READ_TIMEOUT_LARGE : SIMBAD_SOCKET_READ_TIMEOUT_SMALL;
-                _logger.debug("Timeout for CDS Simbad: {}", timeout);
-
-                method.getParams().setSoTimeout(timeout);
-                // define query script:
-                method.addParameter("script", simbadScript);
-
-                // execute query:
-                _response = Http.execute(client, method);
-
-                _logger.info("SimbadResolveStarJob.querySimbad: duration = {} ms.", 1e-6d * (System.nanoTime() - start));
-                // exit from loop:
-                return;
-            } catch (IOException ioe) {
-                final String eMsg = getExceptionMessage(ioe);
-                _logger.info("Simbad connection failed: {}", eMsg);
-                if (ioMessages == null) {
-                    ioMessages = new ArrayList<String>(5);
-                }
-                ioMessages.add("[" + simbadMirror + "] " + eMsg);
-                failedUrl.add(simbadURL);
-                // get another simbad mirror:
-                simbadMirror = StarResolver.getNextSimbadMirror(failedUrl);
-                if (simbadMirror != null) {
-                    _logger.info("Trying another Simbad mirror [{}]", simbadMirror);
-                    if (_listener != null) {
-                        _listener.handleProgressMessage("Simbad connection failed: trying another mirror [" + simbadMirror + "] ...");
-                    }
-                } else {
-                    // no more mirror to use (probably bad network settings):
-                    ioMessages.add("\nPlease check your network connection !");
-
-                    // reset buffer:
-                    sb.setLength(0);
-                    sb.append("Simbad connection failed:");
-                    for (String msg : ioMessages) {
-                        sb.append('\n').append(msg);
-                    }
-
-                    throw new IOException(sb.toString());
-                }
-            } finally {
-                if ((method != null) && method.isAborted()) {
-                    currentThread.interrupt();
-                }
-
-                // In development: save cached query results:
-                if (USE_CACHE_DEV && _response.length() != 0) {
-                    try {
-                        FileUtils.writeFile(cachedFile, _response);
-
-                        _logger.info("saving cached result: {}", cachedFile.getAbsolutePath());
-                    } catch (IOException ioe) {
-                        _logger.info("unable to write cached result: " + cachedFile.getAbsolutePath(), ioe);
-                    }
-                }
-            }
-        }
+        return simbadScript;
     }
 
-    /**
-     * Parse SIMBAD response
-     * @throws IllegalStateException if parsing error
-     */
-    private void parseResult() {
+    @Override
+    protected HttpMethodBase buildHttpMethod(final String serviceURL, final String query) {
+        // create the HTTP Post method:
+
+        final PostMethod method = new PostMethod(serviceURL);
+
+        // define query script:
+        method.addParameter("script", query);
+
+        return method;
+    }
+
+    @Override
+    public boolean isErrorStatus() {
+        return _result.isErrorStatus();
+    }
+
+    protected void handleError(final StarResolverStatus status, final String errorMessage) {
+        if (status == StarResolverStatus.ERROR_SERVER) {
+            _result.setServerErrorMessage(errorMessage);
+        } else {
+            _result.setErrorMessage(status, errorMessage);
+        }
+        super.handleError(status, errorMessage);
+    }
+
+    @Override
+    protected boolean parseResponse(final String response) throws IllegalStateException {
         _logger.trace("SimbadResolveStarJob.parseResult");
-        _logger.debug("CDS Simbad raw response:\n{}", _response);
+        _logger.debug("CDS Simbad raw response:\n{}", response);
         // If the response is null (when simbad server fails)
-        if (_response == null) {
+        if (response == null) {
             throw new IllegalStateException("No data for star(s) " + _result.getNames() + ", Simbad service may be off or unreachable.");
         }
         // If the response string is empty
-        if (_response.length() < 1) {
+        if (response.length() < 1) {
             throw new IllegalStateException("No data for star(s) " + _result.getNames() + ".");
         }
-        String stream = _response;
+        String stream = response;
         // If there was an error during query
         if (stream.startsWith(MARKER_ERROR)) {
             // sample error (name not found):
@@ -335,15 +158,15 @@ public final class SimbadResolveStarJob implements Callable<StarResolverResult> 
 
             // try to get data block:
             if (posEnd == -1) {
-                return;
+                return false;
             }
             posStart = stream.indexOf('\n', posEnd);
             if (posStart == -1) {
-                return;
+                return false;
             }
             posStart = stream.indexOf(MARKER_ENTRY, posStart);
             if (posStart == -1) {
-                return;
+                return false;
             }
             // fix data stream:
             stream = stream.substring(posStart);
@@ -404,6 +227,7 @@ public final class SimbadResolveStarJob implements Callable<StarResolverResult> 
         } catch (ParseException pe) {
             throw new IllegalStateException("Could not parse data for star '" + _currentName + "':\n" + pe.getMessage());
         }
+        return true;
     }
 
     /**
@@ -713,53 +537,11 @@ public final class SimbadResolveStarJob implements Callable<StarResolverResult> 
         return -1;
     }
 
-    /**
-     * Format specific exception messages
-     * @param e exception
-     * @return user message for the given exception
-     */
-    private String getExceptionMessage(final Exception e) {
-        if (e instanceof UnknownHostException) {
-            return "Unknown host [" + e.getMessage() + "]";
-        }
-        return e.getMessage();
-    }
-
-    private static File generateCacheFile(final List<String> nameList) {
-        final String parentPath = SessionSettingsPreferences.getApplicationFileStorage();
-        // assert that parent directory exist
-        new File(parentPath).mkdirs();
-
-        final int nIds = nameList.size();
-        final String[] names = nameList.toArray(new String[nIds]);
-
-        // Copy and sort ids to have an hashcode independent from ordering:
-        Arrays.sort(names);
-
-        final StringBuilder sb = new StringBuilder(2048);
-
-        // loop on identifiers to build cached key: '<ID>,'
-        for (String id : names) {
-            sb.append(id).append(','); // Add each object name we are looking for
-        }
-        final int hash_ids = sb.toString().hashCode();
-
-        // Form file name:
-        sb.setLength(0);
-        sb.append("Simbad_").append(nIds).append('_');
-        sb.append(names[0]).append('-').append(names[nIds - 1]).append('_');;
-        sb.append(hash_ids).append(".dat");
-
-        final String fileName = sb.toString();
-
-        return new File(parentPath, fileName);
-    }
-
     public static void main(String[] args) {
-        final SimbadResolveStarJob job = new SimbadResolveStarJob(null, Arrays.asList("TEST"), null);
+        final SimbadResolveJob job = new SimbadResolveJob(null, Arrays.asList("TEST"), null, null);
 
-        if (false) {
-            job._response = ":entry:eps aur\n"
+        if (true) {
+            final String response = ":entry:eps aur\n"
                     + "* eps Aur\n"
                     + "075.49221855;+43.82330720;05 01 58.13245;+43 49 23.9059;\n"
                     + "**,Al*,SB*,*,Em*,V*,IR,UV\n"
@@ -770,11 +552,11 @@ public final class SimbadResolveStarJob implements Callable<StarResolverResult> 
                     + "-10.40;~\n"
                     + "2MASS J05015812+4349241,PLX 1122,SBC9 291,* eps Aur,*   7 Aur,AAVSO 0454+43,ADS  3605 A,AG+43  552,ALS  8131,BD+43  1166,CCDM J05020+4350A,CSI+43  1166  1,EM* CDS  456,FK5  183,GC  6123,GCRV  2970,GEN# +1.00031964J,GSC 02907-01275,HD  31964,HIC  23416,HIP  23416,HR  1605,IDS 04548+4341 A,IRAS 04583+4345,IRC +40109,JP11   959,LF  7 +43   70,LS   V +43   23,N30 1068,PMC 90-93   131,PPM  47627,RAFGL  670S,RAFGL  670,ROT   705,SAO  39955,SBC7   200,SKY#  7879,TD1  3824,TYC 2907-1275-1,UBV    4807,UBV M  10528,V* eps Aur,[KW97] 20-37,uvby98 100031964 ABV,UCAC3 268-74264,WDS J05020+4349A,\n"
                     + "";
-            job.parseResult();
-            _logger.info("star result:\n{}", job._result);
+            job.parseResponse(response);
+            _logger.info("star result:\n{}", job.getResolverResult());
         }
-        if (false) {
-            job._response = ":entry:car\n"
+        if (true) {
+            final String response = ":entry:car\n"
                     + "NAME CAR ARM\n"
                     + "150.0;-60.0;10 00;-60.0;\n"
                     + "PoG\n"
@@ -915,11 +697,11 @@ public final class SimbadResolveStarJob implements Callable<StarResolverResult> 
                     + "~;~\n"
                     + "NAME Car 291.6-01.9 outflow,\n"
                     + "";
-            job.parseResult();
-            _logger.info("star result:\n{}", job._result);
+            job.parseResponse(response);
+            _logger.info("star result:\n{}", job.getResolverResult());
         }
-        if (false) {
-            job._response = ":entry:l car\n"
+        if (true) {
+            final String response = ":entry:l car\n"
                     + "* l Car\n"
                     + "146.31171343;-62.50790330;09 45 14.81122;-62 30 28.4519;\n"
                     + "*,V*,cC*,IR,UV\n"
@@ -940,11 +722,11 @@ public final class SimbadResolveStarJob implements Callable<StarResolverResult> 
                     + "12.00;~\n"
                     + "Renson 25960,CPC 21  2112,CPD-66  1243,FK5 2834,GC 14283,GCRV  6536,GEN# +1.00090264,GSC 08968-01393,HD  90264,HIC  50847,HIP  50847,HR  4089,N30 2467,PPM 357955,ROT  1565,SAO 250940,SKY# 19938,TD1 14823,TYC 8968-1393-1,UBV    9630,UBV M  16200,uvby98 100090264,* L Car,2MASS J10225812-6654053,\n"
                     + "";
-            job.parseResult();
-            _logger.info("star result:\n{}", job._result);
+            job.parseResponse(response);
+            _logger.info("star result:\n{}", job.getResolverResult());
         }
-        if (false) {
-            job._response = "::error:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::\n"
+        if (true) {
+            final String response = "::error:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::\n"
                     + "\n"
                     + "[3] java.text.ParseException: Unrecogniezd identifier: aasioi\n"
                     + "[5] java.text.ParseException: Unrecogniezd identifier: bad\n"
@@ -973,19 +755,19 @@ public final class SimbadResolveStarJob implements Callable<StarResolverResult> 
                     + "12.00;~\n"
                     + "Renson 25960,CPC 21  2112,CPD-66  1243,FK5 2834,GC 14283,GCRV  6536,GEN# +1.00090264,GSC 08968-01393,HD  90264,HIC  50847,HIP  50847,HR  4089,N30 2467,PPM 357955,ROT  1565,SAO 250940,SKY# 19938,TD1 14823,TYC 8968-1393-1,UBV    9630,UBV M  16200,uvby98 100090264,* L Car,2MASS J10225812-6654053,\n"
                     + "";
-            job.parseResult();
-            _logger.info("star result:\n{}", job._result);
+            job.parseResponse(response);
+            _logger.info("star result:\n{}", job.getResolverResult());
         }
-        if (false) {
-            job._response = "::error:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::\n"
+        if (true) {
+            final String response = "::error:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::\n"
                     + "\n"
                     + "[3] java.text.ParseException: Unrecogniezd identifier: aasioi\n"
                     + "";
-            job.parseResult();
-            _logger.info("star result:\n{}", job._result);
+            job.parseResponse(response);
+            _logger.info("star result:\n{}", job.getResolverResult());
         }
-        if (false) {
-            job._response = "::error:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::\n"
+        if (true) {
+            final String response = "::error:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::\n"
                     + "\n"
                     + "[3] ':entry:%OBJECT\n"
                     + "%MAIN_ID\n"
@@ -1021,12 +803,12 @@ public final class SimbadResolveStarJob implements Callable<StarResolverResult> 
                     + "-20.60;~\n"
                     + "WISE J183656.49+384703.9,AKARI-IRC-V1 J1836564+384703,IRAS F18352+3844,JCMTSE J183656.4+384709,JCMTSF J183656.4+384709,EQ 183456.7+384615.4,PLX 4293,LSPM J1836+3847,ASCC  507896,2MASS J18365633+3847012,USNO-B1.0 1287-00305764,* alf Lyr,*   3 Lyr,8pc 128.93,ADS 11510 A,AG+38 1711,BD+38  3238,CCDM J18369+3847A,CEL   4636,CSI+38  3238  1,CSV 101745,FK5  699,GC 25466,GCRV 11085,GEN# +1.00172167,GJ   721,HD 172167,HGAM    706,HIC  91262,HIP  91262,HR  7001,IDS 18336+3841 A,IRAS 18352+3844,IRC +40322,JP11  2999,LTT 15486,N30 4138,NAME VEGA,NLTT 46746,NSV 11128,PMC 90-93   496,PPM  81558,RAFGL 2208,ROT  2633,SAO  67174,SKY# 34103,TD1 22883,UBV   15842,UBV M  23118,USNO 882,V* alf Lyr,Zkh 277,[HFE83] 1223,uvby98 100172167 V,PLX 4293.00,1E 183515+3844.3,EUVE J1836+38.7,WDS J18369+3846A,TYC 3105-2070-1,GJ   721.0,GAT 1285,\n"
                     + "";
-            job.parseResult();
-            _logger.info("star result:\n{}", job._result);
+            job.parseResponse(response);
+            _logger.info("star result:\n{}", job.getResolverResult());
         }
 
-        if (false) {
-            job._response = ":entry:MWC297\n"
+        if (true) {
+            final String response = ":entry:MWC297\n"
                     + "V* NZ Ser\n"
                     + "276.914696;-03.831125;18 27 39.527;-03 49 52.05;\n"
                     + "**,*,Em*,V*,Or*,IR,X\n"
@@ -1039,8 +821,8 @@ public final class SimbadResolveStarJob implements Callable<StarResolverResult> 
                     + "\n"
                     + "\n"
                     + "";
-            job.parseResult();
-            _logger.info("star result:\n{}", job._result);
+            job.parseResponse(response);
+            _logger.info("star result:\n{}", job.getResolverResult());
         }
     }
 }

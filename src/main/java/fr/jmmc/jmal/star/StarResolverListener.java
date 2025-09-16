@@ -5,14 +5,15 @@ package fr.jmmc.jmal.star;
 
 /**
  * Listener called with resolver results (error, star)
+ * @param <K> star resolver result class
  * @author bourgesl
  */
-public interface StarResolverListener {
+public interface StarResolverListener<K> {
 
     /**
-     * Handle the star resolver result (status, error messages, stars) ...
+     * Handle the star resolver result as String (raw http response) or StarResolverResult instance (status, error messages, stars) ...
      * @param result star resolver result
      */
-    public void handleResult(final StarResolverResult result);
+    public void handleResult(final K result);
 
 }

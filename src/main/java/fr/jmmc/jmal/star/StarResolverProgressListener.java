@@ -4,10 +4,10 @@
 package fr.jmmc.jmal.star;
 
 /**
- * StarResolverListener called with progress messages
+ * StarResolverProgressListener called with progress messages
  * @author bourgesl
  */
-public interface StarResolverProgressListener extends StarResolverListener {
+public interface StarResolverProgressListener {
 
     /**
      * Handle the given progress message (using server mirror, error, done) ...

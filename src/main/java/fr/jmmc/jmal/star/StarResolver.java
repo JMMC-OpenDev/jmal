@@ -11,7 +11,8 @@ import fr.jmmc.jmcs.util.StringUtils;
 import fr.jmmc.jmcs.util.concurrent.ThreadExecutors;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.LinkedHashMap;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -39,79 +40,124 @@ public final class StarResolver {
 
     /** Logger - register on the current class to collect local logs */
     private static final Logger _logger = LoggerFactory.getLogger(StarResolver.class.getName());
-    /** The collection of CDS mirrors (initialized into getSimbadMirrors()) */
-    private static final Map<String, String> _simbadMirrors;
-    /** SIMBAD selected mirror (selected using setSimbadMirror()) */
-    private static String _simbadMirror = null;
+    /** The collection of resolver mirrors */
+    private static final Map<String, String> _resolverServiceMirrors;
+    /** The collection of resolver types */
+    private static final Map<String, ServiceType> _resolverServiceTypes;
+    /** The collection of active resolver mirrors at runtime */
+    private static final Set<String> _resolverServiceMirrorSet;
+    /** SIMBAD selected mirror (selected using setResolverServiceMirror()) */
+    private static String _resolverServiceMirror = null;
     /** RegExp expression to match underscore character */
     private final static Pattern PATTERN_UNDERSCORE = Pattern.compile("_");
     /** RegExp expression to match white spaces arround semicolon separator */
     private final static Pattern PATTERN_WHITE_SPACE_ARROUND_SEMI_COLON = Pattern.compile("\\s*;\\s*");
     /** Simbad base URL (main CDS host) */
     public static final String SIMBAD_MAIN_URL = "http://simbad.u-strasbg.fr/simbad/";
+    /** GetStar URL (query by identifier) */
+    public static final String GETSTAR_QUERY_ID = "http://sclws.jmmc.fr/sclwsGetStarProxy.php?star=";
+
+    public enum ServiceType {
+        SIMBAD,
+        GETSTAR
+    };
+
+    public final static String SERVICE_GET_STAR_PUBLIC = "JMMC GetStar, FR";
+    public final static String SERVICE_GET_STAR_BETA = "JMMC GetStar (beta), FR";
+
+    public final static String SERVICE_SIMBAD_PUBLIC = "SIMBAD Strasbourg, FR";
+    public final static String SERVICE_SIMBAD_IP = "SIMBAD Strasbourg, FR [IP]";
+    public final static String SERVICE_SIMBAD_HARVARD = "SIMBAD Harvard, US";
 
     static {
-        _simbadMirrors = new LinkedHashMap<String, String>(4);
-        _simbadMirrors.put("SIMBAD Strasbourg, FR", SIMBAD_MAIN_URL + "sim-script");
-        _simbadMirrors.put("SIMBAD Harvard, US", "http://simbad.harvard.edu/simbad/sim-script");
-        _simbadMirrors.put("SIMBAD Strasbourg, FR [IP]", "http://130.79.128.4/simbad/sim-script");
+        _resolverServiceMirrors = new HashMap<>(8);
+        _resolverServiceMirrors.put(SERVICE_GET_STAR_PUBLIC, "https://www.jmmc.fr/~sclws/getstar/sclwsGetStarProxy.php?star=");
+        _resolverServiceMirrors.put(SERVICE_GET_STAR_BETA, GETSTAR_QUERY_ID);
+        _resolverServiceMirrors.put(SERVICE_SIMBAD_PUBLIC, SIMBAD_MAIN_URL + "sim-script");
+        _resolverServiceMirrors.put(SERVICE_SIMBAD_IP, "http://130.79.128.4/simbad/sim-script");
+        _resolverServiceMirrors.put(SERVICE_SIMBAD_HARVARD, "http://simbad.harvard.edu/simbad/sim-script");
+
+        _resolverServiceTypes = new HashMap<>(8);
+        _resolverServiceTypes.put(SERVICE_GET_STAR_PUBLIC, ServiceType.GETSTAR);
+        _resolverServiceTypes.put(SERVICE_GET_STAR_BETA, ServiceType.GETSTAR);
+        _resolverServiceTypes.put(SERVICE_SIMBAD_PUBLIC, ServiceType.SIMBAD);
+        _resolverServiceTypes.put(SERVICE_SIMBAD_IP, ServiceType.SIMBAD);
+        _resolverServiceTypes.put(SERVICE_SIMBAD_HARVARD, ServiceType.SIMBAD);
+
+        _resolverServiceMirrorSet = new LinkedHashSet<>(8);
+        enableGetStar(false);
     }
 
-    /**
-     * Get the list of available mirrors.
-     * @return one set of available mirror names.
-     */
-    public static Set<String> getSimbadMirrors() {
-        return _simbadMirrors.keySet();
-    }
-
-    /**
-     * Return the current SIMBAD mirror
-     * @return SIMBAD mirror name
-     */
-    public static String getSimbadMirror() {
-        if (_simbadMirror == null) {
-            setSimbadMirror(getSimbadMirrors().iterator().next());
+    public static void enableGetStar(final boolean enabled) {
+        _resolverServiceMirrorSet.clear();
+        if (enabled) {
+            _resolverServiceMirrorSet.add(SERVICE_GET_STAR_BETA);
+            _resolverServiceMirrorSet.add(SERVICE_GET_STAR_PUBLIC);
         }
-        return _simbadMirror;
+        _resolverServiceMirrorSet.add(SERVICE_SIMBAD_PUBLIC);
+        _resolverServiceMirrorSet.add(SERVICE_SIMBAD_IP);
+        _resolverServiceMirrorSet.add(SERVICE_SIMBAD_HARVARD);
     }
 
     /**
-     * Return the SIMBAD URL from the current mirror or the first one
-     * @return SIMBAD URL
+     * Get the list of available resolver service mirrors.
+     * @return one set of available resolver service mirror names.
      */
-    public static String getSimbadUrl() {
-        if (_simbadMirror == null) {
-            setSimbadMirror(getSimbadMirrors().iterator().next());
-        }
+    public static Set<String> getResolverServiceMirrors() {
+        return _resolverServiceMirrorSet;
+    }
 
-        return _simbadMirrors.get(_simbadMirror);
+    /**
+     * Return the current resolver service mirror
+     * @return resolver service mirror name
+     */
+    public static String getResolverServiceMirror() {
+        if (_resolverServiceMirror == null) {
+            setResolverServiceMirror(getResolverServiceMirrors().iterator().next());
+        }
+        return _resolverServiceMirror;
+    }
+
+    /**
+     * Return the resolver service URL from the current mirror or the first one
+     * @return resolver service URL
+     */
+    public static String getResolverServiceUrl() {
+        return _resolverServiceMirrors.get(getResolverServiceMirror());
+    }
+
+    public static ServiceType getResolverServiceType(final String mirrorName) {
+        return _resolverServiceTypes.get(mirrorName);
     }
 
     /**
      * Choose one mirror giving its name chosen from available ones.
-     * @param mirrorName value chosen from getSimbadMirrors().
+     * @param mirrorName value chosen from getResolverServiceMirrors().
      */
-    public static void setSimbadMirror(final String mirrorName) {
+    public static void setResolverServiceMirror(final String mirrorName) {
         // prevent bad cases for bad mirror names
-        if (_simbadMirrors.get(mirrorName) == null) {
-            _simbadMirror = getSimbadMirrors().iterator().next();
+        if (_resolverServiceMirrors.get(mirrorName) == null) {
+            _resolverServiceMirror = getResolverServiceMirrors().iterator().next();
         } else {
-            _simbadMirror = mirrorName;
+            _resolverServiceMirror = mirrorName;
         }
     }
 
     /**
-     * Return the next SIMBAD Mirror which URL is not in the failed URL Set
+     * Return the next mirror which URL is not in the failed URL Set
      * @param failedUrl failed URL(s)
+     * @param type
      * @return next SIMBAD Mirror or null if none is still available
      */
-    static String getNextSimbadMirror(final Set<String> failedUrl) {
-        for (Map.Entry<String, String> e : _simbadMirrors.entrySet()) {
-            if (!failedUrl.contains(e.getValue())) {
+    static String getNextResolverServiceMirror(final Set<String> failedUrl, final ServiceType type) {
+
+        // TODO: fix
+        for (Map.Entry<String, String> e : _resolverServiceMirrors.entrySet()) {
+            final String mirrorName = e.getKey();
+            if ((getResolverServiceType(mirrorName) == type) && !failedUrl.contains(e.getValue())) {
                 // change mirror:
-                setSimbadMirror(e.getKey());
-                return _simbadMirror;
+                setResolverServiceMirror(e.getKey());
+                return _resolverServiceMirror;
             }
         }
         return null;
@@ -122,7 +168,7 @@ public final class StarResolver {
      * @param future Future instance to use for synchronous mode (wait for)
      * @return StarResolverResult; null if the future was cancelled or not executed
      */
-    public static StarResolverResult waitFor(final Future<StarResolverResult> future) {
+    public static <K> K waitFor(final Future<K> future) {
         try {
             // Wait for StarResolver task to be done (and listener called) :
             return future.get();
@@ -135,8 +181,10 @@ public final class StarResolver {
     }
 
     /* members */
-    /** listener */
-    private final StarResolverProgressListener _listener;
+    /** callback listener with progress */
+    private final StarResolverProgressListener _progressListener;
+    /** callback listener with results */
+    private final StarResolverListener<Object> _listener;
     /** Dedicated thread executor (single thread) */
     private final ThreadExecutors _executor = ThreadExecutors.getSingleExecutor("StarResolverThreadPool");
 
@@ -144,15 +192,18 @@ public final class StarResolver {
      * Constructor without listener (synchronous mode)
      */
     public StarResolver() {
-        this(null);
+        this(null, null);
     }
 
     /**
      * Constructor with listener (asynchronous mode)
      *
+     * @param progressListener callback listener with progress
      * @param listener callback listener with results
      */
-    public StarResolver(final StarResolverProgressListener listener) {
+    public StarResolver(final StarResolverProgressListener progressListener,
+                        final StarResolverListener<Object> listener) {
+        _progressListener = progressListener;
         _listener = listener;
     }
 
@@ -163,7 +214,7 @@ public final class StarResolver {
      * @return Future instance to use for synchronous mode (wait for)
      * @throws IllegalArgumentException if the given name is empty
      */
-    public Future<StarResolverResult> resolve(final Set<String> flags, final String name) throws IllegalArgumentException {
+    public Future<Object> resolve(final Set<String> flags, final String name) throws IllegalArgumentException {
         _logger.debug("Searching data for star '{}'.", name);
 
         if (isMultiple(name)) {
@@ -186,7 +237,7 @@ public final class StarResolver {
      * @return Future instance to use for synchronous mode (wait for)
      * @throws IllegalArgumentException if the given names are empty
      */
-    public Future<StarResolverResult> multipleResolve(final Set<String> flags, final String names) throws IllegalArgumentException {
+    public Future<Object> multipleResolve(final Set<String> flags, final String names) throws IllegalArgumentException {
         return multipleResolve(flags, prepareNames(names));
     }
 
@@ -196,7 +247,7 @@ public final class StarResolver {
      * @return Future instance to use for synchronous mode (wait for)
      * @throws IllegalArgumentException if the given names are empty
      */
-    public Future<StarResolverResult> multipleResolve(final List<String> nameList) throws IllegalArgumentException {
+    public Future<Object> multipleResolve(final List<String> nameList) throws IllegalArgumentException {
         return multipleResolve(null, nameList);
     }
 
@@ -207,23 +258,35 @@ public final class StarResolver {
      * @return Future instance to use for synchronous mode (wait for)
      * @throws IllegalArgumentException if the given names are empty
      */
-    public Future<StarResolverResult> multipleResolve(final Set<String> flags, final List<String> nameList) throws IllegalArgumentException {
+    @SuppressWarnings("unchecked")
+    public Future<Object> multipleResolve(final Set<String> flags, final List<String> nameList) throws IllegalArgumentException {
         _logger.debug("Searching data for stars '{}'.", nameList);
 
         if (CollectionUtils.isEmpty(nameList)) {
             throw new IllegalArgumentException("Empty star names !");
         }
 
+        final ServiceType type = getResolverServiceType(getResolverServiceMirror());
+
         // Launch the query in the background in order to keep GUI updated
-        return submitJob(new SimbadResolveStarJob(flags, nameList, _listener));
+        switch (type) {
+            default:
+            case SIMBAD:
+                return submitJob(new SimbadResolveJob(flags, nameList, _progressListener, _listener));
+            case GETSTAR:
+                return submitJob(new GetStarResolveJob(flags, nameList, _progressListener, _listener));
+        }
     }
 
-    private Future<StarResolverResult> submitJob(final SimbadResolveStarJob resolveStarJob) {
+    private Future<Object> submitJob(final ResolverJob resolveStarJob) {
         // Intercept cancel calls to first abort HTTP method:
-        final FutureTask<StarResolverResult> task = new FutureTask<StarResolverResult>(resolveStarJob) {
+        @SuppressWarnings("unchecked")
+        final FutureTask<Object> task = new FutureTask<Object>(resolveStarJob) {
             @Override
             public boolean cancel(boolean mayInterruptIfRunning) {
-                resolveStarJob.cancel();
+                if (resolveStarJob instanceof SimbadResolveJob) {
+                    ((SimbadResolveJob) resolveStarJob).cancel();
+                }
                 return super.cancel(mayInterruptIfRunning);
             }
         };
@@ -299,6 +362,12 @@ public final class StarResolver {
             LoggingService.setLoggerLevel("fr.jmmc.jmal.star", Level.ALL);
         }
 
+        if (true) {
+            StarResolver.setResolverServiceMirror(SERVICE_GET_STAR_BETA);
+        } else {
+            StarResolver.setResolverServiceMirror(SERVICE_SIMBAD_PUBLIC);
+        }
+
         final String names;
 
         if (args != null && args.length != 0) {
@@ -314,22 +383,26 @@ public final class StarResolver {
             names = "GJ876";
         }
 
-        final StarResolverProgressListener asyncListener = new StarResolverProgressListener() {
-
+        final StarResolverProgressListener progressListener = new StarResolverProgressListener() {
             @Override
             public void handleProgressMessage(final String message) {
                 _logger.info(message);
             }
-
+        };
+        final StarResolverListener<Object> listener = new StarResolverListener<Object>() {
+            /**
+             * Handle the star resolver result as String (raw http response) or StarResolverResult instance (status, error messages, stars) ...
+             * @param result star resolver result
+             */
             @Override
-            public void handleResult(final StarResolverResult result) {
-                _logger.info("ASYNC star resolver result:\n{}", result);
+            public void handleResult(final Object result) {
+                _logger.info("ASYNC Star resolver result:\n{}", result);
             }
         };
 
         // Seek data about the given star name (first arg on command line)
         // Wait for StarResolver task done (and listener calls) :
-        final StarResolverResult result = waitFor(new StarResolver(asyncListener).multipleResolve(null, names));
+        final Object result = waitFor(new StarResolver(progressListener, listener).multipleResolve(null, names));
 
         _logger.info("SYNC star resolver result:\n{}", result);
 

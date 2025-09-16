@@ -34,7 +34,7 @@ public final class EditableStarResolverWidget extends StarResolverWidget {
     private final static NumberFormat DF_DBL = new DecimalFormat("00.000");
     /* members */
     /** standard StarResolverWidget action */
-    private final ActionListener standardAction;
+    private transient final ActionListener standardAction;
 
     /**
      * Creates a new EditableStarResolverWidget object that only supports one single identifier
@@ -376,6 +376,7 @@ public final class EditableStarResolverWidget extends StarResolverWidget {
         // GUI initialization (EDT)
         SwingUtils.invokeLaterEDT(new Runnable() {
 
+            @SuppressWarnings("unchecked")
             @Override
             public void run() {
 
@@ -389,13 +390,20 @@ public final class EditableStarResolverWidget extends StarResolverWidget {
                 final boolean supportMultiple = false;
                 final EditableStarResolverWidget searchField = new EditableStarResolverWidget(supportMultiple);
                 searchField.setColumns(30);
-                searchField.setListener(new StarResolverListener() {
 
+                final StarResolverListener<Object> listener = new StarResolverListener<Object>() {
+                    /**
+                     * Handle the star resolver result as String (raw http response) or StarResolverResult instance (status, error messages, stars) ...
+                     * @param result star resolver result
+                     */
                     @Override
-                    public void handleResult(StarResolverResult result) {
+                    public void handleResult(final Object result) {
                         _logger.info("Result:\n{}", result);
                     }
-                });
+                };
+
+                // register the StarResolverListener for Simbad:
+                searchField.setListener(StarResolverResult.class, listener);
 
                 final JPanel panel = new JPanel(new BorderLayout());
                 panel.add(searchField, BorderLayout.CENTER);
