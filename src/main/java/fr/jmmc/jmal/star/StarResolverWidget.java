@@ -330,7 +330,7 @@ public class StarResolverWidget extends SearchField implements StarResolverProgr
         Bootstrapper.getState();
         LoggingService.setLoggerLevel("fr.jmmc.jmal.star", Level.ALL);
 
-        StarResolver.setResolverServiceMirror("SIMBAD Strasbourg, FR");
+        StarResolver.setResolverServiceMirror(StarResolver.SERVICE_SIMBAD_PUBLIC);
 
         StarResolver.enableGetStar(true);
 

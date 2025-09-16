@@ -67,7 +67,6 @@ public final class StarResolver {
 
     public final static String SERVICE_SIMBAD_PUBLIC = "SIMBAD Strasbourg, FR";
     public final static String SERVICE_SIMBAD_IP = "SIMBAD Strasbourg, FR [IP]";
-    public final static String SERVICE_SIMBAD_HARVARD = "SIMBAD Harvard, US";
 
     static {
         _resolverServiceMirrors = new HashMap<>(8);
@@ -75,14 +74,12 @@ public final class StarResolver {
         _resolverServiceMirrors.put(SERVICE_GET_STAR_BETA, GETSTAR_QUERY_ID);
         _resolverServiceMirrors.put(SERVICE_SIMBAD_PUBLIC, SIMBAD_MAIN_URL + "sim-script");
         _resolverServiceMirrors.put(SERVICE_SIMBAD_IP, "http://130.79.128.4/simbad/sim-script");
-        _resolverServiceMirrors.put(SERVICE_SIMBAD_HARVARD, "http://simbad.harvard.edu/simbad/sim-script");
 
         _resolverServiceTypes = new HashMap<>(8);
         _resolverServiceTypes.put(SERVICE_GET_STAR_PUBLIC, ServiceType.GETSTAR);
         _resolverServiceTypes.put(SERVICE_GET_STAR_BETA, ServiceType.GETSTAR);
         _resolverServiceTypes.put(SERVICE_SIMBAD_PUBLIC, ServiceType.SIMBAD);
         _resolverServiceTypes.put(SERVICE_SIMBAD_IP, ServiceType.SIMBAD);
-        _resolverServiceTypes.put(SERVICE_SIMBAD_HARVARD, ServiceType.SIMBAD);
 
         _resolverServiceMirrorSet = new LinkedHashSet<>(8);
         enableGetStar(false);
@@ -90,13 +87,12 @@ public final class StarResolver {
 
     public static void enableGetStar(final boolean enabled) {
         _resolverServiceMirrorSet.clear();
+        _resolverServiceMirrorSet.add(SERVICE_SIMBAD_PUBLIC);
+        _resolverServiceMirrorSet.add(SERVICE_SIMBAD_IP);
         if (enabled) {
             _resolverServiceMirrorSet.add(SERVICE_GET_STAR_BETA);
             _resolverServiceMirrorSet.add(SERVICE_GET_STAR_PUBLIC);
         }
-        _resolverServiceMirrorSet.add(SERVICE_SIMBAD_PUBLIC);
-        _resolverServiceMirrorSet.add(SERVICE_SIMBAD_IP);
-        _resolverServiceMirrorSet.add(SERVICE_SIMBAD_HARVARD);
     }
 
     /**
