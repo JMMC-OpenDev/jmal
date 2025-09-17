@@ -3,7 +3,9 @@
  ******************************************************************************/
 package fr.jmmc.jmal.star;
 
+import static fr.jmmc.jmal.star.StarResolver.GETSTAR_ALLOW_SCENARIO;
 import static fr.jmmc.jmcs.network.http.Http.HTTP_RETRY_HANDLER;
+import fr.jmmc.jmcs.util.StringUtils;
 import fr.jmmc.jmcs.util.UrlUtils;
 import java.util.List;
 import java.util.Set;
@@ -29,7 +31,6 @@ public final class GetStarResolveJob extends ResolverJob {
      * @param names list of queried identifiers
      * @param progressListener callback listener with progress
      * @param listener callback listener with results
-     * @param responseHandler GetStar votable handler
      */
     GetStarResolveJob(final Set<String> flags, final List<String> names,
                       final StarResolverProgressListener progressListener,
@@ -50,7 +51,9 @@ public final class GetStarResolveJob extends ResolverJob {
 
     @Override
     protected String buildQuery() {
-        return buildQueryString(_names.toArray(EMPTY_STRING));
+        final String queryParameters = ((_names.size() == 1) ? GETSTAR_ALLOW_SCENARIO : null);
+        return buildQueryString(queryParameters, _names.toArray(EMPTY_STRING));
+
     }
 
     @Override
@@ -75,7 +78,7 @@ public final class GetStarResolveJob extends ResolverJob {
         return false;
     }
 
-    public static String buildQueryString(final String... ids) {
+    public static String buildQueryString(final String queryParameters, final String... ids) {
         if (ids != null && ids.length != 0) {
             final String starValue;
             if (ids.length == 1) {
@@ -88,7 +91,9 @@ public final class GetStarResolveJob extends ResolverJob {
                 sb.deleteCharAt(sb.length() - 1);
                 starValue = sb.toString();
             }
-            return UrlUtils.encode(starValue);
+            return (StringUtils.isEmpty(queryParameters))
+                    ? UrlUtils.encode(starValue)
+                    : UrlUtils.encode(starValue) + queryParameters;
         }
         return null;
     }

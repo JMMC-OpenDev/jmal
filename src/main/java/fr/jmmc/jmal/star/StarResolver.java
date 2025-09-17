@@ -52,32 +52,39 @@ public final class StarResolver {
     private final static Pattern PATTERN_UNDERSCORE = Pattern.compile("_");
     /** RegExp expression to match white spaces arround semicolon separator */
     private final static Pattern PATTERN_WHITE_SPACE_ARROUND_SEMI_COLON = Pattern.compile("\\s*;\\s*");
-    /** Simbad base URL (main CDS host) */
-    public static final String SIMBAD_MAIN_URL = "http://simbad.u-strasbg.fr/simbad/";
-    /** GetStar URL (query by identifier) */
-    public static final String GETSTAR_QUERY_ID = "http://sclws.jmmc.fr/sclwsGetStarProxy.php?star=";
 
     public enum ServiceType {
         SIMBAD,
         GETSTAR
     };
 
-    public final static String SERVICE_GET_STAR_PUBLIC = "JMMC GetStar, FR";
-    public final static String SERVICE_GET_STAR_BETA = "JMMC GetStar (beta), FR";
-
     public final static String SERVICE_SIMBAD_PUBLIC = "SIMBAD Strasbourg, FR";
     public final static String SERVICE_SIMBAD_IP = "SIMBAD Strasbourg, FR [IP]";
+    /** Simbad base URL (main CDS host) */
+    public static final String SIMBAD_MAIN_URL = "http://simbad.u-strasbg.fr/simbad/";
+
+    public final static String SERVICE_GET_STAR_PUBLIC = "JMMC GetStar, FR";
+    public final static String SERVICE_GET_STAR_BETA = "JMMC GetStar (beta), FR";
+    public final static String SERVICE_GET_STAR_DEV = "JMMC GetStar (dev), FR";
+    /** GetStar URL (query by identifier) */
+    public static final String GETSTAR_QUERY_ID = "http://sclws.jmmc.fr/sclwsGetStarProxy.php?star=";
+    /** GetStar parameter to enable searchCal's scenarios */
+    public static final String GETSTAR_ALLOW_SCENARIO = "&scenario=true&";
 
     static {
         _resolverServiceMirrors = new HashMap<>(8);
-        _resolverServiceMirrors.put(SERVICE_GET_STAR_PUBLIC, "https://www.jmmc.fr/~sclws/getstar/sclwsGetStarProxy.php?star=");
+        _resolverServiceMirrors.put(SERVICE_GET_STAR_PUBLIC, "http://www.jmmc.fr/~sclws/getstar/sclwsGetStarProxy.php?format=vot&star=");
         _resolverServiceMirrors.put(SERVICE_GET_STAR_BETA, GETSTAR_QUERY_ID);
+        _resolverServiceMirrors.put(SERVICE_GET_STAR_DEV, "http://www.jmmc.fr/~bourgesl/getstar/sclwsGetStarProxy.php?format=vot&star=");
+
         _resolverServiceMirrors.put(SERVICE_SIMBAD_PUBLIC, SIMBAD_MAIN_URL + "sim-script");
         _resolverServiceMirrors.put(SERVICE_SIMBAD_IP, "http://130.79.128.4/simbad/sim-script");
 
         _resolverServiceTypes = new HashMap<>(8);
         _resolverServiceTypes.put(SERVICE_GET_STAR_PUBLIC, ServiceType.GETSTAR);
         _resolverServiceTypes.put(SERVICE_GET_STAR_BETA, ServiceType.GETSTAR);
+        _resolverServiceTypes.put(SERVICE_GET_STAR_DEV, ServiceType.GETSTAR);
+
         _resolverServiceTypes.put(SERVICE_SIMBAD_PUBLIC, ServiceType.SIMBAD);
         _resolverServiceTypes.put(SERVICE_SIMBAD_IP, ServiceType.SIMBAD);
 
@@ -87,12 +94,13 @@ public final class StarResolver {
 
     public static void enableGetStar(final boolean enabled) {
         _resolverServiceMirrorSet.clear();
-        _resolverServiceMirrorSet.add(SERVICE_SIMBAD_PUBLIC);
-        _resolverServiceMirrorSet.add(SERVICE_SIMBAD_IP);
         if (enabled) {
             _resolverServiceMirrorSet.add(SERVICE_GET_STAR_BETA);
+            _resolverServiceMirrorSet.add(SERVICE_GET_STAR_DEV);
             _resolverServiceMirrorSet.add(SERVICE_GET_STAR_PUBLIC);
         }
+        _resolverServiceMirrorSet.add(SERVICE_SIMBAD_PUBLIC);
+        _resolverServiceMirrorSet.add(SERVICE_SIMBAD_IP);
     }
 
     /**
@@ -161,6 +169,7 @@ public final class StarResolver {
 
     /**
      * Wait for the given future to be ready (
+     * @param <K>
      * @param future Future instance to use for synchronous mode (wait for)
      * @return StarResolverResult; null if the future was cancelled or not executed
      */
