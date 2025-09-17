@@ -31,10 +31,10 @@ public abstract class ResolverJob implements Callable<Object> {
 
     /** Logger */
     protected static final Logger _logger = LoggerFactory.getLogger(ResolverJob.class.getName());
-    /** Simbad value for the read timeout in milliseconds (30 seconds) */
-    public static final int HTTP_SOCKET_READ_TIMEOUT_SMALL = 30 * 1000;
-    /** Simbad value for the read timeout in milliseconds (100 seconds) */
-    public static final int HTTP_SOCKET_READ_TIMEOUT_LARGE = 10 * HTTP_SOCKET_READ_TIMEOUT_SMALL;
+    /** Simbad value for the read timeout in milliseconds (60 seconds) */
+    public static final int HTTP_SOCKET_READ_TIMEOUT_SMALL = 60 * 1000;
+    /** Simbad value for the read timeout in milliseconds (300 seconds) */
+    public static final int HTTP_SOCKET_READ_TIMEOUT_LARGE = 5 * HTTP_SOCKET_READ_TIMEOUT_SMALL;
     /** threshold to consider query is large (100 ids) */
     public static final int HTTP_THREHOLD_LARGE = 100;
 
