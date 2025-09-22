@@ -9,6 +9,7 @@ import fr.jmmc.jmcs.logging.LoggingService;
 import fr.jmmc.jmcs.util.CollectionUtils;
 import fr.jmmc.jmcs.util.StringUtils;
 import fr.jmmc.jmcs.util.concurrent.ThreadExecutors;
+import java.awt.event.ActionListener;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -48,6 +49,8 @@ public final class StarResolver {
     private static final Set<String> _resolverServiceMirrorSet;
     /** SIMBAD selected mirror (selected using setResolverServiceMirror()) */
     private static String _resolverServiceMirror = null;
+    /** special action listener when the user selects another mirror */
+    private static ActionListener _resolverServiceMirrorListener = null;
     /** RegExp expression to match underscore character */
     private final static Pattern PATTERN_UNDERSCORE = Pattern.compile("_");
     /** RegExp expression to match white spaces arround semicolon separator */
@@ -146,6 +149,16 @@ public final class StarResolver {
             _resolverServiceMirror = mirrorName;
         }
     }
+    /**
+     * Choose one mirror giving its name chosen from available ones.
+     * @param mirrorName value chosen from getResolverServiceMirrors().
+     */
+    public static void selectResolverServiceMirror(final String mirrorName) {
+        setResolverServiceMirror(mirrorName);
+        if (_resolverServiceMirrorListener != null) {
+            _resolverServiceMirrorListener.actionPerformed(null);
+        }
+    }
 
     /**
      * Return the next mirror which URL is not in the failed URL Set
@@ -154,8 +167,6 @@ public final class StarResolver {
      * @return next SIMBAD Mirror or null if none is still available
      */
     static String getNextResolverServiceMirror(final Set<String> failedUrl, final ServiceType type) {
-
-        // TODO: fix
         for (Map.Entry<String, String> e : _resolverServiceMirrors.entrySet()) {
             final String mirrorName = e.getKey();
             if ((getResolverServiceType(mirrorName) == type) && !failedUrl.contains(e.getValue())) {
@@ -165,6 +176,14 @@ public final class StarResolver {
             }
         }
         return null;
+    }
+
+    public static ActionListener getResolverServiceMirrorListener() {
+        return _resolverServiceMirrorListener;
+    }
+
+    public static void setResolverServiceMirrorListener(final ActionListener mirrorListener) {
+        _resolverServiceMirrorListener = mirrorListener;
     }
 
     /**

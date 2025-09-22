@@ -52,7 +52,7 @@ public class StarResolverWidget extends SearchField implements StarResolverProgr
                 menuItem.addActionListener(new ActionListener() {
                     @Override
                     public void actionPerformed(ActionEvent e) {
-                        StarResolver.setResolverServiceMirror(mirror);
+                        StarResolver.selectResolverServiceMirror(mirror);
                     }
                 });
                 _mirrorPopupMenu.add(menuItem);
@@ -86,7 +86,7 @@ public class StarResolverWidget extends SearchField implements StarResolverProgr
      */
     @SuppressWarnings("unchecked")
     public StarResolverWidget(final boolean supportMultiple) {
-        super("Simbad", getPopupMenu());
+        super("Identifier", getPopupMenu());
         this._supportMultiple = supportMultiple;
 
         this._resolver = new StarResolver(this,
@@ -166,6 +166,11 @@ public class StarResolverWidget extends SearchField implements StarResolverProgr
                 }
             }
         });
+    }
+
+    @Override
+    public String getSelectedOption() {
+        return StarResolver.getResolverServiceMirror();
     }
 
     @Override

@@ -325,7 +325,7 @@ public abstract class ResolverJob implements Callable<Object> {
 
         // Form file name:
         sb.setLength(0);
-        sb.append("Simbad_").append(nIds).append('_');
+        sb.append("StarsResolver_").append(nIds).append('_');
         sb.append(names[0]).append('-').append(names[nIds - 1]).append('_');
         sb.append(hash_ids).append(".dat");
 
