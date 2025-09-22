@@ -86,7 +86,7 @@ public class StarResolverWidget extends SearchField implements StarResolverProgr
      */
     @SuppressWarnings("unchecked")
     public StarResolverWidget(final boolean supportMultiple) {
-        super("Identifier", getPopupMenu());
+        super("Target", getPopupMenu());
         this._supportMultiple = supportMultiple;
 
         this._resolver = new StarResolver(this,
