@@ -6,6 +6,7 @@ package fr.jmmc.jmal.star;
 import static fr.jmmc.jmal.star.Star.SEPARATOR_COMMA;
 import static fr.jmmc.jmal.star.StarResolver.SEPARATOR_SEMI_COLON;
 import fr.jmmc.jmal.util.StrictStringTokenizer;
+import fr.jmmc.jmcs.network.http.HttpResult;
 import fr.jmmc.jmcs.util.StringUtils;
 import java.text.ParseException;
 import java.util.Arrays;
@@ -30,7 +31,7 @@ public final class SimbadResolveJob extends ResolverJob {
 
     /* members */
     /** result */
-    private final StarResolverResult _result;
+    private final StarListResolverResult _result;
     /** current star name during parsing */
     private String _currentName = null;
     /** temporary parsing result */
@@ -46,7 +47,7 @@ public final class SimbadResolveJob extends ResolverJob {
                      final StarResolverProgressListener progressListener,
                      final StarResolverListener<Object> listener) {
         super(flags, names, progressListener, listener);
-        _result = new StarResolverResult(names);
+        _result = new StarListResolverResult(names);
     }
 
     @Override
@@ -109,6 +110,7 @@ public final class SimbadResolveJob extends ResolverJob {
         return _result.isErrorStatus();
     }
 
+    @Override
     protected void handleError(final StarResolverStatus status, final String errorMessage) {
         if (status == StarResolverStatus.ERROR_SERVER) {
             _result.setServerErrorMessage(errorMessage);
@@ -119,15 +121,17 @@ public final class SimbadResolveJob extends ResolverJob {
     }
 
     @Override
-    protected boolean parseResponse(final String response) throws IllegalStateException {
+    protected void parseResponse(final HttpResult httpResult) throws IllegalStateException {
         _logger.trace("SimbadResolveStarJob.parseResult");
-        _logger.debug("CDS Simbad raw response:\n{}", response);
+        _logger.debug("CDS Simbad raw response:\n{}", httpResult);
+
+        final String response = (httpResult != null) ? httpResult.getResponse() : null;
         // If the response is null (when simbad server fails)
         if (response == null) {
             throw new IllegalStateException("No data for star(s) " + _result.getNames() + ", Simbad service may be off or unreachable.");
         }
         // If the response string is empty
-        if (response.length() < 1) {
+        if (response.length() == 0) {
             throw new IllegalStateException("No data for star(s) " + _result.getNames() + ".");
         }
         String stream = response;
@@ -158,15 +162,15 @@ public final class SimbadResolveJob extends ResolverJob {
 
             // try to get data block:
             if (posEnd == -1) {
-                return false;
+                return;
             }
             posStart = stream.indexOf('\n', posEnd);
             if (posStart == -1) {
-                return false;
+                return;
             }
             posStart = stream.indexOf(MARKER_ENTRY, posStart);
             if (posStart == -1) {
-                return false;
+                return;
             }
             // fix data stream:
             stream = stream.substring(posStart);
@@ -227,7 +231,6 @@ public final class SimbadResolveJob extends ResolverJob {
         } catch (ParseException pe) {
             throw new IllegalStateException("Could not parse data for star '" + _currentName + "':\n" + pe.getMessage());
         }
-        return true;
     }
 
     /**
@@ -552,7 +555,7 @@ public final class SimbadResolveJob extends ResolverJob {
                     + "-10.40;~\n"
                     + "2MASS J05015812+4349241,PLX 1122,SBC9 291,* eps Aur,*   7 Aur,AAVSO 0454+43,ADS  3605 A,AG+43  552,ALS  8131,BD+43  1166,CCDM J05020+4350A,CSI+43  1166  1,EM* CDS  456,FK5  183,GC  6123,GCRV  2970,GEN# +1.00031964J,GSC 02907-01275,HD  31964,HIC  23416,HIP  23416,HR  1605,IDS 04548+4341 A,IRAS 04583+4345,IRC +40109,JP11   959,LF  7 +43   70,LS   V +43   23,N30 1068,PMC 90-93   131,PPM  47627,RAFGL  670S,RAFGL  670,ROT   705,SAO  39955,SBC7   200,SKY#  7879,TD1  3824,TYC 2907-1275-1,UBV    4807,UBV M  10528,V* eps Aur,[KW97] 20-37,uvby98 100031964 ABV,UCAC3 268-74264,WDS J05020+4349A,\n"
                     + "";
-            job.parseResponse(response);
+            job.parseResponse(new HttpResult(response));
             _logger.info("star result:\n{}", job.getResolverResult());
         }
         if (true) {
@@ -697,7 +700,7 @@ public final class SimbadResolveJob extends ResolverJob {
                     + "~;~\n"
                     + "NAME Car 291.6-01.9 outflow,\n"
                     + "";
-            job.parseResponse(response);
+            job.parseResponse(new HttpResult(response));
             _logger.info("star result:\n{}", job.getResolverResult());
         }
         if (true) {
@@ -722,7 +725,7 @@ public final class SimbadResolveJob extends ResolverJob {
                     + "12.00;~\n"
                     + "Renson 25960,CPC 21  2112,CPD-66  1243,FK5 2834,GC 14283,GCRV  6536,GEN# +1.00090264,GSC 08968-01393,HD  90264,HIC  50847,HIP  50847,HR  4089,N30 2467,PPM 357955,ROT  1565,SAO 250940,SKY# 19938,TD1 14823,TYC 8968-1393-1,UBV    9630,UBV M  16200,uvby98 100090264,* L Car,2MASS J10225812-6654053,\n"
                     + "";
-            job.parseResponse(response);
+            job.parseResponse(new HttpResult(response));
             _logger.info("star result:\n{}", job.getResolverResult());
         }
         if (true) {
@@ -755,7 +758,7 @@ public final class SimbadResolveJob extends ResolverJob {
                     + "12.00;~\n"
                     + "Renson 25960,CPC 21  2112,CPD-66  1243,FK5 2834,GC 14283,GCRV  6536,GEN# +1.00090264,GSC 08968-01393,HD  90264,HIC  50847,HIP  50847,HR  4089,N30 2467,PPM 357955,ROT  1565,SAO 250940,SKY# 19938,TD1 14823,TYC 8968-1393-1,UBV    9630,UBV M  16200,uvby98 100090264,* L Car,2MASS J10225812-6654053,\n"
                     + "";
-            job.parseResponse(response);
+            job.parseResponse(new HttpResult(response));
             _logger.info("star result:\n{}", job.getResolverResult());
         }
         if (true) {
@@ -763,7 +766,7 @@ public final class SimbadResolveJob extends ResolverJob {
                     + "\n"
                     + "[3] java.text.ParseException: Unrecogniezd identifier: aasioi\n"
                     + "";
-            job.parseResponse(response);
+            job.parseResponse(new HttpResult(response));
             _logger.info("star result:\n{}", job.getResolverResult());
         }
         if (true) {
@@ -803,7 +806,7 @@ public final class SimbadResolveJob extends ResolverJob {
                     + "-20.60;~\n"
                     + "WISE J183656.49+384703.9,AKARI-IRC-V1 J1836564+384703,IRAS F18352+3844,JCMTSE J183656.4+384709,JCMTSF J183656.4+384709,EQ 183456.7+384615.4,PLX 4293,LSPM J1836+3847,ASCC  507896,2MASS J18365633+3847012,USNO-B1.0 1287-00305764,* alf Lyr,*   3 Lyr,8pc 128.93,ADS 11510 A,AG+38 1711,BD+38  3238,CCDM J18369+3847A,CEL   4636,CSI+38  3238  1,CSV 101745,FK5  699,GC 25466,GCRV 11085,GEN# +1.00172167,GJ   721,HD 172167,HGAM    706,HIC  91262,HIP  91262,HR  7001,IDS 18336+3841 A,IRAS 18352+3844,IRC +40322,JP11  2999,LTT 15486,N30 4138,NAME VEGA,NLTT 46746,NSV 11128,PMC 90-93   496,PPM  81558,RAFGL 2208,ROT  2633,SAO  67174,SKY# 34103,TD1 22883,UBV   15842,UBV M  23118,USNO 882,V* alf Lyr,Zkh 277,[HFE83] 1223,uvby98 100172167 V,PLX 4293.00,1E 183515+3844.3,EUVE J1836+38.7,WDS J18369+3846A,TYC 3105-2070-1,GJ   721.0,GAT 1285,\n"
                     + "";
-            job.parseResponse(response);
+            job.parseResponse(new HttpResult(response));
             _logger.info("star result:\n{}", job.getResolverResult());
         }
 
@@ -821,7 +824,7 @@ public final class SimbadResolveJob extends ResolverJob {
                     + "\n"
                     + "\n"
                     + "";
-            job.parseResponse(response);
+            job.parseResponse(new HttpResult(response));
             _logger.info("star result:\n{}", job.getResolverResult());
         }
     }

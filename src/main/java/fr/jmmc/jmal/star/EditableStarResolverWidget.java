@@ -107,7 +107,7 @@ public final class EditableStarResolverWidget extends StarResolverWidget {
     private void parseCoordinates(final List<String> coordList) throws IllegalArgumentException {
 
         // Create the star resolver result:
-        final StarResolverResult result = new StarResolverResult(coordList);
+        final StarListResolverResult result = new StarListResolverResult(coordList);
 
         StringBuilder sb = null;
         try {
@@ -393,7 +393,7 @@ public final class EditableStarResolverWidget extends StarResolverWidget {
 
                 final StarResolverListener<Object> listener = new StarResolverListener<Object>() {
                     /**
-                     * Handle the star resolver result as String (raw http response) or StarResolverResult instance (status, error messages, stars) ...
+                     * Handle the star resolver result as String (raw http response) or StarListResolverResult instance (status, error messages, stars) ...
                      * @param result star resolver result
                      */
                     @Override
@@ -403,7 +403,7 @@ public final class EditableStarResolverWidget extends StarResolverWidget {
                 };
 
                 // register the StarResolverListener for Simbad:
-                searchField.setListener(StarResolverResult.class, listener);
+                searchField.setListener(StarListResolverResult.class, listener);
 
                 final JPanel panel = new JPanel(new BorderLayout());
                 panel.add(searchField, BorderLayout.CENTER);

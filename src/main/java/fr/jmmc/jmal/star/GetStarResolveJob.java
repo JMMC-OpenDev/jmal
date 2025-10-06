@@ -4,14 +4,13 @@
 package fr.jmmc.jmal.star;
 
 import static fr.jmmc.jmal.star.StarResolver.GETSTAR_ALLOW_SCENARIO;
-import static fr.jmmc.jmcs.network.http.Http.HTTP_RETRY_HANDLER;
+import fr.jmmc.jmcs.network.http.HttpResult;
 import fr.jmmc.jmcs.util.StringUtils;
 import fr.jmmc.jmcs.util.UrlUtils;
 import java.util.List;
 import java.util.Set;
 import org.apache.commons.httpclient.HttpMethodBase;
 import org.apache.commons.httpclient.methods.GetMethod;
-import org.apache.commons.httpclient.params.HttpMethodParams;
 
 /**
  *
@@ -24,7 +23,7 @@ public final class GetStarResolveJob extends ResolverJob {
 
     // members:
     /** result */
-    private String _xml;
+    private final GetStarResolverResult _result;
 
     /**
      * @param flags optional flags associated with the query
@@ -36,7 +35,7 @@ public final class GetStarResolveJob extends ResolverJob {
                       final StarResolverProgressListener progressListener,
                       final StarResolverListener<Object> listener) {
         super(flags, names, progressListener, listener);
-        _xml = null;
+        _result = new GetStarResolverResult(names);
     }
 
     @Override
@@ -46,36 +45,13 @@ public final class GetStarResolveJob extends ResolverJob {
 
     @Override
     public Object getResolverResult() {
-        return _xml;
+        return _result;
     }
 
     @Override
     protected String buildQuery() {
         final String queryParameters = ((_names.size() == 1) ? GETSTAR_ALLOW_SCENARIO : null);
         return buildQueryString(queryParameters, _names.toArray(EMPTY_STRING));
-
-    }
-
-    @Override
-    protected HttpMethodBase buildHttpMethod(final String serviceURL, final String query) {
-        final GetMethod method = new GetMethod(serviceURL + query);
-
-        final HttpMethodParams httpMethodParams = method.getParams();
-        // allow http retries (GET):
-        httpMethodParams.setParameter(HttpMethodParams.RETRY_HANDLER, HTTP_RETRY_HANDLER);
-
-        return method;
-    }
-
-    @Override
-    protected boolean parseResponse(final String response) throws IllegalStateException {
-        this._xml = response;
-        return true;
-    }
-
-    @Override
-    public boolean isErrorStatus() {
-        return false;
     }
 
     public static String buildQueryString(final String queryParameters, final String... ids) {
@@ -97,4 +73,44 @@ public final class GetStarResolveJob extends ResolverJob {
         }
         return null;
     }
+
+    @Override
+    protected HttpMethodBase buildHttpMethod(final String serviceURL, final String query) {
+        return new GetMethod(serviceURL + query);
+    }
+
+    @Override
+    public boolean isErrorStatus() {
+        return _result.isErrorStatus();
+    }
+
+    @Override
+    protected void handleError(final StarResolverStatus status, final String errorMessage) {
+        if (status == StarResolverStatus.ERROR_SERVER) {
+            _result.setServerErrorMessage(errorMessage);
+        } else {
+            _result.setErrorMessage(status, errorMessage);
+        }
+        super.handleError(status, errorMessage);
+    }
+
+    @Override
+    protected void parseResponse(final HttpResult httpResult) throws IllegalStateException {
+        _logger.debug("GetStar raw response:\n{}", httpResult);
+
+        final String response = (httpResult != null) ? httpResult.getResponse() : null;
+        // If the response is null (when simbad server fails)
+        if (response == null) {
+            throw new IllegalStateException("No data for star(s) " + _result.getNames() + ", Simbad service may be off or unreachable.");
+        }
+        // If the response string is empty
+        if (response.length() == 0) {
+            throw new IllegalStateException("No data for star(s) " + _result.getNames() + ".");
+        }
+        if (!httpResult.isHttpResultOK()) {
+            _result.setServerErrorMessage("GetStar query failed (" + httpResult.getHttpResultCode() + ")!");
+        }
+        this._result.setXml(response);
+    }
+
 }

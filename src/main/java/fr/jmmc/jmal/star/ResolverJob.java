@@ -7,6 +7,7 @@ import fr.jmmc.jmal.star.StarResolver.ServiceType;
 import static fr.jmmc.jmal.star.StarResolver.USE_CACHE_DEV;
 import fr.jmmc.jmcs.data.preference.SessionSettingsPreferences;
 import fr.jmmc.jmcs.network.http.Http;
+import fr.jmmc.jmcs.network.http.HttpResult;
 import fr.jmmc.jmcs.util.CollectionUtils;
 import fr.jmmc.jmcs.util.FileUtils;
 import java.io.File;
@@ -91,10 +92,9 @@ public abstract class ResolverJob implements Callable<Object> {
     /**
      * Parse Resolver response
      * @param response http content as string
-     * @return true if successfull (no error); false otherwise
      * @throws IllegalStateException if parsing error
      */
-    protected abstract boolean parseResponse(final String response) throws IllegalStateException;
+    protected abstract void parseResponse(final HttpResult response) throws IllegalStateException;
 
     /**
      * @return true if any error occured
@@ -112,28 +112,27 @@ public abstract class ResolverJob implements Callable<Object> {
         // define the thread name:
         this.threadName = Thread.currentThread().getName();
 
-        String response = null;
+        HttpResult httpResult = null;
         Object result;
         try {
-            response = queryResolver();
+            httpResult = queryResolver();
 
             if (Thread.currentThread().isInterrupted()) {
                 handleError(StarResolverStatus.ERROR_IO, getResolverName() + " star resolution cancelled.");
             } else {
-                parseResponse(response);
+                _logger.debug("{} Parsing response:\n{}", getResolverName(), httpResult);
 
-                // If everything went fine, set status to OK
-                if (!isErrorStatus()) {
-                    if (_progressListener != null) {
-                        _progressListener.handleProgressMessage(getResolverName() + " star resolution done.");
-                    }
+                parseResponse(httpResult);
+
+                if (_progressListener != null) {
+                    _progressListener.handleProgressMessage(getResolverName() + " star resolution done.");
                 }
             }
 
         } catch (IOException ioe) {
             handleError(StarResolverStatus.ERROR_IO, ioe.getMessage());
         } catch (IllegalStateException ise) {
-            _logger.info("Parsing error on the {} response:\n{}", getResolverName(), response);
+            _logger.info("Parsing error on the {} response:\n{}", getResolverName(), httpResult);
             handleError(StarResolverStatus.ERROR_PARSING, ise.getMessage());
         } finally {
             result = getResolverResult();
@@ -156,7 +155,7 @@ public abstract class ResolverJob implements Callable<Object> {
      * @param message progress message
      */
     protected final void handleProgressMessage(final String message) {
-
+        // no-op
     }
 
     /**
@@ -165,7 +164,7 @@ public abstract class ResolverJob implements Callable<Object> {
      * @throws IllegalStateException if the star name is empty
      * @throws IOException if no resolver mirror is responding
      */
-    private final String queryResolver() throws IllegalArgumentException, IOException {
+    private final HttpResult queryResolver() throws IllegalArgumentException, IOException {
         _logger.trace("ResolverJob.queryResolver");
 
         final List<String> ids = _names;
@@ -191,7 +190,7 @@ public abstract class ResolverJob implements Callable<Object> {
                     cachedFile.setLastModified(System.currentTimeMillis());
 
                     _logger.info("using cached result: " + cachedFile.getAbsolutePath());
-                    return response;
+                    return new HttpResult(response);
                 } catch (IOException ioe) {
                     _logger.info("unable to read cached result: " + cachedFile.getAbsolutePath(), ioe);
                 }
@@ -238,12 +237,16 @@ public abstract class ResolverJob implements Callable<Object> {
                 method.getParams().setSoTimeout(timeout);
 
                 // execute query:
-                response = Http.execute(client, method);
+                final HttpResult httpResult = Http.execute(client, method);
 
                 _logger.info("ResolverJob.queryResolver: duration = {} ms.", 1e-6d * (System.nanoTime() - start));
 
+                if (httpResult != null) {
+                    response = httpResult.getResponse();
+                }
+
                 // exit from loop:
-                return response;
+                return httpResult;
             } catch (IOException ioe) {
                 final String eMsg = getExceptionMessage(ioe);
                 _logger.info("Resolver service connection failed: {}", eMsg);
@@ -278,7 +281,7 @@ public abstract class ResolverJob implements Callable<Object> {
                 }
 
                 // In development: save cached query results:
-                if (USE_CACHE_DEV && response.length() != 0) {
+                if ((cachedFile != null) && (response.length() != 0)) {
                     try {
                         FileUtils.writeFile(cachedFile, response);
 

@@ -4,6 +4,8 @@
 package fr.jmmc.jmal.star;
 
 import ch.qos.logback.classic.Level;
+import static fr.jmmc.jmal.star.StarResolver.SERVICE_GET_STAR_BETA;
+import static fr.jmmc.jmal.star.StarResolver.SERVICE_SIMBAD_PUBLIC;
 import fr.jmmc.jmcs.Bootstrapper;
 import fr.jmmc.jmcs.gui.component.MessagePane;
 import fr.jmmc.jmcs.gui.component.SearchField;
@@ -19,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicReference;
 import javax.swing.JFrame;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
@@ -275,17 +278,18 @@ public class StarResolverWidget extends SearchField implements StarResolverProgr
         final String warningMessage;
 
         // Handle multiple matches per identifier:
-        if (result.isMultipleMatches()) {
+        if (result instanceof StarListResolverResult && result.isMultipleMatches()) {
+            final StarListResolverResult starListResult = (StarListResolverResult)result;
             // TODO: display ambiguous results: let the user select the appropriate star ?
             // Show ambiguous ids for now:
-            final List<String> multNames = result.getNamesForMultipleMatches();
+            final List<String> multNames = starListResult.getNamesForMultipleMatches();
             _logger.debug("multNames: {}", multNames);
 
             final StringBuilder sb = new StringBuilder(256);
             sb.append("Multiple objects found (please refine your query):\n\n");
             for (String name : multNames) {
                 sb.append("'").append(name).append("': [ ");
-                for (Star star : result.getStars(name)) {
+                for (Star star : starListResult.getStars(name)) {
                     String id = star.getId();
                     if (id != null) {
                         sb.append(id);
@@ -333,11 +337,21 @@ public class StarResolverWidget extends SearchField implements StarResolverProgr
 
         // invoke Bootstrapper method to initialize logback now:
         Bootstrapper.getState();
-        LoggingService.setLoggerLevel("fr.jmmc.jmal.star", Level.ALL);
 
-        StarResolver.setResolverServiceMirror(StarResolver.SERVICE_SIMBAD_PUBLIC);
+        if (false) {
+            LoggingService.setLoggerLevel("fr.jmmc.jmal.star", Level.ALL);
+            LoggingService.setLoggerLevel("fr.jmmc.jmcs.network.http", Level.ALL);
+        }
+
+        if (true) {
+            StarResolver.setResolverServiceMirror(SERVICE_GET_STAR_BETA);
+        } else {
+            StarResolver.setResolverServiceMirror(SERVICE_SIMBAD_PUBLIC);
+        }
 
         StarResolver.enableGetStar(true);
+
+        final AtomicReference<StarResolverWidget> fieldRef = new AtomicReference<>();
 
         // GUI initialization (EDT)
         SwingUtils.invokeLaterEDT(new Runnable() {
@@ -357,7 +371,7 @@ public class StarResolverWidget extends SearchField implements StarResolverProgr
 
                 final StarResolverListener<Object> listener = new StarResolverListener<Object>() {
                     /**
-                     * Handle the star resolver result as String (raw http response) or StarResolverResult instance (status, error messages, stars) ...
+                     * Handle the star resolver result as String (raw http response) or StarListResolverResult instance (status, error messages, stars) ...
                      * @param result star resolver result
                      */
                     @Override
@@ -367,9 +381,11 @@ public class StarResolverWidget extends SearchField implements StarResolverProgr
                 };
 
                 // register the StarResolverListener for Simbad:
-                searchField.setListener(StarResolverResult.class, listener);
+                searchField.setListener(StarListResolverResult.class, listener);
                 // register the StarResolverListener for GetStar:
-                searchField.setListener(String.class, listener);
+                searchField.setListener(GetStarResolverResult.class, listener);
+                
+                fieldRef.set(searchField);
 
                 final JPanel panel = new JPanel(new BorderLayout());
                 panel.add(searchField, BorderLayout.CENTER);
@@ -378,6 +394,19 @@ public class StarResolverWidget extends SearchField implements StarResolverProgr
 
                 frame.pack();
                 frame.setVisible(true);
+            }
+        });
+
+        SwingUtils.invokeLaterEDT(new Runnable() {
+
+            @Override
+            public void run() {
+                final StarResolverWidget searchField = fieldRef.get();
+                if (searchField != null) {
+                    System.out.println("Set searchField: " + searchField);
+
+                    searchField.setText("HD 1234567890");
+                }
             }
         });
     }

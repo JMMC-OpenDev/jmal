@@ -149,6 +149,7 @@ public final class StarResolver {
             _resolverServiceMirror = mirrorName;
         }
     }
+
     /**
      * Choose one mirror giving its name chosen from available ones.
      * @param mirrorName value chosen from getResolverServiceMirrors().
@@ -384,6 +385,7 @@ public final class StarResolver {
 
         if (false) {
             LoggingService.setLoggerLevel("fr.jmmc.jmal.star", Level.ALL);
+            LoggingService.setLoggerLevel("fr.jmmc.jmcs.network.http", Level.ALL);
         }
 
         if (true) {
@@ -391,6 +393,8 @@ public final class StarResolver {
         } else {
             StarResolver.setResolverServiceMirror(SERVICE_SIMBAD_PUBLIC);
         }
+
+        StarResolver.enableGetStar(true);
 
         final String names;
 
