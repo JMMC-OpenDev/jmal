@@ -108,7 +108,8 @@ public final class GetStarResolveJob extends ResolverJob {
             throw new IllegalStateException("No data for star(s) " + _result.getNames() + ".");
         }
         if (!httpResult.isHttpResultOK()) {
-            _result.setServerErrorMessage("GetStar query failed (" + httpResult.getHttpResultCode() + ")!");
+            final String serverMessage = StringUtils.removeTags(response);
+            _result.setServerErrorMessage("GetStar failed [" + httpResult.getHttpResultCode() + "]:\n" + serverMessage);
         }
         this._result.setXml(response);
     }
