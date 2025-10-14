@@ -20,9 +20,9 @@ import java.util.Map;
 public final class StarListResolverResult extends StarResolverResult {
 
     /** map of Star */
-    private Map<String, List<Star>> _starMap = null;
+    private Map<String, ArrayList<Star>> _starMap = null;
     /** list of queried identifier(s) having multiple matches */
-    protected List<String> _multNames = null;
+    private List<String> _multNames = null;
 
     /**
      * Protected Constructor
@@ -43,10 +43,7 @@ public final class StarListResolverResult extends StarResolverResult {
      * @return the single star corresponding to the single queried name (single match); null otherwise
      */
     public Star getSingleStar() {
-        if (_names != null && _names.size() == 1) {
-            return getSingleStar(_names.get(0));
-        }
-        return null;
+        return getSingleStar(getSingleName());
     }
 
     /**
@@ -80,13 +77,14 @@ public final class StarListResolverResult extends StarResolverResult {
      */
     void addStar(final String name, final Star star) {
         if (_starMap == null) {
-            _starMap = new HashMap<String, List<Star>>(_names.size());
+            _starMap = new HashMap<String, ArrayList<Star>>(_names.size());
         }
-        List<Star> starList = _starMap.get(name);
+        ArrayList<Star> starList = _starMap.get(name);
         if (starList == null) {
-            starList = new ArrayList<Star>(2);
+            starList = new ArrayList<Star>(1);
             _starMap.put(name, starList);
-        } else {
+        } else if (!_multipleMatches) {
+            starList.ensureCapacity(4);
             _multipleMatches = true;
         }
         _logger.debug("adding star for name='{}':\n{}", name, star);
@@ -105,9 +103,9 @@ public final class StarListResolverResult extends StarResolverResult {
             multNames = Collections.emptyList();
         } else {
             multNames = new ArrayList<String>(_names.size());
-            for (String name : _names) {
-                List<Star> starList = _starMap.get(name);
-                if (starList != null && starList.size() > 1) {
+            for (final String name : _names) {
+                final List<Star> starList = _starMap.get(name);
+                if ((starList != null) && starList.size() > 1) {
                     multNames.add(name);
                 }
             }

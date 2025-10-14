@@ -66,7 +66,7 @@ public class StarResolverWidget extends SearchField implements StarResolverProgr
 
     /* members */
     /** widget listener to get star resolver result */
-    private transient final Map<Object, StarResolverListener> _childListeners = new HashMap<>(4);
+    private transient final Map<Object, StarResolverListener<? extends StarResolverResult>> _childListeners = new HashMap<>(4);
     /** flag indicating if the resolver can resolve multiple identifiers */
     private final boolean _supportMultiple;
     /** optional flags associated with the query (atomic updates) */
@@ -74,7 +74,7 @@ public class StarResolverWidget extends SearchField implements StarResolverProgr
     /** star resolver instance */
     private transient final StarResolver _resolver;
     /** Single future instance used to cancel background requests */
-    private transient Future<Object> _future = null;
+    private transient Future<StarResolverResult> _future = null;
 
     /**
      * Creates a new StarResolverWidget object that only supports one single identifier
@@ -93,7 +93,7 @@ public class StarResolverWidget extends SearchField implements StarResolverProgr
         this._supportMultiple = supportMultiple;
 
         this._resolver = new StarResolver(this,
-                new StarResolverListener<Object>() {
+                new StarResolverListener<StarResolverResult>() {
             /**
              * Handle the star resolver result (status, error messages, stars):
              * - show error meassages
@@ -102,7 +102,7 @@ public class StarResolverWidget extends SearchField implements StarResolverProgr
              * @param result star resolver result
              */
             @Override
-            public void handleResult(final Object result) {
+            public void handleResult(final StarResolverResult result) {
                 _logger.debug("star resolver result:\n{}", result);
 
                 // reset the future instance:
@@ -113,10 +113,8 @@ public class StarResolverWidget extends SearchField implements StarResolverProgr
                     public void run() {
                         try {
                             if (result != null) {
-                                if (result instanceof StarResolverResult) {
-                                    // Handle status & error messages:
-                                    showResultMessage((StarResolverResult) result);
-                                }
+                                // Handle status & error messages:
+                                showResultMessage(result);
 
                                 // Propagate the result to the child listener
                                 fireResultToChildListener(result);
@@ -125,11 +123,8 @@ public class StarResolverWidget extends SearchField implements StarResolverProgr
                             // Enable search field after request processing done :
                             setEnabled(true);
 
-                            if (result != null) {
-                                if ((result instanceof StarResolverResult)
-                                        && ((StarResolverResult) result).isErrorStatus()) {
-                                    requestFocus();
-                                }
+                            if ((result != null) && result.isErrorStatus()) {
+                                requestFocus();
                             }
                         }
                     }
@@ -189,7 +184,7 @@ public class StarResolverWidget extends SearchField implements StarResolverProgr
      * @param resultClass> Resolver result class
      * @return the widget listener to get star resolver result
      */
-    public final StarResolverListener<?> getListener(final Class<?> resultClass) {
+    public final StarResolverListener<? extends StarResolverResult> getListener(final Class<?> resultClass) {
         return _childListeners.get(resultClass);
     }
 
@@ -198,7 +193,7 @@ public class StarResolverWidget extends SearchField implements StarResolverProgr
      * @param listener the widget listener to get star resolver result
      */
     @SuppressWarnings("unchecked")
-    public final void setListener(final Class<?> resultClass, final StarResolverListener<?> listener) {
+    public final void setListener(final Class<?> resultClass, final StarResolverListener<? extends StarResolverResult> listener) {
         this._childListeners.put(resultClass, listener);
     }
 
@@ -279,7 +274,7 @@ public class StarResolverWidget extends SearchField implements StarResolverProgr
 
         // Handle multiple matches per identifier:
         if (result instanceof StarListResolverResult && result.isMultipleMatches()) {
-            final StarListResolverResult starListResult = (StarListResolverResult)result;
+            final StarListResolverResult starListResult = (StarListResolverResult) result;
             // TODO: display ambiguous results: let the user select the appropriate star ?
             // Show ambiguous ids for now:
             final List<String> multNames = starListResult.getNamesForMultipleMatches();
@@ -321,8 +316,8 @@ public class StarResolverWidget extends SearchField implements StarResolverProgr
      * Fire result to child listener (same class) within EDT
      * @param result star resolver result (not null)
      */
-    @SuppressWarnings("unchecked")
-    void fireResultToChildListener(final Object result) {
+    @SuppressWarnings({"unchecked"})
+    void fireResultToChildListener(final StarResolverResult result) {
         final StarResolverListener listener = getListener(result.getClass());
         if (listener != null) {
             listener.handleResult(result);
@@ -369,22 +364,13 @@ public class StarResolverWidget extends SearchField implements StarResolverProgr
                 final boolean supportMultiple = true;
                 final StarResolverWidget searchField = new StarResolverWidget(supportMultiple);
 
-                final StarResolverListener<Object> listener = new StarResolverListener<Object>() {
-                    /**
-                     * Handle the star resolver result as String (raw http response) or StarListResolverResult instance (status, error messages, stars) ...
-                     * @param result star resolver result
-                     */
-                    @Override
-                    public void handleResult(final Object result) {
-                        _logger.info("ASYNC Star resolver result:\n{}", result);
-                    }
-                };
+                final StarResolverListener<StarResolverResult> listener = StarResolver.createStarResolverListenerLogger();
 
                 // register the StarResolverListener for Simbad:
                 searchField.setListener(StarListResolverResult.class, listener);
                 // register the StarResolverListener for GetStar:
                 searchField.setListener(GetStarResolverResult.class, listener);
-                
+
                 fieldRef.set(searchField);
 
                 final JPanel panel = new JPanel(new BorderLayout());

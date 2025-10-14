@@ -34,6 +34,16 @@ public class StarResolverResult {
     }
 
     /**
+     * @return the single star corresponding to the single queried name (single match); null otherwise
+     */
+    public final String getSingleName() {
+        if ((_names != null) && (_names.size() == 1)) {
+            return _names.get(0);
+        }
+        return null;
+    }
+
+    /**
      * @return list of queried identifiers (read only)
      */
     public final List<String> getNames() {

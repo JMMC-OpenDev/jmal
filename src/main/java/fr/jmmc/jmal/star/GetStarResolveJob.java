@@ -21,10 +21,6 @@ public final class GetStarResolveJob extends ResolverJob {
     /** GetStar separator (multiple identifier separator) */
     public static final String GETSTAR_SEPARATOR = ",";
 
-    // members:
-    /** result */
-    private final GetStarResolverResult _result;
-
     /**
      * @param flags optional flags associated with the query
      * @param names list of queried identifiers
@@ -33,9 +29,8 @@ public final class GetStarResolveJob extends ResolverJob {
      */
     GetStarResolveJob(final Set<String> flags, final List<String> names,
                       final StarResolverProgressListener progressListener,
-                      final StarResolverListener<Object> listener) {
-        super(flags, names, progressListener, listener);
-        _result = new GetStarResolverResult(names);
+                      final StarResolverListener<StarResolverResult> listener) {
+        super(flags, names, progressListener, listener, new GetStarResolverResult(names));
     }
 
     @Override
@@ -43,9 +38,8 @@ public final class GetStarResolveJob extends ResolverJob {
         return "JMMC GetStar";
     }
 
-    @Override
-    public Object getResolverResult() {
-        return _result;
+    public GetStarResolverResult getGetStarResolverResult() {
+        return (GetStarResolverResult) _result;
     }
 
     @Override
@@ -80,21 +74,6 @@ public final class GetStarResolveJob extends ResolverJob {
     }
 
     @Override
-    public boolean isErrorStatus() {
-        return _result.isErrorStatus();
-    }
-
-    @Override
-    protected void handleError(final StarResolverStatus status, final String errorMessage) {
-        if (status == StarResolverStatus.ERROR_SERVER) {
-            _result.setServerErrorMessage(errorMessage);
-        } else {
-            _result.setErrorMessage(status, errorMessage);
-        }
-        super.handleError(status, errorMessage);
-    }
-
-    @Override
     protected void parseResponse(final HttpResult httpResult) throws IllegalStateException {
         _logger.debug("GetStar raw response:\n{}", httpResult);
 
@@ -107,11 +86,11 @@ public final class GetStarResolveJob extends ResolverJob {
         if (response.length() == 0) {
             throw new IllegalStateException("No data for star(s) " + _result.getNames() + ".");
         }
-        if (!httpResult.isHttpResultOK()) {
-            final String serverMessage = StringUtils.removeTags(response);
-            _result.setServerErrorMessage("GetStar failed [" + httpResult.getHttpResultCode() + "]:\n" + serverMessage);
+        if ((httpResult != null) && !httpResult.isHttpResultOK()) {
+            final String errorMessage = StringUtils.removeTags(response);
+            handleError(StarResolverStatus.ERROR_SERVER, getResolverName() + " query failed:" + errorMessage);
         }
-        this._result.setXml(response);
+        getGetStarResolverResult().setXml(response);
     }
 
 }

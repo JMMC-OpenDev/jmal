@@ -30,8 +30,6 @@ public final class SimbadResolveJob extends ResolverJob {
     public static final String MARKER_DATA = "::data";
 
     /* members */
-    /** result */
-    private final StarListResolverResult _result;
     /** current star name during parsing */
     private String _currentName = null;
     /** temporary parsing result */
@@ -45,9 +43,8 @@ public final class SimbadResolveJob extends ResolverJob {
      */
     SimbadResolveJob(final Set<String> flags, final List<String> names,
                      final StarResolverProgressListener progressListener,
-                     final StarResolverListener<Object> listener) {
-        super(flags, names, progressListener, listener);
-        _result = new StarListResolverResult(names);
+                     final StarResolverListener<StarResolverResult> listener) {
+        super(flags, names, progressListener, listener, new StarListResolverResult(names));
     }
 
     @Override
@@ -55,9 +52,8 @@ public final class SimbadResolveJob extends ResolverJob {
         return "Simbad";
     }
 
-    @Override
-    public Object getResolverResult() {
-        return _result;
+    public StarListResolverResult getStarListResolverResult() {
+        return (StarListResolverResult) _result;
     }
 
     @Override
@@ -106,21 +102,6 @@ public final class SimbadResolveJob extends ResolverJob {
     }
 
     @Override
-    public boolean isErrorStatus() {
-        return _result.isErrorStatus();
-    }
-
-    @Override
-    protected void handleError(final StarResolverStatus status, final String errorMessage) {
-        if (status == StarResolverStatus.ERROR_SERVER) {
-            _result.setServerErrorMessage(errorMessage);
-        } else {
-            _result.setErrorMessage(status, errorMessage);
-        }
-        super.handleError(status, errorMessage);
-    }
-
-    @Override
     protected void parseResponse(final HttpResult httpResult) throws IllegalStateException {
         _logger.trace("SimbadResolveStarJob.parseResult");
         _logger.debug("CDS Simbad raw response:\n{}", httpResult);
@@ -158,7 +139,7 @@ public final class SimbadResolveJob extends ResolverJob {
             final String errorMessage = (posEnd == -1) ? stream.substring(posStart) : stream.substring(posStart, posEnd);
             _logger.debug("CDS error:\n{}", errorMessage);
 
-            handleError(StarResolverStatus.ERROR_SERVER, "Querying script execution failed:" + errorMessage);
+            handleError(StarResolverStatus.ERROR_SERVER, getResolverName() + " querying script execution failed:" + errorMessage);
 
             // try to get data block:
             if (posEnd == -1) {
@@ -219,7 +200,7 @@ public final class SimbadResolveJob extends ResolverJob {
                 if ((_parsedStar.getPropertyAsDouble(Star.Property.RA_d) != null)
                         && (_parsedStar.getPropertyAsDouble(Star.Property.DEC_d) != null)) {
                     // Add entry into results:
-                    _result.addStar(name, _parsedStar);
+                    getStarListResolverResult().addStar(name, _parsedStar);
                 } else {
                     _logger.debug("skip entry (no coordinates):\n{}", _parsedStar);
                 }

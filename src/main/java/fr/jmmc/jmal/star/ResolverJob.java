@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory;
  * Generic Star resolver service
  * @author bourgesl
  */
-public abstract class ResolverJob implements Callable<Object> {
+public abstract class ResolverJob implements Callable<StarResolverResult> {
 
     /** Logger */
     protected static final Logger _logger = LoggerFactory.getLogger(ResolverJob.class.getName());
@@ -51,23 +51,28 @@ public abstract class ResolverJob implements Callable<Object> {
     /** callback listener with progress */
     protected final StarResolverProgressListener _progressListener;
     /** callback listener with results */
-    protected final StarResolverListener<Object> _listener;
+    protected final StarResolverListener<StarResolverResult> _listener;
     /** running thread name (only defined during the background execution; null otherwise) */
     protected String threadName = null;
+    /** result as StarResolverResult implementation */
+    protected final StarResolverResult _result;
 
     /**
      * @param flags optional flags associated with the query
      * @param names list of queried identifiers
      * @param progressListener callback listener with progress
      * @param listener callback listener with results
+     * @param result StarResolverResult implementation
      */
     ResolverJob(final Set<String> flags, final List<String> names,
                 final StarResolverProgressListener progressListener,
-                final StarResolverListener<Object> listener) {
+                final StarResolverListener<StarResolverResult> listener,
+                final StarResolverResult result) {
         _flags = flags;
         _names = names;
         _progressListener = progressListener;
         _listener = listener;
+        _result = result;
     }
 
     /**
@@ -83,7 +88,9 @@ public abstract class ResolverJob implements Callable<Object> {
 
     public abstract String getResolverName();
 
-    public abstract Object getResolverResult();
+    public final StarResolverResult getResolverResult() {
+        return _result;
+    }
 
     protected abstract String buildQuery();
 
@@ -96,13 +103,8 @@ public abstract class ResolverJob implements Callable<Object> {
      */
     protected abstract void parseResponse(final HttpResult response) throws IllegalStateException;
 
-    /**
-     * @return true if any error occured
-     */
-    public abstract boolean isErrorStatus();
-
     @Override
-    public final Object call() {
+    public final StarResolverResult call() {
         _logger.debug("ResolverJob.run");
 
         if (_progressListener != null) {
@@ -113,7 +115,7 @@ public abstract class ResolverJob implements Callable<Object> {
         this.threadName = Thread.currentThread().getName();
 
         HttpResult httpResult = null;
-        Object result;
+        StarResolverResult result;
         try {
             httpResult = queryResolver();
 
@@ -130,10 +132,10 @@ public abstract class ResolverJob implements Callable<Object> {
             }
 
         } catch (IOException ioe) {
-            handleError(StarResolverStatus.ERROR_IO, ioe.getMessage());
+            handleError(StarResolverStatus.ERROR_IO, getResolverName() + " IO failure: " + ioe.getMessage());
         } catch (IllegalStateException ise) {
             _logger.info("Parsing error on the {} response:\n{}", getResolverName(), httpResult);
-            handleError(StarResolverStatus.ERROR_PARSING, ise.getMessage());
+            handleError(StarResolverStatus.ERROR_PARSING, getResolverName() + " parsing error: " + ise.getMessage());
         } finally {
             result = getResolverResult();
             // anyway: process result
@@ -144,7 +146,19 @@ public abstract class ResolverJob implements Callable<Object> {
         return result;
     }
 
-    protected void handleError(final StarResolverStatus status, final String errorMessage) {
+    /**
+     * @return true if any error occured
+     */
+    public final boolean isErrorStatus() {
+        return _result.isErrorStatus();
+    }
+
+    protected final void handleError(final StarResolverStatus status, final String errorMessage) {
+        if (status == StarResolverStatus.ERROR_SERVER) {
+            _result.setServerErrorMessage(errorMessage);
+        } else {
+            _result.setErrorMessage(status, errorMessage);
+        }
         if (_progressListener != null) {
             _progressListener.handleProgressMessage(errorMessage);
         }

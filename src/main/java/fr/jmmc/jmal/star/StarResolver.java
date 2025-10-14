@@ -209,7 +209,7 @@ public final class StarResolver {
     /** callback listener with progress */
     private final StarResolverProgressListener _progressListener;
     /** callback listener with results */
-    private final StarResolverListener<Object> _listener;
+    private final StarResolverListener<StarResolverResult> _listener;
     /** Dedicated thread executor (single thread) */
     private final ThreadExecutors _executor = ThreadExecutors.getSingleExecutor("StarResolverThreadPool");
 
@@ -227,7 +227,7 @@ public final class StarResolver {
      * @param listener callback listener with results
      */
     public StarResolver(final StarResolverProgressListener progressListener,
-                        final StarResolverListener<Object> listener) {
+                        final StarResolverListener<StarResolverResult> listener) {
         _progressListener = progressListener;
         _listener = listener;
     }
@@ -239,7 +239,7 @@ public final class StarResolver {
      * @return Future instance to use for synchronous mode (wait for)
      * @throws IllegalArgumentException if the given name is empty
      */
-    public Future<Object> resolve(final Set<String> flags, final String name) throws IllegalArgumentException {
+    public Future<StarResolverResult> resolve(final Set<String> flags, final String name) throws IllegalArgumentException {
         _logger.debug("Searching data for star '{}'.", name);
 
         if (isMultiple(name)) {
@@ -262,7 +262,7 @@ public final class StarResolver {
      * @return Future instance to use for synchronous mode (wait for)
      * @throws IllegalArgumentException if the given names are empty
      */
-    public Future<Object> multipleResolve(final Set<String> flags, final String names) throws IllegalArgumentException {
+    public Future<StarResolverResult> multipleResolve(final Set<String> flags, final String names) throws IllegalArgumentException {
         return multipleResolve(flags, prepareNames(names));
     }
 
@@ -272,7 +272,7 @@ public final class StarResolver {
      * @return Future instance to use for synchronous mode (wait for)
      * @throws IllegalArgumentException if the given names are empty
      */
-    public Future<Object> multipleResolve(final List<String> nameList) throws IllegalArgumentException {
+    public Future<StarResolverResult> multipleResolve(final List<String> nameList) throws IllegalArgumentException {
         return multipleResolve(null, nameList);
     }
 
@@ -284,7 +284,7 @@ public final class StarResolver {
      * @throws IllegalArgumentException if the given names are empty
      */
     @SuppressWarnings("unchecked")
-    public Future<Object> multipleResolve(final Set<String> flags, final List<String> nameList) throws IllegalArgumentException {
+    public Future<StarResolverResult> multipleResolve(final Set<String> flags, final List<String> nameList) throws IllegalArgumentException {
         _logger.debug("Searching data for stars '{}'.", nameList);
 
         if (CollectionUtils.isEmpty(nameList)) {
@@ -303,10 +303,10 @@ public final class StarResolver {
         }
     }
 
-    private Future<Object> submitJob(final ResolverJob resolveStarJob) {
+    private Future<StarResolverResult> submitJob(final ResolverJob resolveStarJob) {
         // Intercept cancel calls to first abort HTTP method:
         @SuppressWarnings("unchecked")
-        final FutureTask<Object> task = new FutureTask<Object>(resolveStarJob) {
+        final FutureTask<StarResolverResult> task = new FutureTask<StarResolverResult>(resolveStarJob) {
             @Override
             public boolean cancel(boolean mayInterruptIfRunning) {
                 if (resolveStarJob instanceof SimbadResolveJob) {
@@ -374,6 +374,19 @@ public final class StarResolver {
         return StringUtils.cleanWhiteSpaces(cleanedSemiColon);
     }
 
+    public static StarResolverListener<StarResolverResult> createStarResolverListenerLogger() {
+        return new StarResolverListener<StarResolverResult>() {
+            /**
+             * Handle the star resolver result (status, error messages, custom result) ...
+             * @param result star resolver result
+             */
+            @Override
+            public void handleResult(final StarResolverResult result) {
+                _logger.info("ASYNC Star resolver result:\n{}", result);
+            }
+        };
+    }
+
     /**
      * Command-line tool that tries to resolve the star name given as first parameter.
      * @param args first argument is the star name
@@ -417,20 +430,11 @@ public final class StarResolver {
                 _logger.info(message);
             }
         };
-        final StarResolverListener<Object> listener = new StarResolverListener<Object>() {
-            /**
-             * Handle the star resolver result as String (raw http response) or StarResolverResult instance (status, error messages, stars) ...
-             * @param result star resolver result
-             */
-            @Override
-            public void handleResult(final Object result) {
-                _logger.info("ASYNC Star resolver result:\n{}", result);
-            }
-        };
+        final StarResolverListener<StarResolverResult> listener = createStarResolverListenerLogger();
 
         // Seek data about the given star name (first arg on command line)
         // Wait for StarResolver task done (and listener calls) :
-        final Object result = waitFor(new StarResolver(progressListener, listener).multipleResolve(null, names));
+        final StarResolverResult result = waitFor(new StarResolver(progressListener, listener).multipleResolve(null, names));
 
         _logger.info("SYNC star resolver result:\n{}", result);
 

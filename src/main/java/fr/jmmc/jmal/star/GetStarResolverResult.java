@@ -37,7 +37,7 @@ public final class GetStarResolverResult extends StarResolverResult {
         return _xml;
     }
 
-    public void setXml(final String xml) {
+    void setXml(final String xml) {
         this._xml = xml;
     }
 

@@ -391,16 +391,7 @@ public final class EditableStarResolverWidget extends StarResolverWidget {
                 final EditableStarResolverWidget searchField = new EditableStarResolverWidget(supportMultiple);
                 searchField.setColumns(30);
 
-                final StarResolverListener<Object> listener = new StarResolverListener<Object>() {
-                    /**
-                     * Handle the star resolver result as String (raw http response) or StarListResolverResult instance (status, error messages, stars) ...
-                     * @param result star resolver result
-                     */
-                    @Override
-                    public void handleResult(final Object result) {
-                        _logger.info("Result:\n{}", result);
-                    }
-                };
+                final StarResolverListener<StarResolverResult> listener = StarResolver.createStarResolverListenerLogger();
 
                 // register the StarResolverListener for Simbad:
                 searchField.setListener(StarListResolverResult.class, listener);
