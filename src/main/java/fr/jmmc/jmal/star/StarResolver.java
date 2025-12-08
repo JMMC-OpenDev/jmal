@@ -73,6 +73,9 @@ public final class StarResolver {
     public static final String GETSTAR_QUERY_ID = "http://sclws.jmmc.fr/sclwsGetStarProxy.php?star=";
     /** GetStar parameter to enable searchCal's scenarios */
     public static final String GETSTAR_ALLOW_SCENARIO = "&scenario=true&";
+    
+    /** default mirror */
+    public static final String SERVICE_DEFAULT = SERVICE_SIMBAD_PUBLIC;
 
     static {
         _resolverServiceMirrors = new HashMap<>(8);
@@ -120,7 +123,7 @@ public final class StarResolver {
      */
     public static String getResolverServiceMirror() {
         if (_resolverServiceMirror == null) {
-            setResolverServiceMirror(getResolverServiceMirrors().iterator().next());
+            setResolverServiceMirror(SERVICE_DEFAULT);
         }
         return _resolverServiceMirror;
     }
@@ -144,7 +147,7 @@ public final class StarResolver {
     public static void setResolverServiceMirror(final String mirrorName) {
         // prevent bad cases for bad mirror names
         if (_resolverServiceMirrors.get(mirrorName) == null) {
-            _resolverServiceMirror = getResolverServiceMirrors().iterator().next();
+            _resolverServiceMirror = SERVICE_DEFAULT;
         } else {
             _resolverServiceMirror = mirrorName;
         }
