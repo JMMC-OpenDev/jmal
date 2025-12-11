@@ -90,13 +90,13 @@ public final class SimbadResolveJob extends ResolverJob {
     }
 
     @Override
-    protected HttpMethodBase buildHttpMethod(final String serviceURL, final String query) {
+    protected HttpMethodBase buildHttpMethod(final String serviceURL, final String simbadScript) {
         // create the HTTP Post method:
 
         final PostMethod method = new PostMethod(serviceURL);
 
         // define query script:
-        method.addParameter("script", query);
+        method.addParameter("script", simbadScript);
 
         return method;
     }

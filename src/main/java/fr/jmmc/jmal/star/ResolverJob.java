@@ -233,7 +233,7 @@ public abstract class ResolverJob implements Callable<StarResolverResult> {
 
         // Retry other mirrors if needed
         while ((serviceMirror != null) && (!currentThread.isInterrupted())) {
-            // Try to get star data from the default or first resolver service:
+            // Try to get star data from the selected resolver service:
             serviceURL = StarResolver.getResolverServiceUrl();
 
             _logger.debug("Querying service: {}", serviceURL);

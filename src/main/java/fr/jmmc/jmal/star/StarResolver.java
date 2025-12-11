@@ -69,18 +69,20 @@ public final class StarResolver {
     public final static String SERVICE_GET_STAR_PUBLIC = "JMMC GetStar, FR";
     public final static String SERVICE_GET_STAR_BETA = "JMMC GetStar (beta), FR";
     public final static String SERVICE_GET_STAR_DEV = "JMMC GetStar (dev), FR";
-    /** GetStar URL (query by identifier) */
-    public static final String GETSTAR_QUERY_ID = "http://sclws.jmmc.fr/sclwsGetStarProxy.php?star=";
-    /** GetStar parameter to enable searchCal's scenarios */
-    public static final String GETSTAR_ALLOW_SCENARIO = "&scenario=true&";
-    
+    /** GetStar parameter to set the scenario flag */
+    private static final String GETSTAR_PARAM_SCENARIO = "&scenario=";
+    /** GetStar parameter to enable scenario */
+    public static final String GETSTAR_ALLOW_SCENARIO = GETSTAR_PARAM_SCENARIO + "true&";
+    /** GetStar parameter to disable scenario */
+    public static final String GETSTAR_DENY_SCENARIO = GETSTAR_PARAM_SCENARIO + "false&";
+
     /** default mirror */
     public static final String SERVICE_DEFAULT = SERVICE_SIMBAD_PUBLIC;
 
     static {
         _resolverServiceMirrors = new HashMap<>(8);
         _resolverServiceMirrors.put(SERVICE_GET_STAR_PUBLIC, "http://www.jmmc.fr/~sclws/getstar/sclwsGetStarProxy.php?format=vot&star=");
-        _resolverServiceMirrors.put(SERVICE_GET_STAR_BETA, GETSTAR_QUERY_ID);
+        _resolverServiceMirrors.put(SERVICE_GET_STAR_BETA, "http://sclws.jmmc.fr/sclwsGetStarProxy.php?star=");
         _resolverServiceMirrors.put(SERVICE_GET_STAR_DEV, "http://www.jmmc.fr/~bourgesl/getstar/sclwsGetStarProxy.php?format=vot&star=");
 
         _resolverServiceMirrors.put(SERVICE_SIMBAD_PUBLIC, SIMBAD_MAIN_URL + "sim-script");
@@ -109,6 +111,14 @@ public final class StarResolver {
         _resolverServiceMirrorSet.add(SERVICE_SIMBAD_IP);
     }
 
+    public static String getGetStarUrl() {
+        // Use the selected resolver service:
+        final String serviceMirror = getResolverServiceMirror();
+        final ServiceType serviceType = getResolverServiceType(serviceMirror);
+
+        return getResolverServiceUrl((serviceType == ServiceType.GETSTAR) ? serviceMirror : SERVICE_GET_STAR_BETA);
+    }
+
     /**
      * Get the list of available resolver service mirrors.
      * @return one set of available resolver service mirror names.
@@ -133,7 +143,11 @@ public final class StarResolver {
      * @return resolver service URL
      */
     public static String getResolverServiceUrl() {
-        return _resolverServiceMirrors.get(getResolverServiceMirror());
+        return getResolverServiceUrl(getResolverServiceMirror());
+    }
+
+    public static String getResolverServiceUrl(final String mirrorName) {
+        return _resolverServiceMirrors.get(mirrorName);
     }
 
     public static ServiceType getResolverServiceType(final String mirrorName) {

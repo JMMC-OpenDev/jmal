@@ -3,7 +3,6 @@
  ******************************************************************************/
 package fr.jmmc.jmal.star;
 
-import static fr.jmmc.jmal.star.StarResolver.GETSTAR_ALLOW_SCENARIO;
 import fr.jmmc.jmcs.network.http.HttpResult;
 import fr.jmmc.jmcs.util.StringUtils;
 import fr.jmmc.jmcs.util.UrlUtils;
@@ -44,28 +43,32 @@ public final class GetStarResolveJob extends ResolverJob {
 
     @Override
     protected String buildQuery() {
-        final String queryParameters = ((_names.size() == 1) ? GETSTAR_ALLOW_SCENARIO : null);
-        return buildQueryString(queryParameters, _names.toArray(EMPTY_STRING));
+        return buildQueryString(_names.toArray(EMPTY_STRING));
     }
 
-    public static String buildQueryString(final String queryParameters, final String... ids) {
-        if (ids != null && ids.length != 0) {
-            final String starValue;
-            if (ids.length == 1) {
-                starValue = ids[0];
-            } else {
-                final StringBuilder sb = new StringBuilder(ids.length * 20);
-                for (String id : ids) {
-                    sb.append(id).append(GETSTAR_SEPARATOR);
-                }
-                sb.deleteCharAt(sb.length() - 1);
-                starValue = sb.toString();
-            }
-            return (StringUtils.isEmpty(queryParameters))
-                    ? UrlUtils.encode(starValue)
-                    : UrlUtils.encode(starValue) + queryParameters;
+    public static String buildQueryString(final String... ids) {
+        if ((ids != null) && (ids.length != 0)) {
+            return buildQueryString(ids,
+                    (ids.length == 1) ? StarResolver.GETSTAR_ALLOW_SCENARIO
+                            : StarResolver.GETSTAR_DENY_SCENARIO
+            );
         }
         return null;
+    }
+
+    private static String buildQueryString(final String[] ids, final String queryParameters) {
+        final String starValue;
+        if (ids.length == 1) {
+            starValue = ids[0];
+        } else {
+            final StringBuilder sb = new StringBuilder(ids.length * 20);
+            for (String id : ids) {
+                sb.append(id).append(GETSTAR_SEPARATOR);
+            }
+            sb.deleteCharAt(sb.length() - 1);
+            starValue = sb.toString();
+        }
+        return UrlUtils.encode(starValue) + queryParameters;
     }
 
     @Override
