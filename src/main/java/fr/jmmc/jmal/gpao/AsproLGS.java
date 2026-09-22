@@ -429,7 +429,8 @@ public final class AsproLGS {
     /**
      * Servo-lag error.
      *
-     * @param coeff      damping factor and the power value (1 or 2 coefficients)
+     * @param coeff1     damping factor and the power value (1st 2 coefficients)
+     * @param coeff2     damping factor and the power value (2nd coefficients or NaN)
      * @param airmass    secant of the zenith angle (1/cos(zenith_angle))
      * @param v_0        velocity of the turbulent layer (m.s-1)
      * @param r_0        Fried's parameter @500nm (m)
@@ -438,17 +439,13 @@ public final class AsproLGS {
      * @param g_loop     gain of the loop
      * @return the Strehl ratio
      */
-    public static double strehlLag(final double[] coeff, final double airmass, final double v_0, final double r_0,
+    public static double strehlLag(final double coeff1, final double coeff2, final double airmass, final double v_0, final double r_0,
                                    final double wavelength, final double f_loop, final double g_loop) {
         final double x = v_0 / (Math.pow(airmass, -3.0 / 5.0) * r02rlambda(r_0, wavelength) * f_loop * g_loop);
-        switch (coeff.length) {
-            case 1:
-                return Math.exp(-coeff[0] * Math.pow(x, 5.0 / 3.0));
-            case 2:
-                return Math.exp(-coeff[0] * Math.pow(x, coeff[1]));
-            default:
-                throw new IllegalArgumentException("Invalid number of coefficients!");
+        if (Double.isFinite(coeff2)) {
+            return Math.exp(-coeff1 * Math.pow(x, coeff2));
         }
+        return Math.exp(-coeff1 * Math.pow(x, 5.0 / 3.0));
     }
 
     /**
@@ -468,22 +465,12 @@ public final class AsproLGS {
     public static double strehlLagLGS(final double[] coeff, final double airmass, final double v_0, final double r_0,
                                       final double wavelength, final double f_loop_LGS, final double g_loop_LGS,
                                       final double f_loop_LO, final double g_loop_LO) {
-        final double[] coefLGS;
-        final double[] coefLO;
-        switch (coeff.length) {
-            case 2:
-                coefLGS = new double[]{coeff[0]};
-                coefLO = new double[]{coeff[1]};
-                break;
-            case 3:
-                coefLGS = new double[]{coeff[0], coeff[2]};
-                coefLO = new double[]{coeff[1], coeff[2]};
-                break;
-            default:
-                throw new IllegalArgumentException("Invalid number of coefficients!");
+
+        if (coeff.length != 3) {
+            throw new IllegalArgumentException("Invalid number of coefficients!");
         }
-        return strehlLag(coefLGS, airmass, v_0, r_0, wavelength, f_loop_LGS, g_loop_LGS)
-                * strehlLag(coefLO, airmass, v_0, r_0, wavelength, f_loop_LO, g_loop_LO);
+        return strehlLag(coeff[0], coeff[2], airmass, v_0, r_0, wavelength, f_loop_LGS, g_loop_LGS)
+                * strehlLag(coeff[1], coeff[2], airmass, v_0, r_0, wavelength, f_loop_LO, g_loop_LO);
     }
 
     /**
@@ -497,13 +484,10 @@ public final class AsproLGS {
      * @param ExcessNoiseFactor Excess noise factor (2 for EMCCDs)
      * @return the Strehl ratio
      */
-    public static double strehlPh(final double[] coeff, final double N_ph, final double wavelength,
+    public static double strehlPh(final double coeff, final double N_ph, final double wavelength,
                                   final double wavelength_eq, final double g_loop, final double ExcessNoiseFactor) {
-        if (coeff.length == 1) {
-            final double ratio = wavelength_eq / wavelength;
-            return Math.exp(-coeff[0] * ratio * ratio * ExcessNoiseFactor * g_loop / (2.0 - g_loop) / N_ph);
-        }
-        throw new IllegalArgumentException("Invalid number of coefficients!");
+        final double ratio = wavelength_eq / wavelength;
+        return Math.exp(-coeff * ratio * ratio * ExcessNoiseFactor * g_loop / (2.0 - g_loop) / N_ph);
     }
 
     /**
@@ -517,19 +501,17 @@ public final class AsproLGS {
      * @param g_loop   gain of the loop
      * @return the Strehl ratio
      */
-    public static double strehlRon(final double[] coeff, final double sigRON, final double N_ph,
+    public static double strehlRon(final double coeff, final double sigRON, final double N_ph,
                                    final double pixScale, final double N_pix, final double g_loop) {
-        if (coeff.length == 1) {
-            return Math.exp(-coeff[0] * pixScale * pixScale * Math.pow(N_pix, 4) * sigRON * sigRON
-                    * g_loop / (2.0 - g_loop) / (N_ph * N_ph));
-        }
-        throw new IllegalArgumentException("Invalid number of coefficients!");
+        return Math.exp(-coeff * pixScale * pixScale * Math.pow(N_pix, 4) * sigRON * sigRON
+                * g_loop / (2.0 - g_loop) / (N_ph * N_ph));
     }
 
     /**
      * Isoplanetic and isokinetic error.
      *
-     * @param coeff      damping factor and the power value (1 or 2 coefficients)
+     * @param coeff1     damping factor and the power value (1st 2 coefficients)
+     * @param coeff2     damping factor and the power value (2nd coefficients or NaN)
      * @param airmass    secant of the zenith angle (1/cos(zenith_angle))
      * @param theta      separation (arcsecond)
      * @param h_0        altitude of the turbulent layer (m)
@@ -537,18 +519,15 @@ public final class AsproLGS {
      * @param wavelength wavelength at which the Strehl must be computed (m)
      * @return the Strehl ratio
      */
-    public static double strehlIso(final double[] coeff, final double airmass, final double theta, final double h_0,
+    public static double strehlIso(final double coeff1, final double coeff2, final double airmass, final double theta, final double h_0,
                                    final double r_0, final double wavelength) {
         final double x = theta * Math.PI / 180.0 / 3600.0 * airmass * h_0
                 / (Math.pow(airmass, -3.0 / 5.0) * r02rlambda(r_0, wavelength));
-        switch (coeff.length) {
-            case 1:
-                return Math.exp(-coeff[0] * Math.pow(x, 5.0 / 3.0));
-            case 2:
-                return Math.exp(-coeff[0] * Math.pow(x, coeff[1]));
-            default:
-                throw new IllegalArgumentException("Invalid number of coefficients!");
+
+        if (Double.isFinite(coeff2)) {
+            return Math.exp(-coeff1 * Math.pow(x, coeff2));
         }
+        return Math.exp(-coeff1 * Math.pow(x, 5.0 / 3.0));
     }
 
     /**
@@ -566,22 +545,11 @@ public final class AsproLGS {
     public static double strehlIsoLGS(final double[] coeff, final double airmass, final double theta_LGS,
                                       final double theta_LO, final double h_0, final double r_0,
                                       final double wavelength) {
-        final double[] coefLGS;
-        final double[] coefLO;
-        switch (coeff.length) {
-            case 2:
-                coefLGS = new double[]{coeff[0]};
-                coefLO = new double[]{coeff[1]};
-                break;
-            case 3:
-                coefLGS = new double[]{coeff[0], coeff[2]};
-                coefLO = new double[]{coeff[1], coeff[2]};
-                break;
-            default:
-                throw new IllegalArgumentException("Invalid number of coefficients!");
-        }
-        return strehlIso(coefLGS, airmass, theta_LGS, h_0, r_0, wavelength)
-                * strehlIso(coefLO, airmass, theta_LO, h_0, r_0, wavelength);
+
+        final double coeff2 = (coeff.length == 3) ? coeff[2] : Double.NaN;
+
+        return strehlIso(coeff[0], coeff2, airmass, theta_LGS, h_0, r_0, wavelength)
+                * strehlIso(coeff[1], coeff2, airmass, theta_LO, h_0, r_0, wavelength);
     }
 
     /**
@@ -664,63 +632,46 @@ public final class AsproLGS {
         final double eqDM_pitch = eqDM.eqDM_pitch;
         final double f_loop_NGS = configAo.f_loop_NGS;
         final double g_loop_NGS = configAo.g_loop_NGS;
-        final double n_ph_NGS = mag2nph(configAo.magnitude_NGS, configWFS_NGS.mag2flux, configWFS_NGS.transmission,
-                configWFS_NGS.D_WFS, f_loop_NGS);
+        final double n_ph_NGS = mag2nph(configAo.magnitude_NGS, configWFS_NGS.mag2flux, configWFS_NGS.transmission, configWFS_NGS.D_WFS, f_loop_NGS);
+
+        // ##### Loading Strehl damping coefficient #####
+        final double[] coeff_geom = configStrehl.geom;
+        final double[] coeff_lag = configStrehl.lag;
+        final double[] coeff_iso = configStrehl.iso;
 
         if (isNGS(flagMode)) {
-            // ##### Loading Strehl damping coefficient #####
-            final double[] coeff_geom = configStrehl.geom;
-            final double[] coeff_lag = configStrehl.lag;
             final double[] coeff_ph = configStrehl.ph;
             final double[] coeff_ron = configStrehl.ron;
-            final double[] coeff_iso = configStrehl.iso;
 
             // ##### Computing individual Strehl contributions #####
             final double SR_geom = strehlGeom(coeff_geom, airmass, eqDM_pitch, r_0, wavelength_target);
-            final double SR_lag = strehlLag(coeff_lag, airmass, v_0, r_0, wavelength_target, f_loop_NGS, g_loop_NGS);
-            final double SR_ph = strehlPh(coeff_ph, n_ph_NGS, wavelength_target, configWFS_NGS.wavelength,
-                    g_loop_NGS, configWFS_NGS.ExcessNoiseFactor);
-            final double SR_ron = strehlRon(coeff_ron, configWFS_NGS.sig_RON, n_ph_NGS, configWFS_NGS.pixScale,
-                    configWFS_NGS.n_pix, g_loop_NGS);
-            final double SR_iso = strehlIso(coeff_iso, airmass, Math.abs(configAo.theta_NGS), h_0, r_0,
-                    wavelength_target);
+            final double SR_lag = strehlLag(coeff_lag[0], coeff_lag[1], airmass, v_0, r_0, wavelength_target, f_loop_NGS, g_loop_NGS);
+            final double SR_ph = strehlPh(coeff_ph[0], n_ph_NGS, wavelength_target, configWFS_NGS.wavelength, g_loop_NGS, configWFS_NGS.ExcessNoiseFactor);
+            final double SR_ron = strehlRon(coeff_ron[0], configWFS_NGS.sig_RON, n_ph_NGS, configWFS_NGS.pixScale, configWFS_NGS.n_pix, g_loop_NGS);
+            final double SR_iso = strehlIso(coeff_iso[0], coeff_iso[1], airmass, Math.abs(configAo.theta_NGS), h_0, r_0, wavelength_target);
 
             // ##### Output #####
             return SR_geom * SR_lag * SR_ph * SR_ron * SR_iso;
 
         } else if (isLGS(flagMode)) {
-            // ##### Loading Strehl damping coefficient #####
-            final double[] coeff_geom = configStrehl.geom;
             final double[] coeff_cone = configStrehl.cone;
-            final double[] coeff_lag = configStrehl.lag;
             final double[] coeff_ph_ron_LO = configStrehl.ph_ron_LO;
             final double[] coeff_ph_ron_LGS = configStrehl.ph_ron_LGS;
-            final double[] coeff_iso = configStrehl.iso;
 
             // ##### Computing individual Strehl contributions #####
             final double g_loop_LGS = configAo.g_loop_LGS;
             final double n_ph_LGS = configWFS_LGS.n_ph;
             final double SR_geom = strehlGeom(coeff_geom, airmass, eqDM_pitch, r_0, wavelength_target);
-            final double SR_cone = strehlCone(coeff_cone, airmass, h_0, configWFS_LGS.h_LGS, configWFS_NGS.D_tel,
-                    r_0, wavelength_target);
-            final double SR_lag = strehlLagLGS(coeff_lag, airmass, v_0, r_0, wavelength_target,
-                    configAo.f_loop_LGS, g_loop_LGS, f_loop_NGS, g_loop_NGS);
-            final double SR_ph
-                         = strehlPh(new double[]{coeff_ph_ron_LGS[0]}, n_ph_LGS, wavelength_target,
-                    arcsecond2rad(1.0) * configWFS_LGS.D_WFS, g_loop_LGS, configWFS_LGS.ExcessNoiseFactor)
-                    * strehlPh(new double[]{coeff_ph_ron_LO[0]}, n_ph_NGS, wavelength_target,
-                    configWFS_NGS.wavelength, g_loop_NGS, configWFS_NGS.ExcessNoiseFactor);
-            final double SR_ron
-                         = strehlRon(new double[]{coeff_ph_ron_LGS[1]}, configWFS_LGS.sig_RON, n_ph_LGS,
-                    configWFS_LGS.pixScale, configWFS_LGS.n_pix, g_loop_LGS)
-                    * strehlRon(new double[]{coeff_ph_ron_LO[1]}, configWFS_NGS.sig_RON, n_ph_NGS,
-                    configWFS_NGS.pixScale, configWFS_NGS.n_pix, g_loop_NGS);
-            final double SR_iso = strehlIsoLGS(coeff_iso, airmass, Math.abs(configAo.theta_LGS),
-                    Math.abs(configAo.theta_NGS), h_0, r_0, wavelength_target);
+            final double SR_cone = strehlCone(coeff_cone, airmass, h_0, configWFS_LGS.h_LGS, configWFS_NGS.D_tel, r_0, wavelength_target);
+            final double SR_lag = strehlLagLGS(coeff_lag, airmass, v_0, r_0, wavelength_target, configAo.f_loop_LGS, g_loop_LGS, f_loop_NGS, g_loop_NGS);
+            final double SR_ph = strehlPh(coeff_ph_ron_LGS[0], n_ph_LGS, wavelength_target, arcsecond2rad(1.0) * configWFS_LGS.D_WFS, g_loop_LGS, configWFS_LGS.ExcessNoiseFactor)
+                    * strehlPh(coeff_ph_ron_LO[0], n_ph_NGS, wavelength_target, configWFS_NGS.wavelength, g_loop_NGS, configWFS_NGS.ExcessNoiseFactor);
+            final double SR_ron = strehlRon(coeff_ph_ron_LGS[1], configWFS_LGS.sig_RON, n_ph_LGS, configWFS_LGS.pixScale, configWFS_LGS.n_pix, g_loop_LGS)
+                    * strehlRon(coeff_ph_ron_LO[1], configWFS_NGS.sig_RON, n_ph_NGS, configWFS_NGS.pixScale, configWFS_NGS.n_pix, g_loop_NGS);
+            final double SR_iso = strehlIsoLGS(coeff_iso, airmass, Math.abs(configAo.theta_LGS), Math.abs(configAo.theta_NGS), h_0, r_0, wavelength_target);
 
             // ##### Output #####
             return SR_geom * SR_cone * SR_lag * SR_ph * SR_ron * SR_iso;
-
         } else {
             throw new IllegalArgumentException(flagMode + " -> Unknown mode (NGS* / LGS*)");
         }
@@ -738,6 +689,7 @@ public final class AsproLGS {
     private static double cn2WeightedLayer(final double Cn2, final double values, final boolean useAbs) {
         double num = 0.0;
         double den = 0.0;
+// LBO: disabled !        
 //        for (int i = 0; i < Cn2.length; i++) {
         final double v = useAbs ? Math.abs(values/*[i]*/) : values/*[i]*/;
         num += Cn2/*[i]*/ * Math.pow(v, 5.0 / 3.0);
