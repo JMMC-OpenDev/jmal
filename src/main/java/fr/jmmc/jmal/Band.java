@@ -64,6 +64,9 @@ GAIA/GAIA3.Grp	7769.02	7939.10	7619.96	6200.46	10465.57	2924.44	2554.95	1.27e-9	
     /** Speed of light (2.99792458e8) */
     public final static double C_LIGHT = 2.99792458e8;
 
+    /** seeing is given at 500 nm (microns) */
+    public final static double LAMBDA_V = 0.5;
+
     /**
      * Find the band corresponding to the given band name
      *
@@ -171,14 +174,10 @@ GAIA/GAIA3.Grp	7769.02	7939.10	7619.96	6200.46	10465.57	2924.44	2554.95	1.27e-9	
         // airmass: secant of the zenith angle (1/cos(zenith_angle))
         final double airmass = 1.0 / FastMath.cos(FastMath.toRadians(zenithAngle));
 
-        final double lambdaV = 0.5; // seeing is given at 500 nm
-
         // r0(e)=cos(90-e)^(3/5) * r0
-        final double r0_V = R0_FACTOR * (lambdaV / seeing);
+        final double r0_corr = R0_FACTOR * (LAMBDA_V / seeing) * FastMath.pow(airmass, -3.0 / 5.0);
 
-        final double r0_corr = r0_V * FastMath.pow(airmass, -3.0 / 5.0);
-
-        final double lambdaAO = (aoBand != Band.V) ? aoBand.getLambdaFluxZero() : lambdaV;
+        final double lambdaAO = (aoBand != Band.V) ? aoBand.getLambdaFluxZero() : LAMBDA_V;
 
         final double td_over_t0 = td / t0;
 
@@ -193,7 +192,7 @@ GAIA/GAIA3.Grp	7769.02	7939.10	7619.96	6200.46	10465.57	2924.44	2554.95	1.27e-9	
             logger.debug("magnitude     = {}", magnitude);
             logger.debug("diameter      = {}", diameter);
             logger.debug("seeing        = {}", seeing);
-            logger.debug("r0_V          = {}", r0_V);
+            logger.debug("r0_corr       = {}", r0_corr);
             logger.debug("(td/t0)       = {}", td_over_t0);
             logger.debug("nbSubPupils   = {}", nbSubPupils);
             logger.debug("ds2           = {}", ds2);
@@ -228,11 +227,10 @@ GAIA/GAIA3.Grp	7769.02	7939.10	7619.96	6200.46	10465.57	2924.44	2554.95	1.27e-9	
             // seeing * a = 1.029 * lambdaV * 1E-6 / r0 with a = 1 arcsec in radians = PI / 180 * 3600
             // thus r0 = 1.029 * 1E-6 / a * seeing
             // use lambdaV as seeing is given for V:
-            lambdaRatio = (lambdaObs / lambdaV);
+            lambdaRatio = (lambdaObs / LAMBDA_V);
 
             // r0 at lambda obs:
             r0 = r0_corr * FastMath.pow(lambdaRatio, (6.0 / 5.0));
-            d_over_r0 = diameter / r0; // Math.max(1.0, diameter / r0);
             ds_over_r0 = ds / r0;
 
             // constant was 0.87 = AMD-REP 001 p32 (related to AO system)
@@ -259,7 +257,8 @@ GAIA/GAIA3.Grp	7769.02	7939.10	7619.96	6200.46	10465.57	2924.44	2554.95	1.27e-9	
 
             e_sigmaphi2 = FastMath.exp(-sigmaphi2);
 
-            strehlPerChannel[i] = e_sigmaphi2 + (1.0 - e_sigmaphi2) / (1.0 + FastMath.pow(d_over_r0, 2.0));
+            // short exposure strehl:
+            strehlPerChannel[i] = e_sigmaphi2;
 
             if (logger.isDebugEnabled()) {
                 logger.debug("lambda          = {}", lambdaObs);
@@ -276,6 +275,51 @@ GAIA/GAIA3.Grp	7769.02	7939.10	7619.96	6200.46	10465.57	2924.44	2554.95	1.27e-9	
         return strehlPerChannel;
     }
 
+    public static void strehlLongExposure(final double[] waveLengths, final double diameter,
+                                          final double seeing, final double elevation,
+                                          final double[] strehlPerChannel) {
+
+        // avoid cos(0) so use min elevation = 0.5 deg:
+        final double zenithAngle = 90.0 - Math.max(elevation, 0.5);
+
+        // airmass: secant of the zenith angle (1/cos(zenith_angle))
+        final double airmass = 1.0 / FastMath.cos(FastMath.toRadians(zenithAngle));
+
+        // r0(e)=cos(90-e)^(3/5) * r0
+        final double r0_corr = R0_FACTOR * (LAMBDA_V / seeing) * FastMath.pow(airmass, -3.0 / 5.0);
+
+        final int nWLen = waveLengths.length;
+
+        double lambdaObs, lambdaRatio;
+        double r0, d_over_r0, e_sigmaphi2;
+
+        for (int i = 0; i < nWLen; i++) {
+            lambdaObs = waveLengths[i] * 1e6; // microns
+
+            // explication formule r0:
+            // seeing = angular FWHM of seeing in V = 1.029 lambdaV / r0 where r0 = fried coherence length.
+            // to have seeing in arcsec and all wavelengths in microns, we have
+            // seeing * a = 1.029 * lambdaV * 1E-6 / r0 with a = 1 arcsec in radians = PI / 180 * 3600
+            // thus r0 = 1.029 * 1E-6 / a * seeing
+            // use lambdaV as seeing is given for V:
+            lambdaRatio = (lambdaObs / LAMBDA_V);
+
+            // r0 at lambda obs:
+            r0 = r0_corr * FastMath.pow(lambdaRatio, (6.0 / 5.0));
+            d_over_r0 = diameter / r0;
+
+            e_sigmaphi2 = strehlPerChannel[i];
+
+            strehlPerChannel[i] = e_sigmaphi2 + (1.0 - e_sigmaphi2) / (1.0 + FastMath.pow(d_over_r0, 2.0));
+
+            if (logger.isDebugEnabled()) {
+                logger.debug("lambda          = {}", lambdaObs);
+                logger.debug("r0              = {}", r0);
+                logger.debug("strehl          = {}", strehlPerChannel[i]);
+            }
+        }
+    }
+
     // GRAVITY NGS_VIS: [4.337, 1.864]
     public static final double[] COEFFS_ISO_NGS_VIS = new double[]{4.337, 1.864};
     // GRAVITY NGS_IR: [1.75 , 1.973]
@@ -285,7 +329,7 @@ GAIA/GAIA3.Grp	7769.02	7939.10	7619.96	6200.46	10465.57	2924.44	2554.95	1.27e-9	
     public static final double[] COEFFS_ISO_LGS_VIS_LGS = new double[]{4.326, 1.985};
     public static final double[] COEFFS_ISO_LGS_VIS_NGS = new double[]{0.390, 1.985};
 
-    // GRAVITY LGS IR: [4.169, 0.35 , 1.958]
+    // GRAVITY LGS IR: [4.169, 0.35, 1.958]
     public static final double[] COEFFS_ISO_LGS_IR__LGS = new double[]{4.169, 1.958};
     public static final double[] COEFFS_ISO_LGS_IR__NGS = new double[]{0.350, 1.958};
 
@@ -343,10 +387,8 @@ GAIA/GAIA3.Grp	7769.02	7939.10	7619.96	6200.46	10465.57	2924.44	2554.95	1.27e-9	
         // airmass: secant of the zenith angle (1/cos(zenith_angle))
         final double airmass = 1.0 / FastMath.cos(FastMath.toRadians(zenithAngle));
 
-        final double lambdaV = 0.5; // seeing is given at 500 nm
-
         // r0(e)=cos(90-e)^(3/5) * r0
-        final double r0_corr = R0_FACTOR * (lambdaV / seeing) * FastMath.pow(airmass, -3.0 / 5.0);
+        final double r0_corr = R0_FACTOR * (LAMBDA_V / seeing) * FastMath.pow(airmass, -3.0 / 5.0);
 
         final int nWLen = waveLengths.length;
         final double[] strehlPerChannel = new double[nWLen];
@@ -357,7 +399,7 @@ GAIA/GAIA3.Grp	7769.02	7939.10	7619.96	6200.46	10465.57	2924.44	2554.95	1.27e-9	
             lambdaObs = waveLengths[i] * 1e6; // microns
 
             // use lambdaV as seeing is given for V:
-            lambdaRatio = (lambdaObs / lambdaV);
+            lambdaRatio = (lambdaObs / LAMBDA_V);
 
             // r0 at lambda AO:
             r0 = r0_corr * FastMath.pow(lambdaRatio, (6.0 / 5.0));
